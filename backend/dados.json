@@ -1,0 +1,140 @@
+[
+  {
+    "id": 1751649771961,
+    "nome": "Joao",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 10000,
+    "valorComJuros": 12000,
+    "parcelas": 5,
+    "valorParcela": 2400,
+    "statusParcelas": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": 1751650502482,
+    "nome": "teste",
+    "email": "joaopp00@outlook.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 500,
+    "valorComJuros": 600,
+    "parcelas": 3,
+    "valorParcela": 200,
+    "statusParcelas": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": 1751651702932,
+    "nome": "teste2",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 500,
+    "valorComJuros": 600,
+    "parcelas": 6,
+    "valorParcela": 100,
+    "statusParcelas": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": 1751652550391,
+    "nome": "Joao pp",
+    "email": "joao321@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 500,
+    "valorComJuros": 600,
+    "parcelas": 6,
+    "valorParcela": 100,
+    "statusParcelas": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  {
+    "id": 1751656158992,
+    "nome": "Brenda Rodrigues dos Santos 34",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 500,
+    "valorComJuros": 600,
+    "parcelas": 1,
+    "valorParcela": 600,
+    "statusParcelas": [
+      true
+    ],
+    "quitado": true
+  },
+  {
+    "id": 1751656211823,
+    "nome": "pepe",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 500,
+    "valorComJuros": 600,
+    "parcelas": 1,
+    "valorParcela": 600,
+    "statusParcelas": [
+      false
+    ]
+  },
+  {
+    "id": 1751656257983,
+    "nome": "tete",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "1234",
+    "valorOriginal": 10,
+    "valorComJuros": 12,
+    "parcelas": 1,
+    "valorParcela": 12,
+    "statusParcelas": [
+      true
+    ],
+    "quitado": true
+  },
+  {
+    "id": 1751662944092,
+    "nome": "asdaaaaa",
+    "email": "joao@joao.com",
+    "telefone": "1344",
+    "cpf": "7897",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 3,
+    "valorParcela": 1600,
+    "statusParcelas": [
+      true,
+      true,
+      false
+    ],
+    "quitado": false,
+    "datasPagamentos": [
+      null,
+      "2025-07-04T21:15:43.864Z",
+      null
+    ]
+  }
+]

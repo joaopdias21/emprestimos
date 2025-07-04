@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Controle de Empréstimos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Cadastro de Empréstimo</h1>
+
+  <div class="form-container">
+    <!-- Coluna de cadastro -->
+    <div class="form-column">
+      <form id="emprestimoForm">
+        <input type="text" placeholder="Nome" id="nome" required />
+        <input type="email" placeholder="Email" id="email" required />
+        <input type="text" placeholder="Telefone" id="telefone" required />
+        <input type="text" placeholder="CPF" id="cpf" required />
+        <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
+
+        <div id="infoValores"></div>
+
+        <input type="number" placeholder="Número de parcelas" id="parcelas" required />
+        <button type="submit">Cadastrar</button>
+      </form>
+    </div>
+
+    <!-- Coluna de pesquisa empréstimos ativos -->
+    <div class="form-column">
+      <h2>Pesquisar Empréstimos</h2>
+      <input type="text" id="pesquisa" placeholder="Buscar por nome ou CPF" />
+      <ul id="resultado"></ul>
+    </div>
+
+    <!-- Coluna de pesquisa empréstimos quitados -->
+    <div class="form-column">
+      <h2>Empréstimos Quitados</h2>
+      <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por nome ou CPF" />
+      <ul id="resultadoQuitados"></ul>
+    </div>
+  </div>
+
+  <div id="modalDetalhes" class="modal">
+  <div class="modal-content">
+    <span id="modalFechar" class="modal-close">&times;</span>
+    <h2>Detalhes do Empréstimo</h2>
+    <div id="modalCorpo"></div>
+  </div>
+</div>
+
+  <script src="script.js"></script>
+</body>
+</html>
