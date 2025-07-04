@@ -73,7 +73,7 @@ async function abrirModal(emprestimo) {
 
       const dataPagamento = new Date().toISOString();
 
-      await fetch(`http://localhost:3000/emprestimos/${emprestimo.id}/parcela/${i}`, {
+      await fetch(`https://emprestimos-om94.onrender.com/emprestimos/${emprestimo.id}/parcela/${i}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dataPagamento })
@@ -142,7 +142,7 @@ form.addEventListener('submit', async (e) => {
     parcelas: parseInt(document.getElementById('parcelas').value),
   };
 
-  await fetch('http://localhost:3000/emprestimos', {
+  await fetch('https://emprestimos-om94.onrender.com/emprestimos', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
@@ -164,7 +164,7 @@ pesquisa.addEventListener('input', async () => {
 });
 
 async function realizarBusca(termo) {
-  const res = await fetch(`http://localhost:3000/emprestimos?termo=${termo}`);
+  const res = await fetch(`https://emprestimos-om94.onrender.com/emprestimos?termo=${termo}`);
   const dados = await res.json();
 
   const termoNormalizado = termo.toLowerCase();
@@ -218,7 +218,7 @@ async function realizarBusca(termo) {
               return;
             }
 
-            await fetch(`http://localhost:3000/emprestimos/${e.id}/parcela/${i}`, {
+            await fetch(`https://emprestimos-om94.onrender.com/emprestimos/${e.id}/parcela/${i}`, {
               method: 'PATCH'
             });
 
@@ -257,7 +257,7 @@ pesquisaQuitados.addEventListener('input', async () => {
     return;
   }
 
-  const res = await fetch('http://localhost:3000/emprestimos/quitados');
+  const res = await fetch('https://emprestimos-om94.onrender.com/emprestimos/quitados');
   const dados = await res.json();
 
   const termoNormalizado = termo.toLowerCase();
