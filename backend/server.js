@@ -21,8 +21,10 @@ function salvarDados(dados) {
 
 app.post('/emprestimos', (req, res) => {
   const dados = lerDados();
-  const { nome, email, telefone, cpf, valor, parcelas } = req.body;
-  const valorComJuros = valor * 1.2;
+  const { nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento, valor, parcelas, taxaJuros = 20 } = req.body;
+
+  const taxa = parseFloat(taxaJuros) / 100;
+  const valorComJuros = valor * (1 + taxa);
   const valorParcela = valorComJuros / parcelas;
 
   const novoEmprestimo = {
@@ -31,10 +33,17 @@ app.post('/emprestimos', (req, res) => {
     email,
     telefone,
     cpf,
+    endereco,
+    cidade,
+    estado,
+    cep,
+    numero,
+    complemento,
     valorOriginal: valor,
     valorComJuros,
     parcelas,
     valorParcela,
+    taxaJuros,
     statusParcelas: Array.from({ length: parcelas }, () => false),
     datasPagamentos: Array.from({ length: parcelas }, () => null),
     quitado: false
@@ -45,6 +54,7 @@ app.post('/emprestimos', (req, res) => {
 
   res.status(201).json(novoEmprestimo);
 });
+
 
 
 

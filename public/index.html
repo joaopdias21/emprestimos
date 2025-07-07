@@ -7,21 +7,31 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Cadastro de Empréstimo</h1>
 
   <div class="form-container">
     <!-- Coluna de cadastro -->
     <div class="form-column">
+  <h2>Cadastro de Empréstimo</h2>
+
       <form id="emprestimoForm">
         <input type="text" placeholder="Nome" id="nome" required />
         <input type="email" placeholder="Email" id="email" required />
         <input type="text" placeholder="Telefone" id="telefone" required />
         <input type="text" placeholder="CPF" id="cpf" required />
+        <div class="campo-cep">
+          <input type="text" placeholder="CEP" id="cep" required maxlength="9" />
+          <button type="button" id="consultarCep">Consultar</button>
+        </div>
+        <input type="text" placeholder="Endereço" id="endereco" required />
+        <input type="text" placeholder="Número" id="numero" required />
+        <input type="text" placeholder="Complemento (Ex: ' Apto ', ' Bloco ', ' Casa ')" id="complemento"/>
+        <input type="text" placeholder="Cidade" id="cidade" required />
+        <input type="text" placeholder="Estado" id="estado" required maxlength="2" />
         <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
+        <input type="number" placeholder="Número de parcelas" id="parcelas"  min="1" max="100" step="1"required />
 
         <div id="infoValores"></div>
 
-        <input type="number" placeholder="Número de parcelas" id="parcelas" required />
         <button type="submit">Cadastrar</button>
       </form>
     </div>
@@ -29,14 +39,14 @@
     <!-- Coluna de pesquisa empréstimos ativos -->
     <div class="form-column">
       <h2>Pesquisar Empréstimos</h2>
-      <input type="text" id="pesquisa" placeholder="Buscar por nome ou CPF" />
+      <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
       <ul id="resultado"></ul>
     </div>
 
     <!-- Coluna de pesquisa empréstimos quitados -->
     <div class="form-column">
       <h2>Empréstimos Quitados</h2>
-      <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por nome ou CPF" />
+      <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
       <ul id="resultadoQuitados"></ul>
     </div>
   </div>
@@ -44,10 +54,12 @@
   <div id="modalDetalhes" class="modal">
   <div class="modal-content">
     <span id="modalFechar" class="modal-close">&times;</span>
-    <h2>Detalhes do Empréstimo</h2>
+    <h2 id="detalhesDoEmprestimo">Detalhes do Empréstimo</h2>
+    <br><br>
     <div id="modalCorpo"></div>
   </div>
 </div>
+<div id="alertaCustom" style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;"></div>
 
   <script src="script.js"></script>
 </body>

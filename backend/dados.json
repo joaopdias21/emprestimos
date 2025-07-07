@@ -136,5 +136,290 @@
       "2025-07-04T21:15:43.864Z",
       null
     ]
+  },
+  {
+    "id": 1751892636974,
+    "nome": "teste 1222",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2709",
+    "endereco": "Rua sete",
+    "cidade": "TESTEEE",
+    "estado": "AM",
+    "cep": "199919181",
+    "valorOriginal": 10000,
+    "valorComJuros": 12000,
+    "parcelas": 7,
+    "valorParcela": 1714.2857142857142,
+    "juros": 20,
+    "statusParcelas": [
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      "2025-07-07T12:50:56.256Z",
+      "2025-07-07T12:51:03.993Z",
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751895813169,
+    "nome": "teste 20",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2709",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 6,
+    "valorParcela": 800,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751895900849,
+    "nome": "res",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2709",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 5,
+    "valorParcela": 960,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751896345522,
+    "nome": "teste28",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2709",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 3,
+    "valorParcela": 1600,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751896569765,
+    "nome": "teste29",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2812",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 5,
+    "valorParcela": 960,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751896708586,
+    "nome": "joaooooo",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2900",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "1",
+    "complemento": "12",
+    "valorOriginal": 10000,
+    "valorComJuros": 12000,
+    "parcelas": 5,
+    "valorParcela": 2400,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751896772774,
+    "nome": "joaooooo2",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2900",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "1",
+    "complemento": "",
+    "valorOriginal": 4300,
+    "valorComJuros": 5160,
+    "parcelas": 3,
+    "valorParcela": 1720,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751897472179,
+    "nome": "joaoooooo 28",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2900",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "1",
+    "complemento": "",
+    "valorOriginal": 3520,
+    "valorComJuros": 4224,
+    "parcelas": 5,
+    "valorParcela": 844.8,
+    "juros": 20,
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751897915208,
+    "nome": "joaoo27",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "2900",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "1",
+    "complemento": "",
+    "valorOriginal": 10000,
+    "valorComJuros": 12500,
+    "parcelas": 5,
+    "valorParcela": 2500,
+    "taxaJuros": 25,
+    "statusParcelas": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      "2025-07-07T14:18:52.737Z",
+      "2025-07-07T14:19:00.242Z",
+      "2025-07-07T14:19:11.673Z",
+      null,
+      null
+    ],
+    "quitado": false
   }
 ]

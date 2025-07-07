@@ -18,6 +18,7 @@ h1 {
   color: #004085;
   margin-bottom: 20px;
   text-align: left;
+  
 }
 
 /* CONTAINER PRINCIPAL - AGORA COM 3 COLUNAS */
@@ -66,6 +67,10 @@ input:focus {
   box-shadow: 0 0 0 2px rgba(0,64,133,0.2);
 }
 
+
+.detalhesDoEmprestimo{
+  margin-bottom: 200px;
+}
 button {
   background-color: #004085;
   color: white;
@@ -183,5 +188,33 @@ button:hover {
   border-left: 1px solid #ddd;
 }
 
+.campo-cep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campo-cep input {
+  flex-grow: 1;
+  padding: 10px;
+  font-size: 14px;
+}
+
+.campo-cep button {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  background-color: #004085;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  width: auto;
+}
+
+.campo-cep button:hover {
+  background-color: #002b5a;
+}
 
 
