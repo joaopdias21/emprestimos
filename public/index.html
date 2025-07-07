@@ -13,7 +13,7 @@
     <div class="form-column">
   <h2>Cadastro de Empréstimo</h2>
 
-      <form id="emprestimoForm">
+      <form id="emprestimoForm" enctype="multipart/form-data">
         <input type="text" placeholder="Nome" id="nome" required />
         <input type="email" placeholder="Email" id="email" required />
         <input type="text" placeholder="Telefone" id="telefone" required />
@@ -31,10 +31,19 @@
         <input type="number" placeholder="Número de parcelas" id="parcelas"  min="1" max="100" step="1"required />
 
         <div id="infoValores"></div>
+        <div id="tabelaParcelas"></div>
+<br><br>
+      <div class="campo-anexo">
+      <label for="anexos">Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
+      <input type="file" id="anexos" name="anexos" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
+    </div>
+<br><br>
+
 
         <button type="submit">Cadastrar</button>
       </form>
     </div>
+
 
     <!-- Coluna de pesquisa empréstimos ativos -->
     <div class="form-column">

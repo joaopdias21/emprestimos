@@ -1,9 +1,11 @@
-const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
-//const URL_SERVICO = 'http://localhost:3000'
+//const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
+const URL_SERVICO = 'http://localhost:3000'
 
 const form = document.getElementById('emprestimoForm');
 const pesquisa = document.getElementById('pesquisa');
 const resultado = document.getElementById('resultado');
+const cpfInput = document.getElementById('cpf');
+
 // const btnQuitados = document.getElementById('btnQuitados');
 const resultadoQuitados = document.getElementById('resultadoQuitados');
 const valorInput = document.getElementById('valor');
@@ -20,6 +22,30 @@ const estadoInput = document.getElementById('estado');
 const numeroInput = document.getElementById('numero');
 const complementoInput = document.getElementById('complemento');
 const consultarCepBtn = document.getElementById('consultarCep');
+const datasVencimentos = Array.from(document.querySelectorAll('.input-data-parcela'))
+  .map(input => input.value);
+
+
+  
+
+function aplicarMascaraCPF(valor) {
+  valor = valor.replace(/\D/g, ''); // Remove tudo que não é número
+  if (valor.length > 11) valor = valor.slice(0, 11); // Limita a 11 dígitos
+
+  if (valor.length > 9) {
+    valor = valor.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+  } else if (valor.length > 6) {
+    valor = valor.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
+  } else if (valor.length > 3) {
+    valor = valor.replace(/(\d{3})(\d{1,3})/, '$1.$2');
+  }
+  return valor;
+}
+
+
+cpfInput.addEventListener('input', (e) => {
+  e.target.value = aplicarMascaraCPF(e.target.value);
+});
 
 
 cepInput.addEventListener('input', () => {
@@ -107,6 +133,30 @@ function mostrarAlerta(mensagem, cor = '#4caf50') {
 }
 
 
+function mostrarAlertaError(mensagem, cor = '#f44336') {
+  const alerta = document.getElementById('alertaCustom');
+  alerta.textContent = mensagem;
+  alerta.style.backgroundColor = cor;
+  alerta.style.display = 'block';
+
+  setTimeout(() => {
+    alerta.style.display = 'none';
+  }, 3000); // oculta após 3 segundos
+}
+
+
+function mostrarAlertaWarning(mensagem, cor = '#ffc107') {
+  const alerta = document.getElementById('alertaCustom');
+  alerta.textContent = mensagem;
+  alerta.style.backgroundColor = cor;
+  alerta.style.display = 'block';
+
+  setTimeout(() => {
+    alerta.style.display = 'none';
+  }, 3000); // oculta após 3 segundos
+}
+
+
 // Função para formatar número como moeda brasileira
 function formatarMoeda(valor) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
@@ -117,12 +167,14 @@ function atualizarResumoValores() {
   const valorNumerico = +valorInput.value.replace(/\D/g, '') / 100;
   const qtdParcelas = parseInt(parcelasInput.value);
 
-  // Se jurosInput.value for vazio, usa 20
   let taxaJuros = parseFloat(jurosInput.value);
   if (isNaN(taxaJuros) || taxaJuros === '') {
-    taxaJuros = 20; // valor default 20%
+    taxaJuros = 20; // default
   }
   taxaJuros = taxaJuros / 100;
+
+  const tabelaParcelas = document.getElementById('tabelaParcelas');
+  tabelaParcelas.innerHTML = '';
 
   if (isNaN(valorNumerico) || isNaN(qtdParcelas) || qtdParcelas <= 0) {
     infoValores.innerHTML = '';
@@ -132,13 +184,55 @@ function atualizarResumoValores() {
   const valorComJuros = valorNumerico * (1 + taxaJuros);
   const valorParcela = valorComJuros / qtdParcelas;
 
-infoValores.innerHTML = `
-  <p>Valor original: <strong>${formatarMoeda(valorNumerico)}</strong></p>
-  <p>Valor com juros (${(taxaJuros * 100).toFixed(0)}%): <strong>${formatarMoeda(valorComJuros)}</strong></p>
-  <p>${qtdParcelas}x de <strong>${formatarMoeda(valorParcela)}</strong></p>
+  // Exibe o resumo
+  infoValores.innerHTML = `
+    <p>Valor original: <strong>${formatarMoeda(valorNumerico)}</strong></p>
+    <p>Valor com juros (${(taxaJuros * 100).toFixed(0)}%): <strong>${formatarMoeda(valorComJuros)}</strong></p>
+    <p>${qtdParcelas}x de <strong>${formatarMoeda(valorParcela)}</strong></p>
+  `;
+
+  // Cria a tabela com datas
+  const hoje = new Date();
+const primeiroVencimento = new Date(hoje);
+primeiroVencimento.setMonth(primeiroVencimento.getMonth() + 1);
+
+let tabelaHTML = `
+  <table class="tabela-parcelas">
+    <thead>
+      <tr>
+        <th>Parcela</th>
+        <th>Valor</th>
+        <th>Vencimento</th>
+      </tr>
+    </thead>
+    <tbody>
 `;
 
+for (let i = 0; i < qtdParcelas; i++) {
+  const vencimento = new Date(hoje);
+  vencimento.setMonth(vencimento.getMonth() + i + 1); // começa um mês à frente
+
+
+  const dataFormatada = vencimento.toISOString().split('T')[0]; // formato yyyy-mm-dd para <input type="date">
+
+  tabelaHTML += `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${formatarMoeda(valorParcela)}</td>
+      <td><input type="date" value="${dataFormatada}" class="input-data-parcela" data-index="${i}"></td>
+    </tr>
+  `;
 }
+
+tabelaHTML += `
+    </tbody>
+  </table>
+`;
+
+tabelaParcelas.innerHTML = tabelaHTML;
+
+}
+
 
 
 valorInput.addEventListener('input', (e) => {
@@ -159,6 +253,8 @@ parcelasInput.addEventListener('input', atualizarResumoValores);
 // ... (código anterior até abrirModal)
 
 async function abrirModal(emprestimo) {
+  const taxaJurosNumero = Number(emprestimo.taxaJuros);
+const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
   
   modalCorpo.innerHTML = `
     <div style="display: flex; gap: 40px; align-items: flex-start;">
@@ -187,7 +283,7 @@ async function abrirModal(emprestimo) {
         <br>
         <p><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</p>
         <br>
-        <p><strong>Valor com juros (${(emprestimo.taxaJuros || 20).toFixed(0)}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</p>
+        <p><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</p>
         <br>
         <p><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</p>
         ${emprestimo.quitado ? '<p style="color: green"><strong>QUITADO</strong></p>' : ''}
@@ -197,7 +293,20 @@ async function abrirModal(emprestimo) {
         <h3>Parcelas</h3>
       </div>
     </div>
+  `
+if (emprestimo.arquivos && emprestimo.arquivos.length > 0) {
+const listaArquivos = emprestimo.arquivos.map(a => 
+  `<li><a href="${URL_SERVICO}${a.caminho}" target="_blank">${a.nomeOriginal}</a></li>`
+).join('');
+
+
+  modalCorpo.querySelector('#detalhesEmprestimo').innerHTML += `
+    <br><h3>📎 Arquivos Anexados</h3>
+    <ul>${listaArquivos}</ul>
   `;
+}  
+  
+  ;
 
   const parcelasContainer = document.getElementById('parcelasContainer');
   const parcelas = emprestimo.statusParcelas || Array.from({ length: emprestimo.parcelas }, () => false);
@@ -206,25 +315,40 @@ async function abrirModal(emprestimo) {
   parcelas.forEach((paga, i) => {
     const item = document.createElement('div');
     item.style.marginBottom = '8px';
+    item.style.display = 'flex'; 
+    item.style.alignItems = 'flex-start';
+
 
     const chk = document.createElement('input');
     chk.type = 'checkbox';
     chk.checked = paga;
     chk.disabled = paga;
+    chk.style.marginRight = '10px'; 
+    chk.style.transform = 'scale(1.5)'; 
+    chk.style.cursor = 'pointer'; 
+    chk.style.marginTop = '4px'; 
 
-    const label = document.createElement('label');
-    label.style.marginLeft = '6px';
-    label.textContent = `Parcela ${i + 1} - ${formatarMoeda(emprestimo.valorParcela)}`;
+const label = document.createElement('label');
+label.style.lineHeight = '1.4';
 
-    // Exibir data se já foi paga
+const vencimento = emprestimo.datasVencimentos?.[i];
+const dataVencimento = vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : null;
+const valorParcelaFormatado = formatarMoeda(emprestimo.valorParcela);
+
+let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>`;
+    if (dataVencimento) {
+      html += `<strong>📅 Vencimento:</strong> ${dataVencimento}<br>`;
+    }
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-      label.textContent += ` (paga em ${data})`;
+      html += `<strong>✅ Paga em:</strong> ${data}`;
     }
+    label.innerHTML = html;
+
 
     chk.addEventListener('change', async () => {
       if (i > 0 && !parcelas[i - 1]) {
-        mostrarAlerta(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
+        mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
         chk.checked = false;
         return;
       }
@@ -242,6 +366,7 @@ async function abrirModal(emprestimo) {
       parcelas[i] = true;
       chk.disabled = true;
 
+      abrirModal(emprestimo);
       if (termoAtual) {
         await realizarBusca(termoAtual);
       }
@@ -291,42 +416,66 @@ valorInput.addEventListener('input', (e) => {
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const data = {
-    nome: document.getElementById('nome').value,
-    email: document.getElementById('email').value,
-    telefone: document.getElementById('telefone').value,
-    cpf: document.getElementById('cpf').value,
-    endereco: document.getElementById('endereco').value,
-    cidade: document.getElementById('cidade').value,
-    estado: document.getElementById('estado').value,
-    numero: document.getElementById('numero').value,
-    complemento: document.getElementById('complemento').value,
-    cep: document.getElementById('cep').value,
-    valor: +document.getElementById('valor').value.replace(/\D/g, '') / 100,
-    parcelas: parseInt(document.getElementById('parcelas').value),
-    taxaJuros: parseFloat(jurosInput.value) || 20
-  };
 
-  await fetch(`${URL_SERVICO}/emprestimos`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
+  const formData = new FormData();
 
-  mostrarAlerta('Empréstimo cadastrado!');
-  form.reset();
+  formData.append('nome', document.getElementById('nome').value);
+  formData.append('email', document.getElementById('email').value);
+  formData.append('telefone', document.getElementById('telefone').value);
+  formData.append('cpf', document.getElementById('cpf').value);
+  formData.append('endereco', document.getElementById('endereco').value);
+  formData.append('cidade', document.getElementById('cidade').value);
+  formData.append('estado', document.getElementById('estado').value);
+  formData.append('cep', document.getElementById('cep').value);
+  formData.append('numero', document.getElementById('numero').value);
+  formData.append('complemento', document.getElementById('complemento').value);
+  formData.append('valor', +document.getElementById('valor').value.replace(/\D/g, '') / 100);
+  formData.append('parcelas', parseInt(document.getElementById('parcelas').value));
+  formData.append('taxaJuros', parseFloat(jurosInput.value) || 20);
+
+  const vencimentos = Array.from(document.querySelectorAll('.input-data-parcela')).map(input => input.value);
+  vencimentos.forEach(data => formData.append('datasVencimentos', data));
+
+  const arquivos = document.getElementById('anexos').files;
+  for (let i = 0; i < arquivos.length; i++) {
+    formData.append('anexos', arquivos[i]);
+  }
+
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const erro = await response.text();
+      mostrarAlertaError(`Erro ao salvar: ${erro}`);
+      return;
+    }
+
+    mostrarAlerta('Empréstimo cadastrado com sucesso!');
+    form.reset();
+    atualizarResumoValores(); // para atualizar valores e limpar tabela
+
+  } catch (error) {
+    mostrarAlertaError(`Erro ao salvar: ${error.message}`);
+  }
 });
 
-pesquisa.addEventListener('input', async () => {
-  termoAtual = pesquisa.value.trim();
+
+
+pesquisa.addEventListener('input', (e) => {
+  e.target.value = aplicarMascaraCPF(e.target.value);
+  termoAtual = e.target.value.trim();
 
   if (termoAtual === '') {
     resultado.innerHTML = '';
     return;
   }
 
-  await realizarBusca(termoAtual);
+  realizarBusca(termoAtual);
 });
+
 
 async function realizarBusca(termo) {
   const res = await fetch(`${URL_SERVICO}/emprestimos?termo=${termo}`);
@@ -384,7 +533,7 @@ if (filtrado.length === 0) {
 
           chk.addEventListener('change', async () => {
             if (i > 0 && !parcelas[i - 1]) {
-              mostrarAlerta(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
+              mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
               chk.checked = false;
               return;
             }
@@ -420,45 +569,56 @@ if (filtrado.length === 0) {
 
 
 
-pesquisaQuitados.addEventListener('input', async () => {
-  const termo = pesquisaQuitados.value.trim().toLowerCase();
+pesquisaQuitados.addEventListener('input', (e) => {
+  e.target.value = aplicarMascaraCPF(e.target.value);
+  const termo = e.target.value.trim().toLowerCase();
 
   if (termo === '') {
     resultadoQuitados.innerHTML = '';
     return;
   }
 
-  const res = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
-  const dados = await res.json();
+  // Busca quitados já existente, adaptado para aguardar busca ao digitar
+  (async () => {
+    const res = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
+    const dados = await res.json();
 
-  const termoNormalizado = termo.toLowerCase();
+    const filtrado = dados.filter(e =>
+      e.cpf && e.cpf.toLowerCase().includes(termo)
+    );
 
-  const filtrado = dados.filter(e =>
-    e.cpf && e.cpf.toLowerCase().includes(termoNormalizado)
-  );
+    resultadoQuitados.innerHTML = '';
 
-  resultadoQuitados.innerHTML = '';
+    if (filtrado.length === 0) {
+      resultadoQuitados.innerHTML = '<li>Nenhum resultado encontrado</li>';
+      return;
+    }
 
-  if (filtrado.length === 0) {
-    resultadoQuitados.innerHTML = '<li>Nenhum resultado encontrado</li>';
-    return;
-  }
+    filtrado.forEach(e => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <p><strong>${e.nome}</strong></p>
+        <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
+        <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
+        <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
+        <p style="color: green"><strong>QUITADO</strong></p>
+      `;
 
- filtrado.forEach(e => {
-  const li = document.createElement('li');
-  li.innerHTML = `
-    <p><strong>${e.nome}</strong></p>
-    <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
-    <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
-    <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
-    <p style="color: green"><strong>QUITADO</strong></p>
-  `;
+      li.addEventListener('click', () => {
+        abrirModal(e);
+      });
 
-  li.addEventListener('click', () => {
-    abrirModal(e);
-  });
+      resultadoQuitados.appendChild(li);
+    });
+  })();
 
-  resultadoQuitados.appendChild(li);
 });
 
+const anexosInput = document.getElementById('anexos');
+anexosInput.addEventListener('change', () => {
+  const files = anexosInput.files;
+  if (files.length > 0) {
+    const nomes = Array.from(files).map(file => file.name).join(', ');
+    mostrarAlerta(`Arquivos selecionados: ${nomes}`, '#004085');
+  }
 });

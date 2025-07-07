@@ -128,13 +128,13 @@
     "statusParcelas": [
       true,
       true,
-      false
+      true
     ],
-    "quitado": false,
+    "quitado": true,
     "datasPagamentos": [
       null,
       "2025-07-04T21:15:43.864Z",
-      null
+      "2025-07-07T18:21:07.303Z"
     ]
   },
   {
@@ -345,12 +345,12 @@
     "valorParcela": 1720,
     "juros": 20,
     "statusParcelas": [
-      false,
+      true,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
+      "2025-07-07T16:30:54.710Z",
       null,
       null
     ],
@@ -419,6 +419,230 @@
       "2025-07-07T14:19:11.673Z",
       null,
       null
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751913496039,
+    "nome": "TESTE TESTE TESTE",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "12",
+    "complemento": "",
+    "valorOriginal": 4000,
+    "valorComJuros": 5080,
+    "parcelas": 6,
+    "valorParcela": 846.6666666666666,
+    "taxaJuros": 27,
+    "statusParcelas": [
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      "2025-07-07T18:38:47.437Z",
+      "2025-07-07T18:52:16.387Z",
+      "2025-07-07T19:00:10.954Z",
+      null,
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-07",
+      "2025-09-07",
+      "2025-10-07",
+      "2025-11-07",
+      "2025-12-07",
+      "2026-01-07"
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751917969922,
+    "nome": "teste img",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "12",
+    "complemento": "",
+    "valorOriginal": "10000",
+    "valorComJuros": 12000,
+    "parcelas": "6",
+    "valorParcela": 2000,
+    "taxaJuros": "20",
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-07",
+      "2025-09-07",
+      "2025-10-07",
+      "2025-11-07",
+      "2025-12-07",
+      "2026-01-07"
+    ],
+    "arquivos": [
+      {
+        "nomeOriginal": "Peaky Blinders âï¸.jpeg",
+        "caminho": "/uploads/anexos-1751917969919-5031138.jpeg"
+      }
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751919607810,
+    "nome": "teste img2",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "12",
+    "complemento": "",
+    "valorOriginal": "10000",
+    "valorComJuros": 12000,
+    "parcelas": "5",
+    "valorParcela": 2400,
+    "taxaJuros": "20",
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-07",
+      "2025-09-07",
+      "2025-10-07",
+      "2025-11-07",
+      "2025-12-07"
+    ],
+    "arquivos": [
+      {
+        "nomeOriginal": "Peaky Blinders âï¸.jpeg",
+        "caminho": "/uploads/anexos-1751917969919-5031138.jpeg"
+      }
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751919719281,
+    "nome": "teste img 3",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "12",
+    "complemento": "",
+    "valorOriginal": "4300",
+    "valorComJuros": 5160,
+    "parcelas": "5",
+    "valorParcela": 1032,
+    "taxaJuros": "20",
+    "statusParcelas": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-07",
+      "2025-09-07",
+      "2025-10-07",
+      "2025-11-07",
+      "2025-12-07"
+    ],
+    "arquivos": [
+      {
+        "nomeOriginal": "Peaky Blinders âï¸.jpeg",
+        "caminho": "/uploads/anexos-1751919719276-663449753.jpeg"
+      }
+    ],
+    "quitado": false
+  },
+  {
+    "id": 1751919770606,
+    "nome": "teste img5",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-00",
+    "endereco": "Rua Hera",
+    "cidade": "Cotia",
+    "estado": "SP",
+    "cep": "06702-130",
+    "numero": "12",
+    "complemento": "",
+    "valorOriginal": "4000",
+    "valorComJuros": 4800,
+    "parcelas": "3",
+    "valorParcela": 1600,
+    "taxaJuros": "20",
+    "statusParcelas": [
+      false,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      null,
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-07",
+      "2025-09-07",
+      "2025-10-07"
+    ],
+    "arquivos": [
+      {
+        "nomeOriginal": "ColmeiaAntigo.pdf",
+        "caminho": "/uploads/anexos-1751919770603-269486863.pdf"
+      }
     ],
     "quitado": false
   }

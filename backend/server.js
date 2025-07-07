@@ -2,11 +2,21 @@
 const express = require('express');
 const fs = require('fs');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
+
 const app = express();
 const PORT = 3000;
 
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadDir));
+ // permite acessar os arquivos via navegador
 
 const FILE = './dados.json';
 
@@ -19,9 +29,37 @@ function salvarDados(dados) {
   fs.writeFileSync(FILE, JSON.stringify(dados, null, 2));
 }
 
-app.post('/emprestimos', (req, res) => {
+
+// Configuração do multer para salvar arquivos no diretório "uploads"
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({ storage });
+
+app.post('/emprestimos', upload.array('anexos'), (req, res) => {
+  console.log('Arquivos recebidos:', req.files);
   const dados = lerDados();
-  const { nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento, valor, parcelas, taxaJuros = 20 } = req.body;
+  const {
+    nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+    valor, parcelas, taxaJuros = 20, datasVencimentos = []
+  } = req.body;
+
+  const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+
+  const arquivos = req.files?.map(file => ({
+    nomeOriginal: file.originalname,
+    caminho: `/uploads/${file.filename}`
+
+
+  })) || [];
 
   const taxa = parseFloat(taxaJuros) / 100;
   const valorComJuros = valor * (1 + taxa);
@@ -46,6 +84,13 @@ app.post('/emprestimos', (req, res) => {
     taxaJuros,
     statusParcelas: Array.from({ length: parcelas }, () => false),
     datasPagamentos: Array.from({ length: parcelas }, () => null),
+    datasVencimentos: vencimentos.length === parcelas ? vencimentos : Array.from({ length: parcelas }, (_, i) => {
+      const data = new Date();
+      data.setMonth(data.getMonth() + i + 1);
+      return data.toISOString().split('T')[0];
+    }),
+
+    arquivos,
     quitado: false
   };
 
@@ -118,6 +163,15 @@ app.get('/emprestimos', (req, res) => {
 });
 
 
+
+app.post('/upload-arquivos', upload.array('anexos'), (req, res) => {
+  console.log(req.files); // Arquivos enviados
+  res.status(200).json({ sucesso: true, arquivos: req.files });
+});
+
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
+
+

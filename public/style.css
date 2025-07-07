@@ -217,4 +217,69 @@ button:hover {
   background-color: #002b5a;
 }
 
+.tabela-parcelas {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
 
+.tabela-parcelas thead {
+  background-color: #0066cc;
+  color: white;
+}
+
+.tabela-parcelas th, 
+.tabela-parcelas td {
+  padding: 12px 16px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.tabela-parcelas tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.tabela-parcelas tr:hover {
+  background-color: #eef6ff;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.tabela-parcelas td:first-child {
+  font-weight: bold;
+}
+
+/* Ícones opcionais (se quiser usar futuramente) */
+.parcela-paga::before {
+  content: "✔️";
+  margin-right: 6px;
+  color: green;
+}
+
+.parcela-futura::before {
+  content: "📅";
+  margin-right: 6px;
+  color: #888;
+}
+
+
+
+.campo-anexo {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.campo-anexo label {
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.campo-anexo input[type="file"] {
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+}
