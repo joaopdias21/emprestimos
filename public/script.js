@@ -1,5 +1,5 @@
-const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
-//const URL_SERVICO = 'http://localhost:3000'
+//const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
+const URL_SERVICO = 'http://localhost:3000'
 
 const form = document.getElementById('emprestimoForm');
 const pesquisa = document.getElementById('pesquisa');
@@ -163,6 +163,8 @@ function formatarMoeda(valor) {
 }
 
 
+
+
 function atualizarResumoValores() {
   const valorNumerico = +valorInput.value.replace(/\D/g, '') / 100;
   const qtdParcelas = parseInt(parcelasInput.value);
@@ -208,7 +210,7 @@ let tabelaHTML = `
     <tbody>
 `;
 
-for (let i = 0; i < qtdParcelas; i++) {
+ for (let i = 0; i < qtdParcelas; i++) {
   const vencimento = new Date(hoje);
   vencimento.setMonth(vencimento.getMonth() + i + 1); // começa um mês à frente
 
@@ -466,10 +468,22 @@ form.addEventListener('submit', async (e) => {
 
 pesquisa.addEventListener('input', (e) => {
   e.target.value = aplicarMascaraCPF(e.target.value);
-  termoAtual = e.target.value.trim();
 
+  const cpfNumeros = e.target.value.replace(/\D/g, '');
+
+  // Se tiver menos de 11 dígitos, limpa os resultados
+  if (cpfNumeros.length < 11) {
+    resultado.innerHTML = '';
+    termoAtual = '';
+  }
+});
+
+
+document.getElementById('btnConsultarAtivos').addEventListener('click', () => {
+  termoAtual = pesquisa.value.trim();
   if (termoAtual === '') {
     resultado.innerHTML = '';
+    mostrarAlertaWarning('Informe um CPF para consultar');
     return;
   }
 
@@ -571,48 +585,52 @@ if (filtrado.length === 0) {
 
 pesquisaQuitados.addEventListener('input', (e) => {
   e.target.value = aplicarMascaraCPF(e.target.value);
-  const termo = e.target.value.trim().toLowerCase();
 
+  const cpfNumeros = e.target.value.replace(/\D/g, '');
+
+  // Se tiver menos de 11 dígitos, limpa os resultados
+  if (cpfNumeros.length < 11) {
+    resultadoQuitados.innerHTML = '';
+  }
+});
+
+document.getElementById('btnConsultarQuitados').addEventListener('click', async () => {
+  const termo = pesquisaQuitados.value.trim().toLowerCase();
   if (termo === '') {
     resultadoQuitados.innerHTML = '';
+    mostrarAlertaWarning('Informe um CPF para consultar');
     return;
   }
 
-  // Busca quitados já existente, adaptado para aguardar busca ao digitar
-  (async () => {
-    const res = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
-    const dados = await res.json();
+  const res = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
+  const dados = await res.json();
 
-    const filtrado = dados.filter(e =>
-      e.cpf && e.cpf.toLowerCase().includes(termo)
-    );
+  const filtrado = dados.filter(e =>
+    e.cpf && e.cpf.toLowerCase().includes(termo)
+  );
 
-    resultadoQuitados.innerHTML = '';
+  resultadoQuitados.innerHTML = '';
 
-    if (filtrado.length === 0) {
-      resultadoQuitados.innerHTML = '<li>Nenhum resultado encontrado</li>';
-      return;
-    }
+  if (filtrado.length === 0) {
+    resultadoQuitados.innerHTML = '<li>Nenhum resultado encontrado</li>';
+    return;
+  }
 
-    filtrado.forEach(e => {
-      const li = document.createElement('li');
-      li.innerHTML = `
-        <p><strong>${e.nome}</strong></p>
-        <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
-        <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
-        <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
-        <p style="color: green"><strong>QUITADO</strong></p>
-      `;
+  filtrado.forEach(e => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <p><strong>${e.nome}</strong></p>
+      <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
+      <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
+      <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
+      <p style="color: green"><strong>QUITADO</strong></p>
+    `;
 
-      li.addEventListener('click', () => {
-        abrirModal(e);
-      });
-
-      resultadoQuitados.appendChild(li);
-    });
-  })();
-
+    li.addEventListener('click', () => abrirModal(e));
+    resultadoQuitados.appendChild(li);
+  });
 });
+
 
 const anexosInput = document.getElementById('anexos');
 anexosInput.addEventListener('change', () => {

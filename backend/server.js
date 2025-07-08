@@ -4,6 +4,11 @@ const fs = require('fs');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
+function formatarDataLocal(data) {
+  const offset = data.getTimezoneOffset();
+  const local = new Date(data.getTime() - offset * 60000);
+  return local.toISOString().split('T')[0]; // yyyy-mm-dd
+}
 
 const app = express();
 const PORT = 3000;
@@ -27,6 +32,14 @@ function lerDados() {
 
 function salvarDados(dados) {
   fs.writeFileSync(FILE, JSON.stringify(dados, null, 2));
+}
+
+
+function formatarDataLocal(data) {
+  // Garante que o horário local não afete a data final
+  const offsetMs = data.getTimezoneOffset() * 60 * 1000;
+  const localISOTime = new Date(data.getTime() - offsetMs).toISOString().split('T')[0];
+  return localISOTime;
 }
 
 
@@ -87,7 +100,7 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
     datasVencimentos: vencimentos.length === parcelas ? vencimentos : Array.from({ length: parcelas }, (_, i) => {
       const data = new Date();
       data.setMonth(data.getMonth() + i + 1);
-      return data.toISOString().split('T')[0];
+      return formatarDataLocal(data);
     }),
 
     arquivos,
@@ -168,6 +181,24 @@ app.post('/upload-arquivos', upload.array('anexos'), (req, res) => {
   console.log(req.files); // Arquivos enviados
   res.status(200).json({ sucesso: true, arquivos: req.files });
 });
+
+
+app.get('/emprestimos/vencimento/:data', (req, res) => {
+  const dados = lerDados();
+  const dataSelecionada = req.params.data;
+  console.log('Data selecionada:', dataSelecionada);
+
+  const resultado = dados.filter(e => {
+    if (!Array.isArray(e.datasVencimentos)) return false;
+    console.log('Datas vencimentos do empréstimo:', e.datasVencimentos);
+
+    return !e.quitado && e.datasVencimentos.includes(dataSelecionada);
+  });
+
+  console.log('Resultado:', resultado);
+  res.json(resultado);
+});
+
 
 
 app.listen(PORT, () => {

@@ -47,18 +47,27 @@
 
     <!-- Coluna de pesquisa empréstimos ativos -->
     <div class="form-column">
-      <h2>Pesquisar Empréstimos</h2>
-      <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
+            <h2>Pesquisar Empréstimos</h2>
+            <div class="campo-busca">
+        <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
+        <button type="button" id="btnConsultarAtivos">Consultar</button>
+      </div>
       <ul id="resultado"></ul>
     </div>
 
     <!-- Coluna de pesquisa empréstimos quitados -->
     <div class="form-column">
       <h2>Empréstimos Quitados</h2>
-      <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
-      <ul id="resultadoQuitados"></ul>
+      <div class="campo-busca">
+        <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
+        <button type="button" id="btnConsultarQuitados">Consultar</button>
+</div>
     </div>
   </div>
+
+
+
+
 
   <div id="modalDetalhes" class="modal">
   <div class="modal-content">
