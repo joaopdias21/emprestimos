@@ -22,11 +22,145 @@ const estadoInput = document.getElementById('estado');
 const numeroInput = document.getElementById('numero');
 const complementoInput = document.getElementById('complemento');
 const consultarCepBtn = document.getElementById('consultarCep');
-const datasVencimentos = Array.from(document.querySelectorAll('.input-data-parcela'))
-  .map(input => input.value);
+
+const inputDataVencimento = document.getElementById('inputDataVencimento');
+const btnBuscarPorData = document.getElementById('btnBuscarPorData');
+const btnHoje = document.getElementById('btnHoje');
+
+const resultadoPorData = document.getElementById('resultadoPorData');
 
 
+
+const modalRecebedor = document.getElementById('modalRecebedor');
+const inputRecebedor = document.getElementById('inputRecebedor');
+const btnCancelarRecebedor = document.getElementById('btnCancelarRecebedor');
+const btnConfirmarRecebedor = document.getElementById('btnConfirmarRecebedor');
+
+let parcelaSelecionada = null;
+let emprestimoSelecionado = null;
+
+
+btnCancelarRecebedor.addEventListener('click', () => {
+  modalRecebedor.style.display = 'none';
+  parcelaSelecionada = null;
+});
+
+btnConfirmarRecebedor.addEventListener('click', async () => {
+  const nome = inputRecebedor.value.trim();
+  if (!nome) {
+    mostrarAlertaWarning('Digite o nome de quem recebeu.');
+    return;
+  }
+
+  const { emprestimo, indice, checkbox } = parcelaSelecionada;
+  const dataPagamento = new Date().toISOString();
+
+  try {
+    await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataPagamento, nomeRecebedor: nome })
+    });
+
+    mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
+    checkbox.checked = true;
+    checkbox.disabled = true;
+    emprestimo.statusParcelas[indice] = true;
+
+    abrirModal(emprestimoSelecionado);
+    if (termoAtual) await realizarBusca(termoAtual);
+
+  } catch (err) {
+    mostrarAlertaError('Erro ao marcar parcela como paga');
+    checkbox.checked = false;
+  }
+
+  modalRecebedor.style.display = 'none';
+  parcelaSelecionada = null;
+});
+
+
+
+document.getElementById('btnLimparData').addEventListener('click', () => {
+  resultadoPorData.innerHTML = '';
+  inputDataVencimento.value = '';
+});
+
+  btnBuscarPorData.addEventListener('click', async () => {
+  const data = inputDataVencimento.value;
+  if (!data) {
+    mostrarAlertaWarning('Selecione uma data');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${URL_SERVICO}/emprestimos/vencimento/${data}`);
+    const dados = await res.json();
+
+    resultadoPorData.innerHTML = '';
+
+    if (dados.length === 0) {
+      resultadoPorData.innerHTML = '<li>Nenhum empréstimo vence nesta data</li>';
+      return;
+    }
+
+    dados.forEach(e => {
+      const li = document.createElement('li');
+li.classList.add('card-vencimento');
+li.innerHTML = `
+  <h3>${e.nome}</h3>
+  <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+  <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+  <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+  <div class="lista-parcelas">
+    <p><strong>Parcelas com vencimento:</strong></p>
+    <ul>
+      ${e.datasVencimentos
+        .map((v, i) => {
+          if (v === data) {
+            const paga = e.statusParcelas?.[i] ? '✅ Paga' : '❌ Não paga';
+            return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
+          }
+          return '';
+        })
+        .join('')}
+    </ul>
+  </div>
+`;
+li.addEventListener('click', () => abrirModal(e));
+resultadoPorData.appendChild(li);
+ setTimeout(() => li.classList.add('mostrar'), 10);
   
+
+
+      li.addEventListener('click', () => abrirModal(e));
+      resultadoPorData.appendChild(li);
+    });
+  } catch (err) {
+    mostrarAlertaError('Erro ao buscar empréstimos por data');
+  }
+});
+
+
+btnHoje.addEventListener('click', () => {
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  const dataAtual = `${ano}-${mes}-${dia}`;
+
+  inputDataVencimento.value = dataAtual;
+  btnBuscarPorData.click(); // reutiliza a lógica já existente
+});
+
+
+
+
+
+
+
+
+
 
 function aplicarMascaraCPF(valor) {
   valor = valor.replace(/\D/g, ''); // Remove tudo que não é número
@@ -288,6 +422,7 @@ const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
         <p><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</p>
         <br>
         <p><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</p>
+        <br>
         ${emprestimo.quitado ? '<p style="color: green"><strong>QUITADO</strong></p>' : ''}
       </div>
 
@@ -334,45 +469,71 @@ const label = document.createElement('label');
 label.style.lineHeight = '1.4';
 
 const vencimento = emprestimo.datasVencimentos?.[i];
-const dataVencimento = vencimento ? new Date(vencimento).toLocaleDateString('pt-BR') : null;
+const dataVencimento = vencimento
+  ? vencimento.split('-').reverse().join('/') // yyyy-mm-dd → dd/mm/yyyy
+  : null;
+
 const valorParcelaFormatado = formatarMoeda(emprestimo.valorParcela);
 
+function parseDateLocal(dateString) {
+  const [yyyy, mm, dd] = dateString.split('-');
+  return new Date(yyyy, mm - 1, dd); // mês começa em 0 no JS
+}
+
 let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>`;
-    if (dataVencimento) {
-      html += `<strong>📅 Vencimento:</strong> ${dataVencimento}<br>`;
-    }
-    if (paga && datasPagamentos[i]) {
-      const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-      html += `<strong>✅ Paga em:</strong> ${data}`;
-    }
+if (dataVencimento) {
+  html += `<strong>📅 Vencimento:</strong> ${dataVencimento}<br>`;
+}
+
+if (vencimento && !paga) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0); // zera hora para só data
+
+  const dataVenc = parseDateLocal(vencimento);
+  dataVenc.setHours(0, 0, 0, 0);
+
+  if (hoje.getTime() === dataVenc.getTime()) {
+    html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
+  } else if (hoje > dataVenc) {
+    const diffTime = hoje.getTime() - dataVenc.getTime();
+    const diasAtraso = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const multa = diasAtraso * 20;
+
+    html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
+    html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
+  }
+}
+
+
+if (paga && datasPagamentos[i]) {
+  const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
+  const nomeRecebedor = emprestimo.recebidoPor?.[i] || 'N/A';
+  html += `<strong>✅ Paga em:</strong> ${data}<br>`;
+  html += `<strong>🙍‍♂️ Recebido por:</strong> ${nomeRecebedor}`;
+}
+
     label.innerHTML = html;
 
 
-    chk.addEventListener('change', async () => {
-      if (i > 0 && !parcelas[i - 1]) {
-        mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
-        chk.checked = false;
-        return;
-      }
+chk.addEventListener('change', async () => {
+  if (chk.checked) { // só faz se for para marcar como paga
 
-      const dataPagamento = new Date().toISOString();
+    if (i > 0 && !parcelas[i - 1]) {
+      mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
+      chk.checked = false;
+      return;
+    }
 
-      await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${i}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataPagamento })
-      });
+      chk.checked = false; // impede marcação até o modal confirmar
+      parcelaSelecionada = { emprestimo, indice: i, checkbox: chk }; // armazena tudo o que precisa
+      emprestimoSelecionado = emprestimo;
+      modalRecebedor.style.display = 'flex';
+      inputRecebedor.value = '';
+      inputRecebedor.focus();
+      return; // o restante da lógica virá depois da confirmação no modal
+  }
+});
 
-      mostrarAlerta(`Parcela ${i + 1} marcada como paga em ${new Date(dataPagamento).toLocaleString('pt-BR')}`);
-
-      parcelas[i] = true;
-      chk.disabled = true;
-
-      abrirModal(emprestimo);
-      if (termoAtual) {
-        await realizarBusca(termoAtual);
-      }
-    });
 
     item.appendChild(chk);
     item.appendChild(label);
@@ -380,6 +541,7 @@ let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>
   });
 
   modal.style.display = 'flex';
+  document.body.classList.add('modal-aberto');
 }
 
 
@@ -387,34 +549,29 @@ let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>
 // Fecha modal ao clicar no X
 modalFechar.onclick = () => {
   modal.style.display = 'none';
+  document.body.classList.remove('modal-aberto');
 }
 
 // Fecha modal ao clicar fora da caixa de conteúdo
 window.onclick = (event) => {
   if (event.target === modal) {
     modal.style.display = 'none';
+    document.body.classList.remove('modal-aberto');
   }
 }
 
 // Captura e formata enquanto digita
 valorInput.addEventListener('input', (e) => {
   const valorNumerico = +e.target.value.replace(/\D/g, '') / 100;
-
   if (isNaN(valorNumerico)) {
     valorInput.value = '';
     infoValores.innerHTML = '';
     return;
   }
-
   valorInput.value = formatarMoeda(valorNumerico);
-
-  const valorComJuros = valorNumerico * 1.2;
-
-  infoValores.innerHTML = `
-    <p>Valor original: <strong>${formatarMoeda(valorNumerico)}</strong></p>
-    <p>Valor com juros (20%): <strong>${formatarMoeda(valorComJuros)}</strong></p>
-  `;
+  atualizarResumoValores(); // Garante atualização da tabela de parcelas
 });
+
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -436,8 +593,12 @@ form.addEventListener('submit', async (e) => {
   formData.append('taxaJuros', parseFloat(jurosInput.value) || 20);
 
   const vencimentos = Array.from(document.querySelectorAll('.input-data-parcela')).map(input => input.value);
+  console.log('Datas de vencimento selecionadas:', vencimentos);
   vencimentos.forEach(data => formData.append('datasVencimentos', data));
-
+console.log('Todos os dados enviados:');
+for (let pair of formData.entries()) {
+  console.log(`${pair[0]}:`, pair[1]);
+}
   const arquivos = document.getElementById('anexos').files;
   for (let i = 0; i < arquivos.length; i++) {
     formData.append('anexos', arquivos[i]);
@@ -464,6 +625,11 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('input-data-parcela')) {
+    console.log(`Parcela ${parseInt(e.target.dataset.index) + 1} alterada para: ${e.target.value}`);
+  }
+});
 
 
 pesquisa.addEventListener('input', (e) => {
@@ -513,12 +679,14 @@ if (filtrado.length === 0) {
 
   filtrado.forEach(e => {
     const li = document.createElement('li');
+    li.classList.add('card-vencimento');
     li.innerHTML = `
-      <p><strong>${e.nome}</strong></p>
-      <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
-      <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
-      <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
+      <h3>${e.nome}</h3>
+      <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+      <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+      <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
     `;
+
 
     // Abrir modal ao clicar no item (não no botão Ver Parcelas)
     li.addEventListener('click', (event) => {
@@ -527,56 +695,10 @@ if (filtrado.length === 0) {
       }
     });
 
-    const btnVerParcelas = document.createElement('button');
-    btnVerParcelas.textContent = 'Ver parcelas';
-
-    const divParcelas = document.createElement('div');
-    divParcelas.style.display = 'none';
-
-    btnVerParcelas.onclick = () => {
-      if (divParcelas.style.display === 'none') {
-        divParcelas.innerHTML = '';
-
-        const parcelas = e.statusParcelas || Array.from({ length: e.parcelas }, () => false);
-        parcelas.forEach((paga, i) => {
-          const item = document.createElement('div');
-          const chk = document.createElement('input');
-          chk.type = 'checkbox';
-          chk.checked = paga;
-          chk.disabled = paga;
-
-          chk.addEventListener('change', async () => {
-            if (i > 0 && !parcelas[i - 1]) {
-              mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
-              chk.checked = false;
-              return;
-            }
-
-            await fetch(`${URL_SERVICO}/emprestimos/${e.id}/parcela/${i}`, {
-              method: 'PATCH'
-            });
-
-            mostrarAlerta(`Parcela ${i + 1} marcada como paga`);
-
-            await realizarBusca(termoAtual);
-          });
-
-          item.textContent = `Parcela ${i + 1} - R$ ${e.valorParcela.toFixed(2)} `;
-          item.appendChild(chk);
-          divParcelas.appendChild(item);
-        });
-
-        divParcelas.style.display = 'block';
-        btnVerParcelas.textContent = 'Ocultar parcelas';
-      } else {
-        divParcelas.style.display = 'none';
-        btnVerParcelas.textContent = 'Ver parcelas';
-      }
-    };
-
-    li.appendChild(btnVerParcelas);
-    li.appendChild(divParcelas);
     resultado.appendChild(li);
+        setTimeout(() => {
+      li.classList.add('mostrar');
+    }, 10);
   });
 }
 
@@ -618,16 +740,19 @@ document.getElementById('btnConsultarQuitados').addEventListener('click', async 
 
   filtrado.forEach(e => {
     const li = document.createElement('li');
+    li.classList.add('card-vencimento');
     li.innerHTML = `
-      <p><strong>${e.nome}</strong></p>
-      <p>Valor original: ${formatarMoeda(e.valorOriginal)}</p>
-      <p>Valor com juros: ${formatarMoeda(e.valorComJuros)}</p>
-      <p>${e.parcelas}x de ${formatarMoeda(e.valorParcela)}</p>
-      <p style="color: green"><strong>QUITADO</strong></p>
+      <h3>${e.nome}</h3>
+      <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+      <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+      <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+      <p id="quitado" style="color: green" >QUITADO</p>
     `;
+
 
     li.addEventListener('click', () => abrirModal(e));
     resultadoQuitados.appendChild(li);
+     setTimeout(() => li.classList.add('mostrar'), 10);
   });
 });
 

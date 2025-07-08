@@ -62,10 +62,24 @@
         <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
         <button type="button" id="btnConsultarQuitados">Consultar</button>
 </div>
+<ul id="resultadoQuitados"></ul>
     </div>
   </div>
 
+<br><br>
 
+<!-- Seção de consulta por data de vencimento -->
+<div class="form-column">
+  <h2>Empréstimos por Data de Vencimento</h2>
+  <div class="campo-busca">
+    <input type="date" id="inputDataVencimento" />
+    <button type="button" id="btnBuscarPorData">Buscar</button>
+    <button id="btnHoje">Buscar pela data de hoje</button>
+    <button type="button" id="btnLimparData">Limpar Resultados</button>
+
+  </div>
+  <ul id="resultadoPorData"></ul>
+</div>
 
 
 
@@ -78,6 +92,21 @@
   </div>
 </div>
 <div id="alertaCustom" style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;"></div>
+
+
+<div id="modalRecebedor" class="modal">
+  <div class="modal-conteudo">
+    <h3>Confirmação de pagamento</h3>
+    <p>Informe o nome de quem recebeu a parcela:</p>
+    <input type="text" id="inputRecebedor" placeholder="Nome completo" />
+    <div class="modal-botoes">
+      <button id="btnCancelarRecebedor">Cancelar</button>
+      <button id="btnConfirmarRecebedor">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+
 
   <script src="script.js"></script>
 </body>

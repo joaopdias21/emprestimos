@@ -65,18 +65,30 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
     valor, parcelas, taxaJuros = 20, datasVencimentos = []
   } = req.body;
 
+  // Conversões seguras
+  const valorNumerico = Number(valor);
+  const parcelasNumerico = Number(parcelas);
+  const taxa = parseFloat(taxaJuros) / 100;
+
+  // Garante array
   const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+
+  // Verifica se as datas estão corretas ou gera novas
+  const datasCalculadas = vencimentos.length === parcelasNumerico
+    ? vencimentos
+    : Array.from({ length: parcelasNumerico }, (_, i) => {
+        const data = new Date();
+        data.setMonth(data.getMonth() + i + 1);
+        return formatarDataLocal(data);
+      });
 
   const arquivos = req.files?.map(file => ({
     nomeOriginal: file.originalname,
     caminho: `/uploads/${file.filename}`
-
-
   })) || [];
 
-  const taxa = parseFloat(taxaJuros) / 100;
-  const valorComJuros = valor * (1 + taxa);
-  const valorParcela = valorComJuros / parcelas;
+  const valorComJuros = valorNumerico * (1 + taxa);
+  const valorParcela = valorComJuros / parcelasNumerico;
 
   const novoEmprestimo = {
     id: Date.now(),
@@ -90,19 +102,14 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
     cep,
     numero,
     complemento,
-    valorOriginal: valor,
+    valorOriginal: valorNumerico,
     valorComJuros,
-    parcelas,
+    parcelas: parcelasNumerico,
     valorParcela,
     taxaJuros,
-    statusParcelas: Array.from({ length: parcelas }, () => false),
-    datasPagamentos: Array.from({ length: parcelas }, () => null),
-    datasVencimentos: vencimentos.length === parcelas ? vencimentos : Array.from({ length: parcelas }, (_, i) => {
-      const data = new Date();
-      data.setMonth(data.getMonth() + i + 1);
-      return formatarDataLocal(data);
-    }),
-
+    statusParcelas: Array.from({ length: parcelasNumerico }, () => false),
+    datasPagamentos: Array.from({ length: parcelasNumerico }, () => null),
+    datasVencimentos: datasCalculadas,
     arquivos,
     quitado: false
   };
@@ -110,8 +117,11 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
   dados.push(novoEmprestimo);
   salvarDados(dados);
 
+  console.log('📅 Datas finais salvas:', novoEmprestimo.datasVencimentos);
+
   res.status(201).json(novoEmprestimo);
 });
+
 
 
 
@@ -137,8 +147,14 @@ app.patch('/emprestimos/:id/parcela/:indice', (req, res) => {
   }
 
   // Marcar como paga
-  emprestimo.statusParcelas[indice] = true;
-  emprestimo.datasPagamentos[indice] = req.body.dataPagamento || new Date().toISOString();
+emprestimo.statusParcelas[indice] = true;
+emprestimo.datasPagamentos[indice] = req.body.dataPagamento || new Date().toISOString();
+
+if (!Array.isArray(emprestimo.recebidoPor)) {
+  emprestimo.recebidoPor = Array.from({ length: emprestimo.parcelas }, () => null);
+}
+emprestimo.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
+
 
   // Verifica se todas foram pagas
   emprestimo.quitado = emprestimo.statusParcelas.every(p => p === true);
