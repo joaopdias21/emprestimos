@@ -1,5 +1,5 @@
-const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
-//const URL_SERVICO = 'http://localhost:3000'
+//const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
+const URL_SERVICO = 'http://localhost:3000'
 
 const form = document.getElementById('emprestimoForm');
 const pesquisa = document.getElementById('pesquisa');
@@ -38,6 +38,106 @@ const btnConfirmarRecebedor = document.getElementById('btnConfirmarRecebedor');
 
 let parcelaSelecionada = null;
 let emprestimoSelecionado = null;
+let tipoSelecionado = 'ativos';
+
+
+
+
+async function carregarEstatisticas() {
+  try {
+    const resAtivos = await fetch(`${URL_SERVICO}/emprestimos?status=ativo`);
+    const ativos = await resAtivos.json();
+
+    const resQuitados = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
+    const quitados = await resQuitados.json();
+
+    const resInadimplentes = await fetch(`${URL_SERVICO}/emprestimos/inadimplentes`);
+    const inadimplentes = await resInadimplentes.json();
+
+    document.getElementById('ativosCount').textContent = ativos.length;
+    document.getElementById('quitadosCount').textContent = quitados.length;
+    document.getElementById('inadimplentesCount').textContent = inadimplentes.length;
+
+    // Salva para exportar depois
+    window.ativosData = ativos;
+    window.quitadosData = quitados;
+    window.inadimplentesData = inadimplentes;
+
+    destacarTipoSelecionado(); // Atualiza o estilo do dashboard
+
+  } catch (err) {
+    mostrarAlertaError('Erro ao carregar estatísticas do dashboard');
+  }
+}
+
+function destacarTipoSelecionado() {
+  ['ativos', 'quitados', 'inadimplentes'].forEach(tipo => {
+    const el = document.getElementById(tipo);
+    if (tipo === tipoSelecionado) {
+      el.style.backgroundColor = '#3498db';
+      el.style.color = '#fff';
+    } else {
+      el.style.backgroundColor = '#ecf0f1';
+      el.style.color = '#2c3e50';
+    }
+  });
+}
+
+['ativos', 'quitados', 'inadimplentes'].forEach(tipo => {
+  document.getElementById(tipo).addEventListener('click', () => {
+    tipoSelecionado = tipo;
+    destacarTipoSelecionado();
+  });
+});
+
+function converterParaCSV(dados) {
+  if (!dados || dados.length === 0) return '';
+
+  const colunas = Object.keys(dados[0]);
+  const linhas = dados.map(obj =>
+    colunas.map(col => `"${(obj[col] ?? '').toString().replace(/"/g, '""')}"`).join(',')
+  );
+
+  return [colunas.join(','), ...linhas].join('\r\n');
+}
+
+function baixarArquivoCSV(nomeArquivo, conteudo) {
+  const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', nomeArquivo);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById('exportCSV').addEventListener('click', () => {
+  let dadosExportar = [];
+  if (tipoSelecionado === 'ativos') dadosExportar = window.ativosData || [];
+  else if (tipoSelecionado === 'quitados') dadosExportar = window.quitadosData || [];
+  else if (tipoSelecionado === 'inadimplentes') dadosExportar = window.inadimplentesData || [];
+
+  if (!dadosExportar.length) {
+    mostrarAlertaWarning('Nenhum dado para exportar neste tipo');
+    return;
+  }
+
+  const csv = converterParaCSV(dadosExportar);
+  baixarArquivoCSV(`emprestimos_${tipoSelecionado}.csv`, csv);
+});
+
+// Inicializa o dashboard ao carregar a página
+window.addEventListener('load', carregarEstatisticas);
+
+
+
+
+
+
+
 
 
 btnCancelarRecebedor.addEventListener('click', () => {
@@ -394,7 +494,7 @@ async function abrirModal(emprestimo) {
 const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
   
   modalCorpo.innerHTML = `
-    <div style="display: flex; gap: 40px; align-items: flex-start;">
+    <div class="modal-layout">
       <div id="detalhesEmprestimo" style="flex: 1;">
         <p><strong>Nome:</strong> ${emprestimo.nome}</p>
         <br>
@@ -429,6 +529,7 @@ const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
 
       <div id="parcelasContainer" style="flex: 1;">
         <h3>Parcelas</h3>
+      </div>
       </div>
     </div>
   `

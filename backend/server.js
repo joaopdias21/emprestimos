@@ -123,6 +123,52 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
 });
 
 
+app.get('/emprestimos/inadimplentes', (req, res) => {
+  try {
+    const dados = lerDados();
+
+    const hoje = new Date();
+
+    const inadimplentes = dados.filter(e => {
+      if (e.quitado) return false;
+
+      if (!Array.isArray(e.datasVencimentos) || !Array.isArray(e.statusParcelas)) {
+        return false;
+      }
+
+      for (let i = 0; i < e.datasVencimentos.length; i++) {
+        const [ano, mes, dia] = e.datasVencimentos[i].split('-').map(Number);
+        const dataVenc = new Date(ano, mes - 1, dia);
+
+
+        const vencimentoAntesDeHoje = (
+          dataVenc.getFullYear() < hoje.getFullYear() ||
+          (dataVenc.getFullYear() === hoje.getFullYear() && dataVenc.getMonth() < hoje.getMonth()) ||
+          (dataVenc.getFullYear() === hoje.getFullYear() && dataVenc.getMonth() === hoje.getMonth() && dataVenc.getDate() < hoje.getDate())
+        );
+
+        if (vencimentoAntesDeHoje && !e.statusParcelas[i]) {
+          console.log(`⚠️ Parcela vencida detectada para ${e.nome || 'sem nome'} - Data: ${dataVenc.toLocaleDateString('pt-BR')}, status: ${e.statusParcelas[i]}`);
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    console.log('Inadimplentes identificados:');
+    inadimplentes.forEach((e, index) => {
+      console.log(`🧾 Empréstimo ${index + 1}: Nome: ${e.nome}, Parcelas: ${e.datasVencimentos}`);
+    });
+
+    res.json(inadimplentes);
+  } catch (error) {
+    console.error('Erro na rota /emprestimos/inadimplentes:', error);
+    res.status(500).json({ erro: 'Erro interno no servidor ao buscar inadimplentes' });
+  }
+});
+
+
 
 
 
