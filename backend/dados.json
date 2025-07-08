@@ -483,16 +483,16 @@
     "valorParcela": 2000,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
-      false,
+      true,
+      true,
       false,
       false,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
-      null,
+      "2025-07-08T16:59:05.626Z",
+      "2025-07-08T17:12:43.780Z",
       null,
       null,
       null,
@@ -512,7 +512,15 @@
         "caminho": "/uploads/anexos-1751917969919-5031138.jpeg"
       }
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "SETE",
+      "João",
+      null,
+      null,
+      null,
+      null
+    ]
   },
   {
     "id": 1751919607810,
@@ -532,14 +540,14 @@
     "valorParcela": 2400,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
+      true,
       false,
       false,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
+      "2025-07-08T17:24:03.935Z",
       null,
       null,
       null,
@@ -558,7 +566,14 @@
         "caminho": "/uploads/anexos-1751917969919-5031138.jpeg"
       }
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "João",
+      null,
+      null,
+      null,
+      null
+    ]
   },
   {
     "id": 1751919719281,

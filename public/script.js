@@ -46,9 +46,9 @@ btnCancelarRecebedor.addEventListener('click', () => {
 });
 
 btnConfirmarRecebedor.addEventListener('click', async () => {
-  const nome = inputRecebedor.value.trim();
+  const nome = inputRecebedor.value;
   if (!nome) {
-    mostrarAlertaWarning('Digite o nome de quem recebeu.');
+    mostrarAlertaWarning('Selecione o nome de quem recebeu.');
     return;
   }
 
@@ -118,7 +118,8 @@ li.innerHTML = `
       ${e.datasVencimentos
         .map((v, i) => {
           if (v === data) {
-            const paga = e.statusParcelas?.[i] ? '✅ Paga' : '❌ Não paga';
+            const dataFormatada = new Date(data).toLocaleDateString('pt-BR');
+            const paga = e.statusParcelas?.[i] ? `✅ Paga em ${dataFormatada}` : '❌ Não paga';
             return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
           }
           return '';
@@ -507,10 +508,12 @@ if (vencimento && !paga) {
 
 if (paga && datasPagamentos[i]) {
   const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
+  const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const nomeRecebedor = emprestimo.recebidoPor?.[i] || 'N/A';
   html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-  html += `<strong>🙍‍♂️ Recebido por:</strong> ${nomeRecebedor}`;
+  html += `<strong>🙍‍♂️ Recebido por:</strong> ${nomeRecebedor} às ${horario}`;
 }
+
 
     label.innerHTML = html;
 

@@ -548,3 +548,31 @@ body.modal-aberto {
   padding: 8px 16px;
   cursor: pointer;
 }
+
+
+#inputRecebedor {
+  margin-top: 20PX;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  border: 2px solid #004085;
+  border-radius: 8px;
+  background-color: white;
+  color: #004085;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  appearance: none; /* Remove estilo padrão do select */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M1 1L6 6L11 1' stroke='%23004085' stroke-width='2'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+}
+
+#inputRecebedor:focus {
+  border-color: #002b5a;
+  box-shadow: 0 0 8px rgba(0, 43, 90, 0.5);
+  outline: none;
+}

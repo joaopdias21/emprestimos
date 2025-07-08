@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle de Empréstimos</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
   <div class="form-container">
     <!-- Coluna de cadastro -->
     <div class="form-column">
-  <h2>Cadastro de Empréstimo</h2>
+      <h2>Cadastro de Empréstimo</h2>
 
       <form id="emprestimoForm" enctype="multipart/form-data">
         <input type="text" placeholder="Nome" id="nome" required />
@@ -24,20 +26,21 @@
         </div>
         <input type="text" placeholder="Endereço" id="endereco" required />
         <input type="text" placeholder="Número" id="numero" required />
-        <input type="text" placeholder="Complemento (Ex: ' Apto ', ' Bloco ', ' Casa ')" id="complemento"/>
+        <input type="text" placeholder="Complemento (Ex: ' Apto ', ' Bloco ', ' Casa ')" id="complemento" />
         <input type="text" placeholder="Cidade" id="cidade" required />
         <input type="text" placeholder="Estado" id="estado" required maxlength="2" />
         <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
-        <input type="number" placeholder="Número de parcelas" id="parcelas"  min="1" max="100" step="1"required />
+        <input type="number" placeholder="Número de parcelas" id="parcelas" min="1" max="100" step="1" required />
 
         <div id="infoValores"></div>
         <div id="tabelaParcelas"></div>
-<br><br>
-      <div class="campo-anexo">
-      <label for="anexos">Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
-      <input type="file" id="anexos" name="anexos" multiple accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
-    </div>
-<br><br>
+        <br><br>
+        <div class="campo-anexo">
+          <label for="anexos">Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
+          <input type="file" id="anexos" name="anexos" multiple
+            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
+        </div>
+        <br><br>
 
 
         <button type="submit">Cadastrar</button>
@@ -47,8 +50,8 @@
 
     <!-- Coluna de pesquisa empréstimos ativos -->
     <div class="form-column">
-            <h2>Pesquisar Empréstimos</h2>
-            <div class="campo-busca">
+      <h2>Pesquisar Empréstimos Ativos</h2>
+      <div class="campo-busca">
         <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
         <button type="button" id="btnConsultarAtivos">Consultar</button>
       </div>
@@ -57,57 +60,65 @@
 
     <!-- Coluna de pesquisa empréstimos quitados -->
     <div class="form-column">
-      <h2>Empréstimos Quitados</h2>
+      <h2>Pesquisar Empréstimos Quitados</h2>
       <div class="campo-busca">
         <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
         <button type="button" id="btnConsultarQuitados">Consultar</button>
-</div>
-<ul id="resultadoQuitados"></ul>
+      </div>
+      <ul id="resultadoQuitados"></ul>
     </div>
   </div>
 
-<br><br>
+  <br><br>
 
-<!-- Seção de consulta por data de vencimento -->
-<div class="form-column">
-  <h2>Empréstimos por Data de Vencimento</h2>
-  <div class="campo-busca">
-    <input type="date" id="inputDataVencimento" />
-    <button type="button" id="btnBuscarPorData">Buscar</button>
-    <button id="btnHoje">Buscar pela data de hoje</button>
-    <button type="button" id="btnLimparData">Limpar Resultados</button>
+  <!-- Seção de consulta por data de vencimento -->
+  <div class="form-column">
+    <h2>Empréstimos por Data de Vencimento</h2>
+    <div class="campo-busca">
+      <input type="date" id="inputDataVencimento" />
+      <button type="button" id="btnBuscarPorData">Buscar</button>
+      <button id="btnHoje">Buscar pela data de hoje</button>
+      <button type="button" id="btnLimparData">Limpar Resultados</button>
 
+    </div>
+    <ul id="resultadoPorData"></ul>
   </div>
-  <ul id="resultadoPorData"></ul>
-</div>
 
 
 
   <div id="modalDetalhes" class="modal">
-  <div class="modal-content">
-    <span id="modalFechar" class="modal-close">&times;</span>
-    <h2 id="detalhesDoEmprestimo">Detalhes do Empréstimo</h2>
-    <br><br>
-    <div id="modalCorpo"></div>
-  </div>
-</div>
-<div id="alertaCustom" style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;"></div>
-
-
-<div id="modalRecebedor" class="modal">
-  <div class="modal-conteudo">
-    <h3>Confirmação de pagamento</h3>
-    <p>Informe o nome de quem recebeu a parcela:</p>
-    <input type="text" id="inputRecebedor" placeholder="Nome completo" />
-    <div class="modal-botoes">
-      <button id="btnCancelarRecebedor">Cancelar</button>
-      <button id="btnConfirmarRecebedor">Confirmar</button>
+    <div class="modal-content">
+      <span id="modalFechar" class="modal-close">&times;</span>
+      <h2 id="detalhesDoEmprestimo">Detalhes do Empréstimo</h2>
+      <br><br>
+      <div id="modalCorpo"></div>
     </div>
   </div>
-</div>
+  <div id="alertaCustom"
+    style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;">
+  </div>
+
+
+  <div id="modalRecebedor" class="modal">
+    <div class="modal-conteudo">
+      <h3>Confirmação de pagamento</h3>
+      <p>Informe o nome de quem recebeu a parcela:</p>
+      <select id="inputRecebedor">
+        <option value="" disabled selected>Selecione o nome</option>
+        <option value="João">Gustavo</option>
+        <option value="Maria">Bigu</option>
+      </select>
+
+      <div class="modal-botoes">
+        <button id="btnCancelarRecebedor">Cancelar</button>
+        <button id="btnConfirmarRecebedor">Confirmar</button>
+      </div>
+    </div>
+  </div>
 
 
 
   <script src="script.js"></script>
 </body>
+
 </html>
