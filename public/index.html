@@ -9,12 +9,13 @@
 </head>
 
 <body>
+  <header class="header-auth">
+    <div id="authButtonsContainer"></div>
+  </header>
 
-  <div class="form-container">
-    <!-- Coluna de cadastro -->
+  <div class="main-container">
     <div class="form-column">
       <h2>Cadastro de Empréstimo</h2>
-
       <form id="emprestimoForm" enctype="multipart/form-data">
         <input type="text" placeholder="Nome" id="nome" required />
         <input type="email" placeholder="Email" id="email" required />
@@ -31,7 +32,6 @@
         <input type="text" placeholder="Estado" id="estado" required maxlength="2" />
         <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
         <input type="number" placeholder="Número de parcelas" id="parcelas" min="1" max="100" step="1" required />
-
         <div id="infoValores"></div>
         <div id="tabelaParcelas"></div>
         <br><br>
@@ -41,51 +41,100 @@
             accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
         </div>
         <br><br>
-
-
         <button type="submit">Cadastrar</button>
       </form>
     </div>
 
+    <div class="admin-panel">
+      <!-- NOVO CONTAINER VERTICAL PARA OS PAINÉIS DE BUSCA -->
+      <div class="painel-de-buscas">
+        <div class="form-column" id="buscarEmprestimos">
+          <h2>Pesquisar Empréstimos Ativos</h2>
+          <div class="campo-busca">
+            <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
+            <button type="button" id="btnConsultarAtivos">Consultar</button>
+          </div>
+          <ul id="resultado"></ul>
+        </div>
 
-    <!-- Coluna de pesquisa empréstimos ativos -->
-    <div class="form-column">
-      <h2>Pesquisar Empréstimos Ativos</h2>
-      <div class="campo-busca">
-        <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
-        <button type="button" id="btnConsultarAtivos">Consultar</button>
-      </div>
-      <ul id="resultado"></ul>
-    </div>
+        <div class="form-column" id="buscarQuitados">
+          <h2>Pesquisar Empréstimos Quitados</h2>
+          <div class="campo-busca">
+            <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
+            <button type="button" id="btnConsultarQuitados">Consultar</button>
+          </div>
+          <ul id="resultadoQuitados"></ul>
+        </div>
 
-    <!-- Coluna de pesquisa empréstimos quitados -->
-    <div class="form-column">
-      <h2>Pesquisar Empréstimos Quitados</h2>
-      <div class="campo-busca">
-        <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
-        <button type="button" id="btnConsultarQuitados">Consultar</button>
+        <div class="form-column" id="emprestimosPorData">
+          <h2>Empréstimos por Data de Vencimento</h2>
+          <div class="campo-busca">
+            <input type="date" id="inputDataVencimento" />
+            <button type="button" id="btnBuscarPorData">Buscar</button>
+            <button id="btnHoje">Buscar pela data de hoje</button>
+            <button type="button" id="btnLimparData">Limpar Resultados</button>
+          </div>
+          <ul id="resultadoPorData"></ul>
+        </div>
       </div>
-      <ul id="resultadoQuitados"></ul>
+
+      <!-- PAINEL SÃO ROQUE -->
+<div class="form-column" id="emprestimosPorDataSaoRoque">
+  <h2>Empréstimos por Vencimento (São Roque)</h2>
+  <div class="campo-busca">
+    <input type="date" id="inputDataSaoRoque" />
+    <button type="button" id="btnBuscarSaoRoque">Buscar</button>
+    <button type="button" id="btnHojeSaoRoque">Hoje</button>
+    <button type="button" id="btnLimparSaoRoque">Limpar</button>
+  </div>
+  <ul id="resultadoSaoRoque"></ul>
+</div>
+
+<!-- PAINEL COTIA -->
+<div class="form-column" id="emprestimosPorDataCotia">
+  <h2>Empréstimos por Vencimento (Cotia)</h2>
+  <div class="campo-busca">
+    <input type="date" id="inputDataCotia" />
+    <button type="button" id="btnBuscarCotia">Buscar</button>
+    <button type="button" id="btnHojeCotia">Hoje</button>
+    <button type="button" id="btnLimparCotia">Limpar</button>
+  </div>
+  <ul id="resultadoCotia"></ul>
+</div>
+
+<!-- PAINEL SOROCABA -->
+<div class="form-column" id="emprestimosPorDataSorocaba">
+  <h2>Empréstimos por Vencimento (Sorocaba)</h2>
+  <div class="campo-busca">
+    <input type="date" id="inputDataSorocaba" />
+    <button type="button" id="btnBuscarSorocaba">Buscar</button>
+    <button type="button" id="btnHojeSorocaba">Hoje</button>
+    <button type="button" id="btnLimparSorocaba">Limpar</button>
+  </div>
+  <ul id="resultadoSorocaba"></ul>
+</div>
+
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="dashboard-container">
+        <h2>Dashboard</h2>
+        <div class="dashboard-item" id="ativos">
+          Empréstimos Ativos: <span id="ativosCount">0</span>
+        </div>
+        <div class="dashboard-item" id="quitados">
+          Empréstimos Quitados: <span id="quitadosCount">0</span>
+        </div>
+        <div class="dashboard-item" id="inadimplentes">
+          Empréstimos Inadimplentes: <span id="inadimplentesCount">0</span>
+        </div>
+        <div class="export-buttons">
+          <button id="exportCSV">Exportar CSV do tipo selecionado</button>
+        </div>
+      </section>
     </div>
   </div>
 
-  <br><br>
-
-  <!-- Seção de consulta por data de vencimento -->
-  <div class="form-column">
-    <h2>Empréstimos por Data de Vencimento</h2>
-    <div class="campo-busca">
-      <input type="date" id="inputDataVencimento" />
-      <button type="button" id="btnBuscarPorData">Buscar</button>
-      <button id="btnHoje">Buscar pela data de hoje</button>
-      <button type="button" id="btnLimparData">Limpar Resultados</button>
-
-    </div>
-    <ul id="resultadoPorData"></ul>
-  </div>
-
-
-
+  <!-- MODAL DE DETALHES -->
   <div id="modalDetalhes" class="modal">
     <div class="modal-content">
       <span id="modalFechar" class="modal-close">&times;</span>
@@ -94,11 +143,13 @@
       <div id="modalCorpo"></div>
     </div>
   </div>
+
+  <!-- ALERTA -->
   <div id="alertaCustom"
     style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;">
   </div>
 
-
+  <!-- MODAL DE CONFIRMAÇÃO DE RECEBEDOR -->
   <div id="modalRecebedor" class="modal">
     <div class="modal-conteudo">
       <h3>Confirmação de pagamento</h3>
@@ -108,30 +159,12 @@
         <option value="Gustavo">Gustavo</option>
         <option value="Bigu">Bigu</option>
       </select>
-
       <div class="modal-botoes">
         <button id="btnCancelarRecebedor">Cancelar</button>
         <button id="btnConfirmarRecebedor">Confirmar</button>
       </div>
     </div>
   </div>
-
-<section id="dashboard" class="dashboard-container">
-  <h2>Dashboard</h2>
-  <div class="dashboard-item" id="ativos">
-    Empréstimos Ativos: <span id="ativosCount">0</span>
-  </div>
-  <div class="dashboard-item" id="quitados">
-    Empréstimos Quitados: <span id="quitadosCount">0</span>
-  </div>
-  <div class="dashboard-item" id="inadimplentes">
-    Empréstimos Inadimplentes: <span id="inadimplentesCount">0</span>
-  </div>
-  <div class="export-buttons">
-    <button id="exportCSV">Exportar CSV do tipo selecionado</button>
-  </div>
-</section>
-
 
   <script src="script.js"></script>
 </body>

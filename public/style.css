@@ -686,6 +686,12 @@ body.modal-aberto {
   transform: translateY(-2px);
 }
 
+.dashboard-item.ativo {
+  background-color: #cce5ff;
+  border: 2px solid #004085;
+  font-weight: bold;
+}
+
 .export-buttons {
   display: flex;
   justify-content: center;
@@ -720,4 +726,23 @@ body.modal-aberto {
   .export-buttons button {
     width: 100%;
   }
+}
+
+
+.admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.painel-de-buscas {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.form-column h2 {
+  text-align: center;
+  font-size: 1.4rem;
+  margin-bottom: 20px;
 }

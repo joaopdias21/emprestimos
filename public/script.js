@@ -6,7 +6,6 @@ const pesquisa = document.getElementById('pesquisa');
 const resultado = document.getElementById('resultado');
 const cpfInput = document.getElementById('cpf');
 
-// const btnQuitados = document.getElementById('btnQuitados');
 const resultadoQuitados = document.getElementById('resultadoQuitados');
 const valorInput = document.getElementById('valor');
 const infoValores = document.getElementById('infoValores');
@@ -29,8 +28,6 @@ const btnHoje = document.getElementById('btnHoje');
 
 const resultadoPorData = document.getElementById('resultadoPorData');
 
-
-
 const modalRecebedor = document.getElementById('modalRecebedor');
 const inputRecebedor = document.getElementById('inputRecebedor');
 const btnCancelarRecebedor = document.getElementById('btnCancelarRecebedor');
@@ -39,9 +36,75 @@ const btnConfirmarRecebedor = document.getElementById('btnConfirmarRecebedor');
 let parcelaSelecionada = null;
 let emprestimoSelecionado = null;
 let tipoSelecionado = 'ativos';
+let termoAtual = ''; // Certifique-se de que termoAtual está declarado globalmente
 
 
 
+document.addEventListener("DOMContentLoaded", function () {
+  const dashboardItems = document.querySelectorAll(".dashboard-item");
+
+  dashboardItems.forEach(item => {
+    item.addEventListener("click", () => {
+      // Remove a classe "ativo" de todos
+      dashboardItems.forEach(i => i.classList.remove("ativo"));
+      // Adiciona a classe no item clicado
+      item.classList.add("ativo");
+    });
+  });
+});
+
+
+// --- Lógica de Autenticação e Exibição de Botões ---
+document.addEventListener('DOMContentLoaded', () => {
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+  const authButtonsContainer = document.getElementById("authButtonsContainer");
+  const adminPanel = document.querySelector(".admin-panel");
+
+  // Limpa o container de botões antes de adicionar novos
+  authButtonsContainer.innerHTML = '';
+
+  if (isAdmin) {
+    // Se for admin, mostra apenas o botão de Sair
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'logoutBtn';
+    logoutBtn.textContent = 'Sair';
+    authButtonsContainer.appendChild(logoutBtn);
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("isAdmin");
+      location.reload(); // Recarrega a página para aplicar as mudanças de visibilidade
+    });
+
+    // Mostra o painel de administração
+    if (adminPanel) {
+      adminPanel.style.display = "flex"; // Ou "block" dependendo do seu layout desejado
+    }
+    document.getElementById("buscarEmprestimos").style.display = "block";
+    document.getElementById("buscarQuitados").style.display = "block";
+    document.getElementById("emprestimosPorData").style.display = "block";
+    document.getElementById("dashboard").style.display = "flex"; // Dashboard é flex para seus itens internos
+  } else {
+    // Se não for admin, mostra apenas o botão de login
+    const loginBtn = document.createElement('button');
+    loginBtn.textContent = 'Fazer login como administrador';
+    loginBtn.onclick = () => { window.location.href = 'login.html'; };
+    authButtonsContainer.appendChild(loginBtn);
+
+    // Esconde o painel de administração
+    if (adminPanel) {
+      adminPanel.style.display = "none";
+    }
+    document.getElementById("buscarEmprestimos").style.display = "none";
+    document.getElementById("buscarQuitados").style.display = "none";
+    document.getElementById("emprestimosPorData").style.display = "none";
+    document.getElementById("dashboard").style.display = "none";
+  }
+
+  // Inicializa o dashboard ao carregar a página (chama apenas se for admin)
+  if (isAdmin) {
+    carregarEstatisticas();
+  }
+});
 
 async function carregarEstatisticas() {
   try {
@@ -67,28 +130,34 @@ async function carregarEstatisticas() {
 
   } catch (err) {
     mostrarAlertaError('Erro ao carregar estatísticas do dashboard');
+    console.error('Erro ao carregar estatísticas:', err); // Log para depuração
   }
 }
 
 function destacarTipoSelecionado() {
   ['ativos', 'quitados', 'inadimplentes'].forEach(tipo => {
     const el = document.getElementById(tipo);
-    if (tipo === tipoSelecionado) {
-      el.style.backgroundColor = '#3498db';
-      el.style.color = '#fff';
-    } else {
-      el.style.backgroundColor = '#ecf0f1';
-      el.style.color = '#2c3e50';
+    if (el) { // Adicionado verificação para garantir que o elemento existe
+      if (tipo === tipoSelecionado) {
+        el.classList.add('selected'); // Usa classe para o estilo
+      } else {
+        el.classList.remove('selected');
+      }
     }
   });
 }
 
+// Adiciona event listeners para os itens do dashboard
 ['ativos', 'quitados', 'inadimplentes'].forEach(tipo => {
-  document.getElementById(tipo).addEventListener('click', () => {
-    tipoSelecionado = tipo;
-    destacarTipoSelecionado();
-  });
+  const el = document.getElementById(tipo);
+  if (el) { // Adicionado verificação para garantir que o elemento existe
+    el.addEventListener('click', () => {
+      tipoSelecionado = tipo;
+      destacarTipoSelecionado();
+    });
+  }
 });
+
 
 function converterParaCSV(dados) {
   if (!dados || dados.length === 0) return '';
@@ -129,16 +198,6 @@ document.getElementById('exportCSV').addEventListener('click', () => {
   baixarArquivoCSV(`emprestimos_${tipoSelecionado}.csv`, csv);
 });
 
-// Inicializa o dashboard ao carregar a página
-window.addEventListener('load', carregarEstatisticas);
-
-
-
-
-
-
-
-
 
 btnCancelarRecebedor.addEventListener('click', () => {
   modalRecebedor.style.display = 'none';
@@ -156,37 +215,48 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   const dataPagamento = new Date().toISOString();
 
   try {
-    await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
+    const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dataPagamento, nomeRecebedor: nome })
     });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro do servidor: ${errorText}`);
+    }
+
     mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
     checkbox.checked = true;
     checkbox.disabled = true;
+    // Atualiza o statusParcelas e recebidoPor no objeto local para que o modal reflita a mudança
+    if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
     emprestimo.statusParcelas[indice] = true;
+    if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
+    emprestimo.datasPagamentos[indice] = dataPagamento;
+    if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
+    emprestimo.recebidoPor[indice] = nome;
 
-    abrirModal(emprestimoSelecionado);
-    if (termoAtual) await realizarBusca(termoAtual);
+
+    abrirModal(emprestimoSelecionado); // Reabre o modal com os dados atualizados
+    if (termoAtual) await realizarBusca(termoAtual); // Atualiza a lista de resultados se houver uma busca ativa
 
   } catch (err) {
-    mostrarAlertaError('Erro ao marcar parcela como paga');
-    checkbox.checked = false;
+    mostrarAlertaError(`Erro ao marcar parcela como paga: ${err.message}`);
+    console.error('Erro ao marcar parcela como paga:', err);
+    checkbox.checked = false; // Garante que o checkbox não fique marcado se houver erro
   }
 
   modalRecebedor.style.display = 'none';
   parcelaSelecionada = null;
 });
 
-
-
 document.getElementById('btnLimparData').addEventListener('click', () => {
   resultadoPorData.innerHTML = '';
   inputDataVencimento.value = '';
 });
 
-  btnBuscarPorData.addEventListener('click', async () => {
+btnBuscarPorData.addEventListener('click', async () => {
   const data = inputDataVencimento.value;
   if (!data) {
     mostrarAlertaWarning('Selecione uma data');
@@ -206,39 +276,35 @@ document.getElementById('btnLimparData').addEventListener('click', () => {
 
     dados.forEach(e => {
       const li = document.createElement('li');
-li.classList.add('card-vencimento');
-li.innerHTML = `
-  <h3>${e.nome}</h3>
-  <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
-  <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
-  <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
-  <div class="lista-parcelas">
-    <p><strong>Parcelas com vencimento:</strong></p>
-    <ul>
-      ${e.datasVencimentos
-        .map((v, i) => {
-          if (v === data) {
-            const dataFormatada = new Date(data).toLocaleDateString('pt-BR');
-            const paga = e.statusParcelas?.[i] ? `✅ Paga em ${dataFormatada}` : '❌ Não paga';
-            return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
-          }
-          return '';
-        })
-        .join('')}
-    </ul>
-  </div>
-`;
-li.addEventListener('click', () => abrirModal(e));
-resultadoPorData.appendChild(li);
- setTimeout(() => li.classList.add('mostrar'), 10);
-  
-
-
+      li.classList.add('card-vencimento');
+      li.innerHTML = `
+        <h3>${e.nome}</h3>
+        <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+        <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+        <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+        <div class="lista-parcelas">
+          <p><strong>Parcelas com vencimento:</strong></p>
+          <ul>
+            ${e.datasVencimentos
+              .map((v, i) => {
+                if (v === data) {
+                  const dataFormatada = new Date(data).toLocaleDateString('pt-BR');
+                  const paga = e.statusParcelas?.[i] ? `✅ Paga em ${dataFormatada}` : '❌ Não paga';
+                  return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
+                }
+                return '';
+              })
+              .join('')}
+          </ul>
+        </div>
+      `;
       li.addEventListener('click', () => abrirModal(e));
       resultadoPorData.appendChild(li);
+      setTimeout(() => li.classList.add('mostrar'), 10);
     });
   } catch (err) {
     mostrarAlertaError('Erro ao buscar empréstimos por data');
+    console.error('Erro ao buscar empréstimos por data:', err); // Log para depuração
   }
 });
 
@@ -255,14 +321,6 @@ btnHoje.addEventListener('click', () => {
 });
 
 
-
-
-
-
-
-
-
-
 function aplicarMascaraCPF(valor) {
   valor = valor.replace(/\D/g, ''); // Remove tudo que não é número
   if (valor.length > 11) valor = valor.slice(0, 11); // Limita a 11 dígitos
@@ -277,26 +335,16 @@ function aplicarMascaraCPF(valor) {
   return valor;
 }
 
-
 cpfInput.addEventListener('input', (e) => {
   e.target.value = aplicarMascaraCPF(e.target.value);
 });
 
 
-cepInput.addEventListener('input', () => {
-  const cep = cepInput.value.replace(/\D/g, '');
-  if (cep.length === 8) {
-    cepInput.blur(); // força o evento 'blur' após completar os 8 dígitos
-  }
-});
-
 cepInput.addEventListener('input', (e) => {
   let valor = e.target.value.replace(/\D/g, '');
-
   if (valor.length > 5) {
     valor = valor.slice(0, 5) + '-' + valor.slice(5, 8);
   }
-
   e.target.value = valor;
 });
 
@@ -305,7 +353,7 @@ consultarCepBtn.addEventListener('click', async () => {
   const cep = cepInput.value.replace(/\D/g, '');
 
   if (cep.length !== 8) {
-    mostrarAlerta('CEP inválido', '#f44336');
+    mostrarAlertaWarning('CEP inválido');
     return;
   }
 
@@ -314,7 +362,7 @@ consultarCepBtn.addEventListener('click', async () => {
     const data = await response.json();
 
     if (data.erro) {
-      mostrarAlerta('CEP não encontrado', '#f44336');
+      mostrarAlertaError('CEP não encontrado');
       return;
     }
 
@@ -324,13 +372,13 @@ consultarCepBtn.addEventListener('click', async () => {
     mostrarAlerta('Endereço preenchido com sucesso!');
 
   } catch (err) {
-    mostrarAlerta('Erro ao buscar o CEP', '#f44336');
+    mostrarAlertaError('Erro ao buscar o CEP');
+    console.error('Erro ao buscar CEP:', err); // Log para depuração
   }
 });
 
 cepInput.addEventListener('input', () => {
   const cep = cepInput.value.replace(/\D/g, '');
-
   if (cep.length !== 8) {
     enderecoInput.value = '';
     cidadeInput.value = '';
@@ -338,7 +386,7 @@ cepInput.addEventListener('input', () => {
   }
 });
 
-
+// Cria e insere o input de juros (já estava no seu script, mas movi para o topo para melhor organização)
 const jurosInput = document.createElement('input');
 jurosInput.type = 'number';
 jurosInput.id = 'juros';
@@ -346,14 +394,9 @@ jurosInput.placeholder = 'Porcentagem de juros';
 jurosInput.min = 0;
 jurosInput.max = 100;
 jurosInput.step = 1;
-//jurosInput.value = 20; // valor default 20%
-
-// Adiciona o campo de juros antes do infoValores
-form.insertBefore(jurosInput, infoValores);
+jurosInput.value = 20; // valor default 20%
+form.insertBefore(jurosInput, infoValores); // Adiciona o campo de juros antes do infoValores
 jurosInput.addEventListener('input', atualizarResumoValores);
-
-let termoAtual = '';
-
 
 
 function mostrarAlerta(mensagem, cor = '#4caf50') {
@@ -367,38 +410,18 @@ function mostrarAlerta(mensagem, cor = '#4caf50') {
   }, 3000); // oculta após 3 segundos
 }
 
-
-function mostrarAlertaError(mensagem, cor = '#f44336') {
-  const alerta = document.getElementById('alertaCustom');
-  alerta.textContent = mensagem;
-  alerta.style.backgroundColor = cor;
-  alerta.style.display = 'block';
-
-  setTimeout(() => {
-    alerta.style.display = 'none';
-  }, 3000); // oculta após 3 segundos
+function mostrarAlertaError(mensagem) {
+  mostrarAlerta(mensagem, '#f44336');
 }
 
-
-function mostrarAlertaWarning(mensagem, cor = '#ffc107') {
-  const alerta = document.getElementById('alertaCustom');
-  alerta.textContent = mensagem;
-  alerta.style.backgroundColor = cor;
-  alerta.style.display = 'block';
-
-  setTimeout(() => {
-    alerta.style.display = 'none';
-  }, 3000); // oculta após 3 segundos
+function mostrarAlertaWarning(mensagem) {
+  mostrarAlerta(mensagem, '#ffc107');
 }
-
 
 // Função para formatar número como moeda brasileira
 function formatarMoeda(valor) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
 }
-
-
-
 
 function atualizarResumoValores() {
   const valorNumerico = +valorInput.value.replace(/\D/g, '') / 100;
@@ -430,47 +453,41 @@ function atualizarResumoValores() {
 
   // Cria a tabela com datas
   const hoje = new Date();
-const primeiroVencimento = new Date(hoje);
-primeiroVencimento.setMonth(primeiroVencimento.getMonth() + 1);
+  const primeiroVencimento = new Date(hoje);
+  primeiroVencimento.setMonth(primeiroVencimento.getMonth() + 1);
 
-let tabelaHTML = `
-  <table class="tabela-parcelas">
-    <thead>
+  let tabelaHTML = `
+    <table class="tabela-parcelas">
+      <thead>
+        <tr>
+          <th>Parcela</th>
+          <th>Valor</th>
+          <th>Vencimento</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  for (let i = 0; i < qtdParcelas; i++) {
+    const vencimento = new Date(hoje);
+    vencimento.setMonth(vencimento.getMonth() + i + 1); // começa um mês à frente
+
+    const dataFormatada = vencimento.toISOString().split('T')[0]; // formato yyyy-mm-dd para <input type="date">
+
+    tabelaHTML += `
       <tr>
-        <th>Parcela</th>
-        <th>Valor</th>
-        <th>Vencimento</th>
+        <td>${i + 1}</td>
+        <td>${formatarMoeda(valorParcela)}</td>
+        <td><input type="date" value="${dataFormatada}" class="input-data-parcela" data-index="${i}"></td>
       </tr>
-    </thead>
-    <tbody>
-`;
-
- for (let i = 0; i < qtdParcelas; i++) {
-  const vencimento = new Date(hoje);
-  vencimento.setMonth(vencimento.getMonth() + i + 1); // começa um mês à frente
-
-
-  const dataFormatada = vencimento.toISOString().split('T')[0]; // formato yyyy-mm-dd para <input type="date">
+    `;
+  }
 
   tabelaHTML += `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${formatarMoeda(valorParcela)}</td>
-      <td><input type="date" value="${dataFormatada}" class="input-data-parcela" data-index="${i}"></td>
-    </tr>
+      </tbody>
+    </table>
   `;
+  tabelaParcelas.innerHTML = tabelaHTML;
 }
-
-tabelaHTML += `
-    </tbody>
-  </table>
-`;
-
-tabelaParcelas.innerHTML = tabelaHTML;
-
-}
-
-
 
 valorInput.addEventListener('input', (e) => {
   const valorNumerico = +e.target.value.replace(/\D/g, '') / 100;
@@ -480,175 +497,158 @@ valorInput.addEventListener('input', (e) => {
     return;
   }
   valorInput.value = formatarMoeda(valorNumerico);
-  atualizarResumoValores();
+  atualizarResumoValores(); // Garante atualização da tabela de parcelas
 });
-
 
 parcelasInput.addEventListener('input', atualizarResumoValores);
 
-// Função para abrir modal com dados do empréstimo
-// ... (código anterior até abrirModal)
-
 async function abrirModal(emprestimo) {
+  emprestimoSelecionado = emprestimo; // Armazena o empréstimo atual para uso posterior no modal de recebimento
+
   const taxaJurosNumero = Number(emprestimo.taxaJuros);
-const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
-  
+  const taxaFormatada = isNaN(taxaJurosNumero) ? 20 : taxaJurosNumero.toFixed(0);
+
   modalCorpo.innerHTML = `
     <div class="modal-layout">
       <div id="detalhesEmprestimo" style="flex: 1;">
         <p><strong>Nome:</strong> ${emprestimo.nome}</p>
-        <br>
         <p><strong>Email:</strong> ${emprestimo.email}</p>
-        <br>
         <p><strong>Telefone:</strong> ${emprestimo.telefone}</p>
-        <br>
         <p><strong>CPF:</strong> ${emprestimo.cpf}</p>
-        <br>
         <p><strong>CEP:</strong> ${emprestimo.cep}</p>
-        <br>
         <p><strong>Endereço:</strong> ${emprestimo.endereco}</p>
-        <br>
         <p><strong>Número:</strong> ${emprestimo.numero}</p>
-        <br>
-        <p><strong>Complemento:</strong> ${emprestimo.complemento}</p>
-        <br>  
+        <p><strong>Complemento:</strong> ${emprestimo.complemento || 'N/A'}</p>
         <p><strong>Cidade:</strong> ${emprestimo.cidade}</p>
-        <br>
         <p><strong>Estado:</strong> ${emprestimo.estado}</p>
-        <br>        
         <hr />
-        <br>
         <p><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</p>
-        <br>
         <p><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</p>
-        <br>
         <p><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</p>
-        <br>
-        ${emprestimo.quitado ? '<p style="color: green"><strong>QUITADO</strong></p>' : ''}
+        ${emprestimo.quitado ? '<p style="color: green; font-weight: bold;">QUITADO</p>' : ''}
       </div>
 
       <div id="parcelasContainer" style="flex: 1;">
         <h3>Parcelas</h3>
       </div>
-      </div>
     </div>
-  `
-if (emprestimo.arquivos && emprestimo.arquivos.length > 0) {
-const listaArquivos = emprestimo.arquivos.map(a => 
-  `<li><a href="${URL_SERVICO}${a.caminho}" target="_blank">${a.nomeOriginal}</a></li>`
-).join('');
-
-
-  modalCorpo.querySelector('#detalhesEmprestimo').innerHTML += `
-    <br><h3>📎 Arquivos Anexados</h3>
-    <ul>${listaArquivos}</ul>
   `;
-}  
-  
-  ;
+
+  if (emprestimo.arquivos && emprestimo.arquivos.length > 0) {
+    const listaArquivos = emprestimo.arquivos.map(a =>
+      `<li><a href="${URL_SERVICO}${a.caminho}" target="_blank">${a.nomeOriginal}</a></li>`
+    ).join('');
+
+    modalCorpo.querySelector('#detalhesEmprestimo').innerHTML += `
+      <br><h3>📎 Arquivos Anexados</h3>
+      <ul>${listaArquivos}</ul>
+    `;
+  }
 
   const parcelasContainer = document.getElementById('parcelasContainer');
   const parcelas = emprestimo.statusParcelas || Array.from({ length: emprestimo.parcelas }, () => false);
   const datasPagamentos = emprestimo.datasPagamentos || Array.from({ length: emprestimo.parcelas }, () => null);
-
-  parcelas.forEach((paga, i) => {
-    const item = document.createElement('div');
-    item.style.marginBottom = '8px';
-    item.style.display = 'flex'; 
-    item.style.alignItems = 'flex-start';
+  const recebidoPor = emprestimo.recebidoPor || Array.from({ length: emprestimo.parcelas }, () => null);
 
 
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = paga;
-    chk.disabled = paga;
-    chk.style.marginRight = '10px'; 
-    chk.style.transform = 'scale(1.5)'; 
-    chk.style.cursor = 'pointer'; 
-    chk.style.marginTop = '4px'; 
+parcelas.forEach((paga, i) => {
+  const item = document.createElement('div');
+  item.style.marginBottom = '16px'; // Espaçamento maior entre parcelas
+  item.style.display = 'flex';
+  item.style.alignItems = 'flex-start';
 
-const label = document.createElement('label');
-label.style.lineHeight = '1.4';
+  const chk = document.createElement('input');
+  chk.type = 'checkbox';
+  chk.checked = paga;
+  chk.disabled = paga;
+  chk.style.marginRight = '10px';
+  chk.style.transform = 'scale(1.5)';
+  chk.style.cursor = 'pointer';
+  chk.style.marginTop = '4px';
 
-const vencimento = emprestimo.datasVencimentos?.[i];
-const dataVencimento = vencimento
-  ? vencimento.split('-').reverse().join('/') // yyyy-mm-dd → dd/mm/yyyy
-  : null;
+  const label = document.createElement('label');
+  label.style.lineHeight = '1.4';
 
-const valorParcelaFormatado = formatarMoeda(emprestimo.valorParcela);
+  const vencimento = emprestimo.datasVencimentos?.[i];
+  const dataVencimento = vencimento
+    ? vencimento.split('-').reverse().join('/')
+    : null;
 
-function parseDateLocal(dateString) {
-  const [yyyy, mm, dd] = dateString.split('-');
-  return new Date(yyyy, mm - 1, dd); // mês começa em 0 no JS
-}
+  const valorParcelaFormatado = formatarMoeda(emprestimo.valorParcela);
 
-let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>`;
-if (dataVencimento) {
-  html += `<strong>📅 Vencimento:</strong> ${dataVencimento}<br>`;
-}
-
-if (vencimento && !paga) {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0); // zera hora para só data
-
-  const dataVenc = parseDateLocal(vencimento);
-  dataVenc.setHours(0, 0, 0, 0);
-
-  if (hoje.getTime() === dataVenc.getTime()) {
-    html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
-  } else if (hoje > dataVenc) {
-    const diffTime = hoje.getTime() - dataVenc.getTime();
-    const diasAtraso = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    const multa = diasAtraso * 20;
-
-    html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-    html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
+  function parseDateLocal(dateString) {
+    const [yyyy, mm, dd] = dateString.split('-');
+    return new Date(yyyy, mm - 1, dd);
   }
-}
 
+  let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcelaFormatado}<br>`;
+  if (dataVencimento) {
+    html += `<strong>📅 Vencimento:</strong> ${dataVencimento}<br>`;
+  }
 
-if (paga && datasPagamentos[i]) {
-  const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-  const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const nomeRecebedor = emprestimo.recebidoPor?.[i] || 'N/A';
-  html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-  html += `<strong>🙍‍♂️ Recebido por:</strong> ${nomeRecebedor} às ${horario}`;
-}
+  if (vencimento && !paga) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
+    const dataVenc = parseDateLocal(vencimento);
+    dataVenc.setHours(0, 0, 0, 0);
 
-    label.innerHTML = html;
+    if (hoje.getTime() === dataVenc.getTime()) {
+      html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
+    } else if (hoje > dataVenc) {
+      const diffTime = hoje.getTime() - dataVenc.getTime();
+      const diasAtraso = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      const multa = diasAtraso * 20;
 
-
-chk.addEventListener('change', async () => {
-  if (chk.checked) { // só faz se for para marcar como paga
-
-    if (i > 0 && !parcelas[i - 1]) {
-      mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
-      chk.checked = false;
-      return;
+      html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
+      html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
     }
+  }
 
-      chk.checked = false; // impede marcação até o modal confirmar
-      parcelaSelecionada = { emprestimo, indice: i, checkbox: chk }; // armazena tudo o que precisa
-      emprestimoSelecionado = emprestimo;
+  if (paga && datasPagamentos[i]) {
+    const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
+    const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const nomeRecebedor = recebidoPor[i] || 'N/A';
+    html += `<strong>✅ Paga em:</strong> ${data}<br>`;
+    html += `<strong>🙍‍♂️ Recebido por:</strong> ${nomeRecebedor} às ${horario}`;
+  }
+
+  label.innerHTML = html;
+
+  chk.addEventListener('change', async () => {
+    if (chk.checked) {
+      if (i > 0 && !parcelas[i - 1]) {
+        mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes de marcar a parcela ${i + 1}.`);
+        chk.checked = false;
+        return;
+      }
+
+      chk.checked = false;
+      parcelaSelecionada = { emprestimo: emprestimo, indice: i, checkbox: chk };
       modalRecebedor.style.display = 'flex';
       inputRecebedor.value = '';
       inputRecebedor.focus();
-      return; // o restante da lógica virá depois da confirmação no modal
+    }
+  });
+
+  item.appendChild(chk);
+  item.appendChild(label);
+  parcelasContainer.appendChild(item);
+
+  // Adiciona linha horizontal entre parcelas, exceto após a última
+  if (i < parcelas.length - 1) {
+    const hr = document.createElement('hr');
+    hr.style.border = 'none';
+    hr.style.borderTop = '1px solid #ccc';
+    hr.style.margin = '8px 0 16px';
+    parcelasContainer.appendChild(hr);
   }
 });
 
 
-    item.appendChild(chk);
-    item.appendChild(label);
-    parcelasContainer.appendChild(item);
-  });
-
   modal.style.display = 'flex';
   document.body.classList.add('modal-aberto');
 }
-
-
 
 // Fecha modal ao clicar no X
 modalFechar.onclick = () => {
@@ -663,19 +663,6 @@ window.onclick = (event) => {
     document.body.classList.remove('modal-aberto');
   }
 }
-
-// Captura e formata enquanto digita
-valorInput.addEventListener('input', (e) => {
-  const valorNumerico = +e.target.value.replace(/\D/g, '') / 100;
-  if (isNaN(valorNumerico)) {
-    valorInput.value = '';
-    infoValores.innerHTML = '';
-    return;
-  }
-  valorInput.value = formatarMoeda(valorNumerico);
-  atualizarResumoValores(); // Garante atualização da tabela de parcelas
-});
-
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -697,12 +684,8 @@ form.addEventListener('submit', async (e) => {
   formData.append('taxaJuros', parseFloat(jurosInput.value) || 20);
 
   const vencimentos = Array.from(document.querySelectorAll('.input-data-parcela')).map(input => input.value);
-  console.log('Datas de vencimento selecionadas:', vencimentos);
   vencimentos.forEach(data => formData.append('datasVencimentos', data));
-console.log('Todos os dados enviados:');
-for (let pair of formData.entries()) {
-  console.log(`${pair[0]}:`, pair[1]);
-}
+
   const arquivos = document.getElementById('anexos').files;
   for (let i = 0; i < arquivos.length; i++) {
     formData.append('anexos', arquivos[i]);
@@ -717,24 +700,26 @@ for (let pair of formData.entries()) {
     if (!response.ok) {
       const erro = await response.text();
       mostrarAlertaError(`Erro ao salvar: ${erro}`);
+      console.error('Erro ao salvar empréstimo:', erro); // Log para depuração
       return;
     }
 
     mostrarAlerta('Empréstimo cadastrado com sucesso!');
     form.reset();
     atualizarResumoValores(); // para atualizar valores e limpar tabela
+    carregarEstatisticas(); // Atualiza o dashboard
 
   } catch (error) {
     mostrarAlertaError(`Erro ao salvar: ${error.message}`);
+    console.error('Erro de rede ou desconhecido:', error); // Log para depuração
   }
 });
 
 document.addEventListener('change', (e) => {
   if (e.target.classList.contains('input-data-parcela')) {
-    console.log(`Parcela ${parseInt(e.target.dataset.index) + 1} alterada para: ${e.target.value}`);
+    // Lógica para quando a data de uma parcela é alterada, se necessário
   }
 });
-
 
 pesquisa.addEventListener('input', (e) => {
   e.target.value = aplicarMascaraCPF(e.target.value);
@@ -748,7 +733,6 @@ pesquisa.addEventListener('input', (e) => {
   }
 });
 
-
 document.getElementById('btnConsultarAtivos').addEventListener('click', () => {
   termoAtual = pesquisa.value.trim();
   if (termoAtual === '') {
@@ -756,93 +740,147 @@ document.getElementById('btnConsultarAtivos').addEventListener('click', () => {
     mostrarAlertaWarning('Informe um CPF para consultar');
     return;
   }
-
   realizarBusca(termoAtual);
 });
 
-
 async function realizarBusca(termo) {
-  const res = await fetch(`${URL_SERVICO}/emprestimos?termo=${termo}`);
-  const dados = await res.json();
+  try {
+    const res = await fetch(`${URL_SERVICO}/emprestimos?termo=${termo}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Erro ao buscar empréstimos: ${errorText}`);
+    }
+    const dados = await res.json();
 
-  const termoNormalizado = termo.toLowerCase();
+    const termoNormalizado = termo.toLowerCase();
 
-  const filtrado = dados.filter(e => {
-    const nome = e.nome ? e.nome.toLowerCase() : '';
-    const cpf = e.cpf ? e.cpf.toLowerCase() : '';
-    return nome.includes(termoNormalizado) || cpf.includes(termoNormalizado);
-  });
-
-  resultado.innerHTML = '';
-
-
-if (filtrado.length === 0) {
-  resultado.innerHTML = '<li>Nenhum resultado encontrado</li>';
-  return;
-}
-
-  filtrado.forEach(e => {
-    const li = document.createElement('li');
-    li.classList.add('card-vencimento');
-    li.innerHTML = `
-      <h3>${e.nome}</h3>
-      <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
-      <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
-      <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
-    `;
-
-
-    // Abrir modal ao clicar no item (não no botão Ver Parcelas)
-    li.addEventListener('click', (event) => {
-      if(event.target.tagName.toLowerCase() !== 'button') {
-        abrirModal(e);
-      }
+    const filtrado = dados.filter(e => {
+      const nome = e.nome ? e.nome.toLowerCase() : '';
+      const cpf = e.cpf ? e.cpf.toLowerCase() : '';
+      return nome.includes(termoNormalizado) || cpf.includes(termoNormalizado);
     });
 
-    resultado.appendChild(li);
-        setTimeout(() => {
-      li.classList.add('mostrar');
-    }, 10);
-  });
+    resultado.innerHTML = '';
+
+    if (filtrado.length === 0) {
+      resultado.innerHTML = '<li>Nenhum resultado encontrado</li>';
+      return;
+    }
+
+    filtrado.forEach(e => {
+      const li = document.createElement('li');
+      li.classList.add('card-vencimento');
+      li.innerHTML = `
+        <h3>${e.nome}</h3>
+        <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+        <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+        <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+      `;
+
+      // Abrir modal ao clicar no item
+      li.addEventListener('click', (event) => {
+        abrirModal(e);
+      });
+
+      resultado.appendChild(li);
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, 10);
+    });
+  } catch (err) {
+    mostrarAlertaError(`Erro ao realizar busca: ${err.message}`);
+    console.error('Erro na busca:', err); // Log para depuração
+  }
 }
-
-
-
 
 pesquisaQuitados.addEventListener('input', (e) => {
   e.target.value = aplicarMascaraCPF(e.target.value);
 
   const cpfNumeros = e.target.value.replace(/\D/g, '');
 
-  // Se tiver menos de 11 dígitos, limpa os resultados
   if (cpfNumeros.length < 11) {
     resultadoQuitados.innerHTML = '';
   }
 });
 
 document.getElementById('btnConsultarQuitados').addEventListener('click', async () => {
-  const termo = pesquisaQuitados.value.trim().toLowerCase();
+  const termo = pesquisaQuitados.value.trim();
   if (termo === '') {
     resultadoQuitados.innerHTML = '';
-    mostrarAlertaWarning('Informe um CPF para consultar');
+    mostrarAlertaWarning('Informe um CPF para consultar empréstimos quitados');
     return;
   }
 
-  const res = await fetch(`${URL_SERVICO}/emprestimos/quitados`);
-  const dados = await res.json();
+  try {
+    const res = await fetch(`${URL_SERVICO}/emprestimos/quitados?termo=${termo}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Erro ao buscar empréstimos quitados: ${errorText}`);
+    }
+    const dados = await res.json();
 
-  const filtrado = dados.filter(e =>
-    e.cpf && e.cpf.toLowerCase().includes(termo)
-  );
+    const termoNormalizado = termo.toLowerCase();
 
-  resultadoQuitados.innerHTML = '';
+    const filtrado = dados.filter(e => {
+      const nome = e.nome ? e.nome.toLowerCase() : '';
+      const cpf = e.cpf ? e.cpf.toLowerCase() : '';
+      return nome.includes(termoNormalizado) || cpf.includes(termoNormalizado);
+    });
 
-  if (filtrado.length === 0) {
-    resultadoQuitados.innerHTML = '<li>Nenhum resultado encontrado</li>';
+    resultadoQuitados.innerHTML = '';
+
+    if (filtrado.length === 0) {
+      resultadoQuitados.innerHTML = '<li>Nenhum resultado de empréstimo quitado encontrado</li>';
+      return;
+    }
+
+    filtrado.forEach(e => {
+      const li = document.createElement('li');
+      li.classList.add('card-vencimento');
+      li.innerHTML = `
+        <h3>${e.nome}</h3>
+        <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+        <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
+        <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+        <p style="color: green; font-weight: bold;">QUITADO</p>
+      `;
+      li.addEventListener('click', () => abrirModal(e));
+      resultadoQuitados.appendChild(li);
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, 10);
+    });
+  } catch (err) {
+    mostrarAlertaError(`Erro ao realizar busca de quitados: ${err.message}`);
+    console.error('Erro na busca de quitados:', err); // Log para depuração
+  }
+});
+
+async function lerEmprestimos() {
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos`);
+    if (!response.ok) {
+      throw new Error('Erro ao buscar empréstimos');
+    }
+    return await response.json();
+  } catch (err) {
+    mostrarAlertaError('Erro ao carregar empréstimos');
+    console.error(err);
+    return []; // retorna array vazio em caso de erro
+  }
+}
+
+
+function exibirResultados(lista, resultadoId) {
+  const container = document.getElementById(resultadoId);
+  container.innerHTML = '';
+
+  if (lista.length === 0) {
+    container.innerHTML = '<li>Nenhum empréstimo encontrado</li>';
     return;
   }
 
-  filtrado.forEach(e => {
+  lista.forEach(e => {
     const li = document.createElement('li');
     li.classList.add('card-vencimento');
     li.innerHTML = `
@@ -850,22 +888,78 @@ document.getElementById('btnConsultarQuitados').addEventListener('click', async 
       <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
       <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
       <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
-      <p id="quitado" style="color: green" >QUITADO</p>
     `;
-
-
     li.addEventListener('click', () => abrirModal(e));
-    resultadoQuitados.appendChild(li);
-     setTimeout(() => li.classList.add('mostrar'), 10);
+    container.appendChild(li);
+    setTimeout(() => li.classList.add('mostrar'), 10);
   });
+}
+
+
+
+async function filtrarPorDataECidade(dataSelecionada, cidadeFiltro, resultadoId) {
+  const todosEmprestimos = await lerEmprestimos(); // <- await aqui
+  const filtrados = todosEmprestimos.filter(emp => {
+    const cidade = emp.cidade?.toLowerCase().trim();
+    const datas = emp.datasVencimentos || [];
+
+    return cidade === cidadeFiltro.toLowerCase().trim() &&
+      datas.some(data => new Date(data).toISOString().split('T')[0] === dataSelecionada);
+  });
+
+  exibirResultados(filtrados, resultadoId);
+}
+
+
+
+
+// ======== SÃO ROQUE ========
+document.getElementById('btnBuscarSaoRoque').addEventListener('click', () => {
+  const data = document.getElementById('inputDataSaoRoque').value;
+  filtrarPorDataECidade(data, 'São Roque', 'resultadoSaoRoque');
 });
 
+document.getElementById('btnHojeSaoRoque').addEventListener('click', () => {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('inputDataSaoRoque').value = hoje;
+  filtrarPorDataECidade(hoje, 'São Roque', 'resultadoSaoRoque');
+});
 
-const anexosInput = document.getElementById('anexos');
-anexosInput.addEventListener('change', () => {
-  const files = anexosInput.files;
-  if (files.length > 0) {
-    const nomes = Array.from(files).map(file => file.name).join(', ');
-    mostrarAlerta(`Arquivos selecionados: ${nomes}`, '#004085');
-  }
+document.getElementById('btnLimparSaoRoque').addEventListener('click', () => {
+  document.getElementById('resultadoSaoRoque').innerHTML = '';
+  document.getElementById('inputDataSaoRoque').value = '';
+});
+
+// ======== COTIA ========
+document.getElementById('btnBuscarCotia').addEventListener('click', () => {
+  const data = document.getElementById('inputDataCotia').value;
+  filtrarPorDataECidade(data, 'Cotia', 'resultadoCotia');
+});
+
+document.getElementById('btnHojeCotia').addEventListener('click', () => {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('inputDataCotia').value = hoje;
+  filtrarPorDataECidade(hoje, 'Cotia', 'resultadoCotia');
+});
+
+document.getElementById('btnLimparCotia').addEventListener('click', () => {
+  document.getElementById('resultadoCotia').innerHTML = '';
+  document.getElementById('inputDataCotia').value = '';
+});
+
+// ======== SOROCABA ========
+document.getElementById('btnBuscarSorocaba').addEventListener('click', () => {
+  const data = document.getElementById('inputDataSorocaba').value;
+  filtrarPorDataECidade(data, 'Sorocaba', 'resultadoSorocaba');
+});
+
+document.getElementById('btnHojeSorocaba').addEventListener('click', () => {
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById('inputDataSorocaba').value = hoje;
+  filtrarPorDataECidade(hoje, 'Sorocaba', 'resultadoSorocaba');
+});
+
+document.getElementById('btnLimparSorocaba').addEventListener('click', () => {
+  document.getElementById('resultadoSorocaba').innerHTML = '';
+  document.getElementById('inputDataSorocaba').value = '';
 });
