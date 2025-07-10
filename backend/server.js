@@ -263,6 +263,19 @@ app.get('/emprestimos/vencimento/:data', (req, res) => {
 
 
 
+
+
+
+
+
+
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
+
+
+
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
