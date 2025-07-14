@@ -70,9 +70,9 @@ input:focus {
 }
 
 
-.detalhesDoEmprestimo{
-  margin-bottom: 200px;
-}
+
+
+
 button {
   background-color: #004085;
   color: white;
@@ -153,6 +153,25 @@ button:hover {
 }
 
 /* Estilos para modal */
+
+
+
+/* TÍTULO DO MODAL - menor no mobile */
+#detalhesDoEmprestimo {
+  font-size: 24px;
+  color: #004085;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  #detalhesDoEmprestimo {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+}
+
 
 .modal {
   display: none; /* oculta inicialmente */
