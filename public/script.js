@@ -274,30 +274,42 @@ btnBuscarPorData.addEventListener('click', async () => {
       return;
     }
 
-    dados.forEach(e => {
-      const li = document.createElement('li');
-      li.classList.add('card-vencimento');
-      li.innerHTML = `
-        <h3>${e.nome}</h3>
-        <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
-        <p><strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}</p>
-        <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
-        <div class="lista-parcelas">
-          <p><strong>Parcelas com vencimento:</strong></p>
-          <ul>
-            ${e.datasVencimentos
-              .map((v, i) => {
-                if (v === data) {
-                  const dataFormatada = new Date(data).toLocaleDateString('pt-BR');
-                  const paga = e.statusParcelas?.[i] ? `✅ Paga em ${dataFormatada}` : '❌ Não paga';
-                  return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
-                }
-                return '';
-              })
-              .join('')}
-          </ul>
-        </div>
-      `;
+dados.forEach(e => {
+  const li = document.createElement('li');
+  li.classList.add('card-vencimento');
+
+  // Monta o endereço completo para a URL do Waze
+  const enderecoCompleto = `${e.endereco}, ${e.numero} ${e.complemento || ''}, ${e.cidade} - ${e.estado}, ${e.cep}`;
+  const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(enderecoCompleto)}`;
+
+  li.innerHTML = `
+    <h3>${e.nome}</h3>
+    <p><strong>Valor:</strong> ${formatarMoeda(e.valorOriginal)} | <strong>Parcelas:</strong> ${e.parcelas}</p>
+    <p>
+      <strong>Endereço:</strong> ${e.endereco}, ${e.numero}${e.complemento ? ' - ' + e.complemento : ''}
+      <a href="${urlWaze}" target="_blank" title="Abrir no Waze" style="margin-left: 10px;">
+        <img src="waze.png" alt="Waze" width="24" height="24" style="vertical-align: middle;" />
+      </a>
+    </p>
+    <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
+    <div class="lista-parcelas">
+      <p><strong>Parcelas com vencimento:</strong></p>
+      <ul>
+        ${e.datasVencimentos
+          .map((v, i) => {
+            if (v === data) {
+              const dataFormatada = new Date(data).toLocaleDateString('pt-BR');
+              const paga = e.statusParcelas?.[i] ? `✅ Paga em ${dataFormatada}` : '❌ Não paga';
+              return `<li>Parcela ${i + 1} - ${formatarMoeda(e.valorParcela)} (${paga})</li>`;
+            }
+            return '';
+          })
+          .join('')}
+      </ul>
+    </div>
+  `;
+
+
       li.addEventListener('click', () => abrirModal(e));
       resultadoPorData.appendChild(li);
       setTimeout(() => li.classList.add('mostrar'), 10);
