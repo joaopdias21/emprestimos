@@ -1,5 +1,5 @@
-const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
-//const URL_SERVICO = 'http://localhost:3000'
+//const URL_SERVICO = 'https://emprestimos-om94.onrender.com'
+const URL_SERVICO = 'http://localhost:3000'
 
 const form = document.getElementById('emprestimoForm');
 const pesquisa = document.getElementById('pesquisa');
@@ -583,6 +583,7 @@ async function abrirModal(emprestimo) {
       : null;
 
     const valorParcelaFormatado = formatarMoeda(emprestimo.valorParcela);
+
 
     function parseDateLocal(dateString) {
       const [yyyy, mm, dd] = dateString.split('-');
