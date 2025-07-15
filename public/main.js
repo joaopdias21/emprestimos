@@ -1,0 +1,12 @@
+import './config.js';
+import './dom.js';
+import './auth.js';
+import './dashboard.js';
+import './utils.js';
+import './exportador.js';
+import './mascaras.js';
+import './cep.js';
+import './calculoParcelas.js';
+import './modal.js';
+import './cadastro.js';
+import './consulta.js';

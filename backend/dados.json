@@ -346,15 +346,20 @@
     "juros": 20,
     "statusParcelas": [
       true,
-      false,
+      true,
       false
     ],
     "datasPagamentos": [
       "2025-07-07T16:30:54.710Z",
-      null,
+      "2025-07-15T17:56:00.382Z",
       null
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      null,
+      "Gustavo",
+      null
+    ]
   },
   {
     "id": 1751897472179,
@@ -485,17 +490,17 @@
     "statusParcelas": [
       true,
       true,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
       false
     ],
     "datasPagamentos": [
       "2025-07-08T16:59:05.626Z",
       "2025-07-08T17:12:43.780Z",
-      null,
-      null,
-      null,
+      "2025-07-15T17:45:48.543Z",
+      "2025-07-15T17:50:08.788Z",
+      "2025-07-15T17:51:00.221Z",
       null
     ],
     "datasVencimentos": [
@@ -516,9 +521,9 @@
     "recebidoPor": [
       "SETE",
       "João",
-      null,
-      null,
-      null,
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
       null
     ],
     "endereço": "Rua Hera",
@@ -601,15 +606,15 @@
     "valorParcela": 1032,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
-      false,
+      true,
+      true,
       false,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
-      null,
+      "2025-07-15T17:52:03.805Z",
+      "2025-07-15T17:54:03.510Z",
       null,
       null,
       null
@@ -627,7 +632,14 @@
         "caminho": "/uploads/anexos-1751919719276-663449753.jpeg"
       }
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      "Gustavo",
+      null,
+      null,
+      null
+    ]
   },
   {
     "id": 1751919770606,
@@ -648,12 +660,12 @@
     "taxaJuros": "20",
     "statusParcelas": [
       true,
-      false,
+      true,
       false
     ],
     "datasPagamentos": [
       "2025-07-08T14:37:22.398Z",
-      null,
+      "2025-07-15T17:52:12.382Z",
       null
     ],
     "datasVencimentos": [
@@ -670,7 +682,7 @@
     "quitado": false,
     "recebidoPor": [
       "SETE",
-      null,
+      "Gustavo",
       null
     ]
   },
@@ -1040,31 +1052,31 @@
     "valorParcela": 0.5,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
       false
     ],
     "datasPagamentos": [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
+      "2025-07-15T18:02:50.988Z",
+      "2025-07-15T18:03:33.187Z",
+      "2025-07-15T18:05:26.459Z",
+      "2025-07-15T18:08:29.028Z",
+      "2025-07-15T18:09:01.036Z",
+      "2025-07-15T18:14:05.050Z",
+      "2025-07-15T18:16:22.739Z",
+      "2025-07-15T18:17:42.107Z",
+      "2025-07-15T18:20:14.248Z",
+      "2025-07-15T18:20:42.779Z",
+      "2025-07-15T18:22:57.294Z",
       null
     ],
     "datasVencimentos": [
@@ -1082,7 +1094,21 @@
       "2026-07-08"
     ],
     "arquivos": [],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      null
+    ]
   },
   {
     "id": 1752157771152,
@@ -1211,5 +1237,79 @@
     ],
     "arquivos": [],
     "quitado": false
+  },
+  {
+    "id": 1752586191349,
+    "valorOriginal": null,
+    "valorComJuros": null,
+    "parcelas": null,
+    "valorParcela": null,
+    "taxaJuros": 20,
+    "statusParcelas": [],
+    "datasPagamentos": [],
+    "datasVencimentos": [],
+    "arquivos": [],
+    "quitado": false
+  },
+  {
+    "id": 1752586366178,
+    "valorOriginal": null,
+    "valorComJuros": null,
+    "parcelas": null,
+    "valorParcela": null,
+    "taxaJuros": 20,
+    "statusParcelas": [],
+    "datasPagamentos": [],
+    "datasVencimentos": [],
+    "arquivos": [],
+    "quitado": false
+  },
+  {
+    "id": 1752587273800,
+    "nome": "Teste1",
+    "email": "joao@joao.com",
+    "telefone": "11900000000",
+    "cpf": "123.456.789-01",
+    "endereco": "Rua sete",
+    "cidade": "TESTE",
+    "estado": "AM",
+    "cep": "06702-555",
+    "numero": "1",
+    "complemento": "",
+    "valorOriginal": 4000,
+    "valorComJuros": 4800,
+    "parcelas": 5,
+    "valorParcela": 960,
+    "taxaJuros": "20",
+    "statusParcelas": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ],
+    "datasPagamentos": [
+      "2025-07-15T17:56:36.999Z",
+      "2025-07-15T17:56:58.332Z",
+      "2025-07-15T18:26:03.635Z",
+      null,
+      null
+    ],
+    "datasVencimentos": [
+      "2025-08-15",
+      "2025-09-15",
+      "2025-10-15",
+      "2025-11-15",
+      "2025-12-15"
+    ],
+    "arquivos": [],
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      null,
+      null
+    ]
   }
 ]

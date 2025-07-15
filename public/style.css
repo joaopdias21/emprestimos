@@ -564,14 +564,15 @@ body.modal-aberto {
 
 .card-vencimento {
   opacity: 0;
-  transform: translateY(10px);
+  transform: scale(0.95) rotateX(5deg);
   transition: opacity 0.4s ease, transform 0.4s ease;
 }
 
 .card-vencimento.mostrar {
   opacity: 1;
-  transform: translateY(0);
+  transform: scale(1) rotateX(0deg);
 }
+
 
 #btnLimparData{
   background-color: red;
@@ -822,11 +823,18 @@ body.modal-aberto {
 }
 
 .parcela-box.parcela-paga {
+  
   border-left: 4px solid #28a745 !important; /* Verde */
+  border-bottom: 1px solid #28a745 !important; /* Verde */
 }
 
 .parcela-box.parcela-atrasada {
-  border-left: 4px solid #dc3545 !important; /* Vermelho */
+  border-left: 6px solid #dc3545 !important; /* Vermelho */
+  border-bottom: 2px solid #dc3545 !important; /* Vermelho */
+  border-top: 2px solid #dc3545 !important; /* Vermelho */
+  border-right: 2px solid #dc3545 !important; /* Vermelho */
+  background-color: #cc0606;
+
 }
 
 .parcela-box.parcela-hoje {
@@ -835,4 +843,19 @@ body.modal-aberto {
 
 .parcela-box.parcela-em-dia {
   border-left: 4px solid #007bff !important; /* Azul padrão */
+}
+
+.parcela-hoje {
+    background-color: #fff3e0; /* Laranja claro */
+    border-color: #ff9800; /* Laranja */
+}
+
+.parcela-atrasada {
+    background-color: #ffebee; /* Vermelho claro */
+    border-color: #f44336; /* Vermelho */
+}
+
+.parcela-paga {
+    background-color: #e8f5e9; /* Verde claro */
+    border-color: #4caf50; /* Verde */
 }
