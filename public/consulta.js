@@ -166,12 +166,15 @@ btnBuscarPorData.addEventListener('click', async () => {
         <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorOriginal)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
         <p>
         <strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}
+        </p>
+        <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
+        <br>
+        <p><strong>Abrir no Waze</strong> </p>
         <a href="${urlWaze}" target="_blank" title="Abrir no Waze" style="margin-left: 10px;">
             <img src="waze.png" alt="Waze" width="24" height="24" style="vertical-align: middle;" />
         </a>
-        </p>
-        <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
       `;
+li.querySelector('a').addEventListener('click', (e) => e.stopPropagation());
 
 li.addEventListener('click', (e) => {
   e.preventDefault();           // impede comportamento padrão
