@@ -312,20 +312,34 @@
     "valorParcela": 2400,
     "juros": 20,
     "statusParcelas": [
-      false,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
+      true,
       false
     ],
     "datasPagamentos": [
-      null,
-      null,
-      null,
-      null,
+      "2025-07-21T16:32:06.050Z",
+      "2025-07-21T16:38:04.174Z",
+      "2025-07-21T16:44:39.973Z",
+      "2025-07-21T16:48:25.309Z",
       null
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      null
+    ],
+    "valorParcelasPendentes": [
+      3000,
+      3000,
+      2500,
+      3000,
+      500
+    ]
   },
   {
     "id": 1751896772774,
@@ -379,20 +393,41 @@
     "valorParcela": 844.8,
     "juros": 20,
     "statusParcelas": [
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
-      null,
-      null,
+      "2025-07-21T16:48:55.881Z",
+      "2025-07-21T16:50:55.527Z",
+      "2025-07-21T17:00:18.661Z",
       null,
       null
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      "Gustavo",
+      "Gustavo",
+      null,
+      null
+    ],
+    "valorParcelasPendentes": [
+      844.8,
+      681,
+      841.33,
+      1162,
+      1162
+    ],
+    "valoresRecebidos": [
+      1500,
+      200,
+      200,
+      null,
+      null
+    ]
   },
   {
     "id": 1751897915208,
@@ -415,17 +450,31 @@
       true,
       true,
       true,
-      false,
+      true,
       false
     ],
     "datasPagamentos": [
       "2025-07-07T14:18:52.737Z",
       "2025-07-07T14:19:00.242Z",
       "2025-07-07T14:19:11.673Z",
-      null,
+      "2025-07-21T16:02:12.867Z",
       null
     ],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      null,
+      null,
+      null,
+      "Gustavo",
+      null
+    ],
+    "valoresRecebidos": [
+      null,
+      null,
+      null,
+      3000,
+      null
+    ]
   },
   {
     "id": 1751913496039,
@@ -704,14 +753,14 @@
     "valorParcela": 844.8,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
+      true,
       false,
       false,
       false,
       false
     ],
     "datasPagamentos": [
-      null,
+      "2025-07-21T17:03:33.973Z",
       null,
       null,
       null,
@@ -725,7 +774,28 @@
       "2025-12-08"
     ],
     "arquivos": [],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      null,
+      null,
+      null,
+      null
+    ],
+    "valorParcelasPendentes": [
+      844.8,
+      844.8,
+      844.8,
+      844.8,
+      844.8
+    ],
+    "valoresRecebidos": [
+      844.8,
+      null,
+      null,
+      null,
+      null
+    ]
   },
   {
     "id": 1751935371645,
@@ -1224,11 +1294,11 @@
     "valorParcela": 3,
     "taxaJuros": "20",
     "statusParcelas": [
-      false,
+      true,
       false
     ],
     "datasPagamentos": [
-      null,
+      "2025-07-21T14:27:02.621Z",
       null
     ],
     "datasVencimentos": [
@@ -1236,7 +1306,11 @@
       "2025-09-10"
     ],
     "arquivos": [],
-    "quitado": false
+    "quitado": false,
+    "recebidoPor": [
+      "Gustavo",
+      null
+    ]
   },
   {
     "id": 1752586191349,

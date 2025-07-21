@@ -20,7 +20,25 @@ let parcelaSelecionada = null;
 let termoAtual = '';
 let scrollPos = 0;
 
+// === MÁSCARA DE FORMATAÇÃO PARA INPUT DE MOEDA (R$) ===
+const inputValorRecebido = document.getElementById('valorRecebido');
 
+inputValorRecebido.addEventListener('input', (e) => {
+  let valor = e.target.value.replace(/\D/g, '');
+
+  let valorNum = parseInt(valor, 10);
+  if (isNaN(valorNum)) {
+    e.target.value = '';
+    return;
+  }
+
+  valorNum = valorNum / 100;
+
+  e.target.value = valorNum.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+});
 
 async function realizarBusca(termo) {
   try {
@@ -84,6 +102,8 @@ modalFechar.addEventListener('click', (e) => {
 // ====== Cancelar recebedor ======
 btnCancelarRecebedor.addEventListener('click', () => {
 modalRecebedor.style.display = 'none';
+inputValorRecebido.value = '';
+
 parcelaSelecionada = null;
 atualizarVisualParcelas(emprestimoSelecionado);
 
@@ -99,12 +119,25 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
   const { emprestimo, indice, checkbox } = parcelaSelecionada;
   const dataPagamento = new Date().toISOString();
+  const valorRecebidoRaw = document.getElementById('valorRecebido').value;
+    const valorLimpoString = valorRecebidoRaw.replace(/\D/g, ''); // remove tudo que não for dígito
+    const valorRecebido = parseFloat(valorLimpoString) / 100;
+
+    if (isNaN(valorRecebido) || valorRecebido <= 0) {
+      mostrarAlertaWarning('Informe um valor válido para o pagamento.');
+      return;
+    }
+
 
   try {
     const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dataPagamento, nomeRecebedor: nome })
+      body: JSON.stringify({
+        dataPagamento,
+        nomeRecebedor: nome,
+        valorRecebido
+      })
     });
 
     if (!response.ok) {
@@ -112,16 +145,22 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
       throw new Error(`Erro do servidor: ${errorText}`);
     }
 
-    // Atualiza localmente o objeto
+    const emprestimoAtualizado = await response.json();
+    Object.assign(emprestimo, emprestimoAtualizado);
+
+    // Garante arrays locais
     if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
     if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
+    if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
+    // Atualiza dados da parcela
     emprestimo.statusParcelas[indice] = true;
     emprestimo.datasPagamentos[indice] = dataPagamento;
     emprestimo.recebidoPor[indice] = nome;
+    emprestimo.valoresRecebidos[indice] = valorRecebido;
 
-    // Atualiza visual do checkbox e conteúdo
+    // Atualiza UI
     checkbox.checked = true;
     checkbox.disabled = true;
 
@@ -129,31 +168,36 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     if (label) {
       const data = new Date(dataPagamento).toLocaleDateString('pt-BR');
       const horario = new Date(dataPagamento).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      label.innerHTML += `
+      const valorOriginal = emprestimo.valorParcela;
+      const diferenca = valorRecebido - valorOriginal;
+
+      let info = `
         <br><strong>✅ Paga em:</strong> ${data}<br>
-        <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}
-      `;
+        <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
+        <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+
+      if (Math.abs(diferenca) >= 0.01) {
+        info += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
+          diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
+        }</strong><br>`;
+      }
+
+      label.innerHTML += info;
       checkbox.parentElement.classList.add('parcela-paga');
     }
 
     mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
-
-    // ✅ Não reconstrói o modal! Apenas atualiza se o modal não estiver aberto
-    if (termoAtual && !document.body.classList.contains('modal-aberto')) {
-      
-    }
-
   } catch (err) {
     mostrarAlertaError(`Erro ao marcar parcela como paga: ${err.message}`);
     console.error('Erro ao marcar parcela como paga:', err);
     checkbox.checked = false;
   }
 
-  // Fecha apenas o modal do recebedor
-modalRecebedor.style.display = 'none';
-parcelaSelecionada = null;
-atualizarVisualParcelas(emprestimoSelecionado);
+  modalRecebedor.style.display = 'none';
+  inputValorRecebido.value = '';
 
+  parcelaSelecionada = null;
+  atualizarVisualParcelas(emprestimoSelecionado);
 });
 
 
@@ -230,7 +274,10 @@ export async function abrirModal(emprestimo) {
     const label = document.createElement('label');
     label.style.lineHeight = '1.4';
 
-    const valorParcela = formatarMoeda(emprestimo.valorParcela);
+      const valorParcela = formatarMoeda(
+      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
+    );
+
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
@@ -261,10 +308,24 @@ export async function abrirModal(emprestimo) {
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
       const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const valorRecebido = emprestimo.valoresRecebidos?.[i];
       const recebedor = recebidoPor[i] || 'N/A';
       html += `<strong>✅ Paga em:</strong> ${data}<br>`;
       html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}`;
       statusClass = 'parcela-paga';
+        if (valorRecebido != null) {
+        const valorOriginal = emprestimo.valorParcela;
+        const diferenca = valorRecebido - valorOriginal;
+
+        html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+
+        if (Math.abs(diferenca) >= 0.01) {
+          html += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
+            diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
+          }</strong><br>`;
+        }
+      }
+
     }
 
     label.innerHTML = html;
@@ -282,6 +343,13 @@ export async function abrirModal(emprestimo) {
         modalRecebedor.style.display = 'flex';
         inputRecebedor.value = '';
         inputRecebedor.focus();
+        const valorAtual = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
+        document.getElementById('valorRecebido').value = valorAtual.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      });
+
+
       }
     });
 
@@ -329,7 +397,10 @@ function atualizarVisualParcelas(emprestimo) {
     const label = document.createElement('label');
     label.style.lineHeight = '1.4';
 
-    const valorParcela = formatarMoeda(emprestimo.valorParcela);
+    const valorParcela = formatarMoeda(
+      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
+    );
+
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
@@ -360,10 +431,25 @@ function atualizarVisualParcelas(emprestimo) {
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
       const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const recebedor = recebidoPor[i] || 'N/A';
+     const recebedor = recebidoPor[i] || 'N/A';
       html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-      html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}`;
-      statusClass = 'parcela-paga';
+      html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
+
+      const valorRecebido = emprestimo.valoresRecebidos?.[i];
+      const valorOriginal = emprestimo.valorParcela;
+
+      if (valorRecebido != null) {
+        const diferenca = valorRecebido - valorOriginal;
+        html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+        if (Math.abs(diferenca) >= 0.01) {
+          html += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
+            diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
+          }</strong><br>`;
+        }
+      }
+
+statusClass = 'parcela-paga';
+
     }
 
     label.innerHTML = html;
@@ -381,6 +467,13 @@ function atualizarVisualParcelas(emprestimo) {
         modalRecebedor.style.display = 'flex';
         inputRecebedor.value = '';
         inputRecebedor.focus();
+        const valorAtual = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
+        document.getElementById('valorRecebido').value = valorAtual.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      });
+
+
       }
     });
 
@@ -396,3 +489,6 @@ function atualizarVisualParcelas(emprestimo) {
     }
   });
 }
+
+
+

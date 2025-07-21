@@ -89,6 +89,11 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
 
   const valorComJuros = valorNumerico * (1 + taxa);
   const valorParcela = valorComJuros / parcelasNumerico;
+const valorParcelasPendentes = Array.from(
+  { length: parcelasNumerico },
+  () => parseFloat(valorParcela.toFixed(2))
+);
+
 
   const novoEmprestimo = {
     id: Date.now(),
@@ -106,6 +111,7 @@ app.post('/emprestimos', upload.array('anexos'), (req, res) => {
     valorComJuros,
     parcelas: parcelasNumerico,
     valorParcela,
+    valorParcelasPendentes,
     taxaJuros,
     statusParcelas: Array.from({ length: parcelasNumerico }, () => false),
     datasPagamentos: Array.from({ length: parcelasNumerico }, () => null),
@@ -184,29 +190,75 @@ app.patch('/emprestimos/:id/parcela/:indice', (req, res) => {
     return res.status(400).json({ erro: 'Parcela inválida' });
   }
 
-  if (!Array.isArray(emprestimo.statusParcelas)) {
-    emprestimo.statusParcelas = Array.from({ length: emprestimo.parcelas }, () => false);
-  }
+  // Garante que os arrays existem
+if (!Array.isArray(emprestimo.statusParcelas))
+  emprestimo.statusParcelas = Array.from({ length: emprestimo.parcelas }, () => false);
 
-  if (!Array.isArray(emprestimo.datasPagamentos)) {
-    emprestimo.datasPagamentos = Array.from({ length: emprestimo.parcelas }, () => null);
-  }
+if (!Array.isArray(emprestimo.datasPagamentos))
+  emprestimo.datasPagamentos = Array.from({ length: emprestimo.parcelas }, () => null);
 
-  // Marcar como paga
+if (!Array.isArray(emprestimo.recebidoPor))
+  emprestimo.recebidoPor = Array.from({ length: emprestimo.parcelas }, () => null);
+
+// Array de valores dinâmicos (se não existir em empréstimos antigos)
+if (!Array.isArray(emprestimo.valorParcelasPendentes)) {
+  emprestimo.valorParcelasPendentes = Array.from(
+    { length: emprestimo.parcelas },
+    () => parseFloat(emprestimo.valorParcela.toFixed(2))
+  );
+}
+
+const recebido = parseFloat(req.body.valorRecebido);
+const previsto = emprestimo.valorParcelasPendentes[indice];
+
+// 1. Marca como paga
 emprestimo.statusParcelas[indice] = true;
 emprestimo.datasPagamentos[indice] = req.body.dataPagamento || new Date().toISOString();
-
-if (!Array.isArray(emprestimo.recebidoPor)) {
-  emprestimo.recebidoPor = Array.from({ length: emprestimo.parcelas }, () => null);
-}
 emprestimo.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
 
+// 2. Registra o valor realmente recebido (em novo campo)
+if (!Array.isArray(emprestimo.valoresRecebidos))
+  emprestimo.valoresRecebidos = Array.from({ length: emprestimo.parcelas }, () => null);
 
-  // Verifica se todas foram pagas
-  emprestimo.quitado = emprestimo.statusParcelas.every(p => p === true);
+emprestimo.valoresRecebidos[indice] = recebido;
 
-  salvarDados(dados);
-  res.json({ sucesso: true, quitado: emprestimo.quitado });
+
+// 3. Calcula a diferença e redistribui
+const diff = previsto - recebido; // +: faltou | -: sobrou
+
+const indicesRestantes = emprestimo.statusParcelas
+  .map((paga, i) => (!paga ? i : null))
+  .filter(i => i !== null && i > indice);
+
+if (indicesRestantes.length > 0 && diff !== 0) {
+  const ajuste = diff / indicesRestantes.length;
+
+  indicesRestantes.forEach((i, k) => {
+    if (k === indicesRestantes.length - 1) {
+      // Última parcela recebe o que sobrar de arredondamentos
+      const somaParcial = indicesRestantes
+        .slice(0, -1)
+        .reduce((s, j) => s + emprestimo.valorParcelasPendentes[j], 0);
+      emprestimo.valorParcelasPendentes[i] = parseFloat(
+        (emprestimo.valorParcelasPendentes[i] + (diff - ajuste * (indicesRestantes.length - 1))).toFixed(2)
+      );
+    } else {
+      emprestimo.valorParcelasPendentes[i] = parseFloat(
+        (emprestimo.valorParcelasPendentes[i] + ajuste).toFixed(2)
+      );
+    }
+  });
+}
+
+// 4. Verifica quitação
+emprestimo.quitado = emprestimo.statusParcelas.every(p => p);
+
+// ------------------------------------------------------------------
+// FIM DA NOVA LÓGICA
+// ------------------------------------------------------------------
+
+salvarDados(dados);
+return res.json(emprestimo);
 });
 
 

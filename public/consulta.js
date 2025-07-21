@@ -146,7 +146,12 @@ btnBuscarPorData.addEventListener('click', async () => {
 
     resultadoPorData.innerHTML = '';
     if (!dados.length) {
-      resultadoPorData.innerHTML = '<li>Nenhum empréstimo encontrado para esta data.</li>';
+      resultadoPorData.innerHTML = `
+  <li class="mensagem-vazia">
+    <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+    <p>Nenhum empréstimo encontrado</p>
+  </li>
+`;
       return;
     }
 
@@ -228,11 +233,21 @@ function exibirResultados(lista, resultadoId, index) {
   container.innerHTML = '';
 
   if (lista.length === 0) {
-    container.innerHTML = '<li>Nenhum empréstimo encontrado</li>';
+    container.innerHTML = `
+  <li class="mensagem-vazia">
+    <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+    <p>Nenhum empréstimo encontrado</p>
+  </li>
+`;
     return;
   }
 
   lista.forEach((emprestimo, i) => {
+
+    const enderecoCompleto = `${emprestimo.endereco}, ${emprestimo.numero} ${emprestimo.complemento || ''}, ${emprestimo.cidade} - ${emprestimo.estado}, ${emprestimo.cep}`;
+
+    const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(enderecoCompleto)}`;
+
     const li = document.createElement('li');
     li.setAttribute('tabindex', '-1');
     li.classList.add('card-vencimento');
@@ -241,6 +256,11 @@ function exibirResultados(lista, resultadoId, index) {
       <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorOriginal)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
       <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
       <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
+      <br>
+        <p><strong>Abrir no Waze</strong> </p>
+        <a href="${urlWaze}" target="_blank" title="Abrir no Waze" style="margin-left: 10px;">
+            <img src="waze.png" alt="Waze" width="24" height="24" style="vertical-align: middle;" />
+        </a>
     `;
 
         li.addEventListener('click', (e) => {
