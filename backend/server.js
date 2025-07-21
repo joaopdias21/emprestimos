@@ -1,17 +1,31 @@
 // server.js
+
 const express  = require('express');
 const cors     = require('cors');
 const multer   = require('multer');
 const path     = require('path');
 const mongoose = require('mongoose');
+const fs       = require('fs');
 require('dotenv').config();
 
 /* ----------------------- CONFIG APP ----------------------- */
 const app  = express();
 const PORT = 3000;
 
+/* --------------------- PASTA UPLOADS ---------------------- */
+const uploadDir = path.join(__dirname, 'uploads');
+// Garante que a pasta exista para evitar erro no multer
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+/* ------------------- MIDDLEWARES --------------------------- */
 app.use(cors());
 app.use(express.json());
+
+// Middleware para servir arquivos estáticos da pasta uploads
+// Deve ficar antes das rotas que usam uploads
+app.use('/uploads', express.static(uploadDir));
 
 /* ------------------- CONEXÃO COM MONGODB ------------------ */
 mongoose.connect(process.env.MONGO_URI)
@@ -23,10 +37,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 /* --------------------- SCHEMA & MODEL --------------------- */
 const EmprestimoSchema = new mongoose.Schema({
-  /* chave numérica → mantém compatibilidade com o front */
   id: { type: Number, unique: true },
-
-  /* dados do cliente */
   nome: String,
   email: String,
   telefone: String,
@@ -37,28 +48,21 @@ const EmprestimoSchema = new mongoose.Schema({
   cep: String,
   numero: String,
   complemento: String,
-
-  /* valores */
   valorOriginal: Number,
   valorComJuros: Number,
   parcelas: Number,
   valorParcela: Number,
   valorParcelasPendentes: [Number],
   taxaJuros: Number,
-
-  /* controle de parcelas */
   statusParcelas:   [Boolean],
-  datasPagamentos:  [String],   // ISO
-  datasVencimentos: [String],   // ISO
+  datasPagamentos:  [String],
+  datasVencimentos: [String],
   valoresRecebidos: [Number],
   recebidoPor:      [String],
-
-  /* uploads */
   arquivos: [{
     nomeOriginal: String,
     caminho:      String
   }],
-
   quitado: { type: Boolean, default: false }
 }, { timestamps: true });
 
@@ -71,20 +75,18 @@ function formatarDataLocal(data) {
 }
 
 /* ------------------- CONFIGURAÇÃO MULTER ------------------ */
-const uploadDir = path.join(__dirname, 'uploads');
-const storage   = multer.diskStorage({
+const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
-  filename:    (req, file, cb) => {
+  filename: (req, file, cb) => {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
     cb(null, `${file.fieldname}-${unique}${path.extname(file.originalname)}`);
   }
 });
 const upload = multer({ storage });
-app.use('/uploads', express.static(uploadDir));
 
 /* ------------------------- ROTAS -------------------------- */
 
-/* ⇢ Criar empréstimo */
+// Criar empréstimo com upload de arquivos
 app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
   try {
     const {
@@ -100,7 +102,8 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
     const datasCalc = vencimentos.length === parcelasNum
       ? vencimentos
       : Array.from({ length: parcelasNum }, (_, i) => {
-          const d = new Date(); d.setMonth(d.getMonth() + i + 1);
+          const d = new Date();
+          d.setMonth(d.getMonth() + i + 1);
           return formatarDataLocal(d);
         });
 
@@ -127,6 +130,9 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
       arquivos,
       quitado: false
     });
+
+    // Loga o caminho completo dos arquivos no servidor
+    (req.files || []).forEach(f => console.log('Arquivo salvo em:', path.join(uploadDir, f.filename)));
 
     res.status(201).json(novo);
   } catch (err) {
