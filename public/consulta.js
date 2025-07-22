@@ -63,7 +63,7 @@ btnConsultarAtivos.addEventListener('click', async () => {
       li.classList.add('card-vencimento');
       li.innerHTML = `
         <h3>${emprestimo.nome}</h3>
-        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorOriginal)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
+        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
         <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
         <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
       `;

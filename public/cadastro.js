@@ -153,6 +153,7 @@ form.addEventListener('submit', async (e) => {
       mostrarAlerta('Empréstimo cadastrado com sucesso!');
       form.reset();
       infoValores.textContent = '';
+      atualizarResumoValores();
 
     } catch (err) {
       console.error('Erro ao salvar:', err);
@@ -160,16 +161,3 @@ form.addEventListener('submit', async (e) => {
     }
   });
 });
-
-
-
-
-
-
-
-
-
-
-
-  
-
