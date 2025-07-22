@@ -93,7 +93,7 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
   nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
   valor, parcelas, datasVencimentos = []
 } = req.body;
-
+console.log(req.body.taxaJuros)
 const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
 
 

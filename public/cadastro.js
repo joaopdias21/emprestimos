@@ -155,8 +155,9 @@ form.addEventListener('submit', async (e) => {
     formData.append('parcelas', parcelas);
 
     // Taxa de juros
-    const taxa = parseFloat(jurosInput.value) || 20;
-    formData.append('taxaJuros', taxa);
+  let taxa = parseFloat(jurosInput.value);
+  if (isNaN(taxa)) taxa = 20;
+  formData.append('taxaJuros', taxa);
 
     // Datas de vencimento (múltiplas)
     const vencimentos = Array.from(document.querySelectorAll('.input-data-parcela'))

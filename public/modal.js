@@ -210,8 +210,9 @@ export async function abrirModal(emprestimo) {
   emprestimoSelecionado = emprestimo;
   modal.style.display = 'flex';
 
-  const taxa = Number(emprestimo.taxaJuros);
-  const taxaFormatada = isNaN(taxa) ? 20 : taxa.toFixed(0);
+const taxa = typeof emprestimo.taxaJuros === 'number' ? emprestimo.taxaJuros : 0;
+const taxaFormatada = taxa.toFixed(0);
+
 
   modalCorpo.innerHTML = `
     <div class="modal-layout">
