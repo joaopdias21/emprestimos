@@ -90,9 +90,12 @@ const upload = multer({ storage });
 app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
   try {
     const {
-      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
-      valor, parcelas, taxaJuros = 20, datasVencimentos = []
-    } = req.body;
+  nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+  valor, parcelas, datasVencimentos = []
+} = req.body;
+
+const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
+
 
     const valorNum      = Number(valor);
     const parcelasNum   = Number(parcelas);

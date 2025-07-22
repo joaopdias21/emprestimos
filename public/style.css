@@ -574,11 +574,24 @@ body.modal-aberto {
 }
 
 
-#btnLimparData{
+#btnLimparData {
   background-color: red;
 }
 
+#btnLimparSaoRoque {
+  background-color: red;
 
+}
+
+#btnLimparCotia {
+  background-color: red;
+  
+}
+
+#btnLimparSorocaba {
+  background-color: red;
+  
+}
 
 
 .modal {

@@ -12,6 +12,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
 
+  function formatarInputMoeda(input) {
+  input.addEventListener('input', () => {
+    let valor = input.value.replace(/\D/g, '');
+
+    if (valor.length === 0) {
+      input.value = 'R$ 0,00';
+      return;
+    }
+
+    valor = (parseInt(valor, 10) / 100).toFixed(2) + '';
+    valor = valor.replace('.', ',');
+    valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+    input.value = 'R$ ' + valor;
+  });
+
+  input.addEventListener('focus', () => {
+    if (input.value.trim() === '') {
+      input.value = 'R$ 0,00';
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    if (input.value === 'R$ 0,00') {
+      input.value = '';
+    }
+  });
+}
+
+
   const jurosInput = document.createElement('input');
   jurosInput.type = 'number';
   jurosInput.id = 'taxaJuros'; // usar mesmo id que você usa para pegar o valor depois
@@ -24,11 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   jurosInput.addEventListener('input', atualizarResumoValores);
   const valorInput = document.getElementById('valor');
+  formatarInputMoeda(valorInput);
   const parcelasInput = document.getElementById('parcelas');
 
  // Função para atualizar o resumo e tabela
   function atualizarResumoValores() {
-    const valorNumerico = +valorInput.value.replace(/\D/g, '') / 100;
+    const valorNumerico = parseFloat(valorInput.value.replace(/[^\d]/g, '')) / 100;
     const qtdParcelas = parseInt(parcelasInput.value);
 
     let taxaJuros = parseFloat(jurosInput.value);
