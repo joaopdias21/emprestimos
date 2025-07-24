@@ -147,15 +147,19 @@ const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) 
 /* ⇢ Empréstimos inadimplentes */
 app.get('/emprestimos/inadimplentes', async (_req, res) => {
   try {
-    const hoje   = new Date();
-    const lista  = await Emprestimo.find({ quitado: false });
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // zera a hora para comparar apenas a data
+
+    const lista = await Emprestimo.find({ quitado: false });
 
     const inadimplentes = lista.filter(emp => {
       return emp.datasVencimentos.some((data, i) => {
         const [a, m, d] = data.split('-').map(Number);
         const venc = new Date(a, m - 1, d);
-        const atrasado = venc < hoje && !emp.statusParcelas[i];
-        return atrasado;
+        venc.setHours(0, 0, 0, 0); // zera também o vencimento
+
+        // considera inadimplente apenas se o vencimento for anterior a hoje
+        return venc < hoje && !emp.statusParcelas[i];
       });
     });
 
@@ -165,6 +169,7 @@ app.get('/emprestimos/inadimplentes', async (_req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar inadimplentes' });
   }
 });
+
 
 /* ⇢ Marcar parcela como paga */
 app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {

@@ -10,7 +10,9 @@ import {
   inputDataVencimento,
   btnBuscarPorData,
   resultadoPorData,
-  btnHoje
+  btnHoje,
+  btnConsultarAtrasados,
+  resultadoAtrasados 
 } from './dom.js';
 
 
@@ -57,35 +59,47 @@ btnConsultarAtivos.addEventListener('click', async () => {
       return;
     }
 
-    dados.forEach((emprestimo, index) => {
-      const li = document.createElement('li');
-      li.setAttribute('tabindex', '-1');
-      li.classList.add('card-vencimento');
-      li.innerHTML = `
-        <h3>${emprestimo.nome}</h3>
-        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
-        <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
-        <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
-      `;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0); // zera hora
 
-li.addEventListener('click', (e) => {
-  e.preventDefault();           // impede comportamento padrão
-  e.stopPropagation();          // impede propagação que pode causar scroll
-  abrirModal(emprestimo);      // abre modal
-});
+          dados.forEach((emprestimo, index) => {
+            const vencido = emprestimo.datasVencimentos?.some((data, i) => {
+              const [ano, mes, dia] = data.split('-').map(Number);
+              const vencimento = new Date(ano, mes - 1, dia);
+              vencimento.setHours(0, 0, 0, 0);
+              return vencimento < hoje && !emprestimo.statusParcelas[i];
+            });
 
+            const li = document.createElement('li');
+            li.setAttribute('tabindex', '-1');
+            li.classList.add('card-vencimento');
 
-      resultado.appendChild(li);
+            li.innerHTML = `
+              <h3>${emprestimo.nome}</h3>
+              <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
+              <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
+              <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
+              ${vencido ? '<p style="color: red; font-weight: bold;">ATRASADO</p>' : ''}
+            `;
 
-      setTimeout(() => {
-        li.classList.add('mostrar');
-      }, index * 100);
-    });
-  } catch (err) {
-    console.error(err);
-    mostrarAlertaError('Erro ao buscar empréstimos');
-  }
-});
+            li.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              abrirModal(emprestimo);
+            });
+
+            resultado.appendChild(li);
+
+            setTimeout(() => {
+              li.classList.add('mostrar');
+            }, index * 100);
+          });
+
+            } catch (err) {
+              console.error(err);
+              mostrarAlertaError('Erro ao buscar empréstimos');
+            }
+          });
 
 // --- Busca empréstimos quitados ---
 btnConsultarQuitados.addEventListener('click', async () => {
@@ -133,6 +147,56 @@ li.addEventListener('click', (e) => {
     mostrarAlertaError('Erro ao buscar empréstimos quitados');
   }
 });
+
+
+btnConsultarAtrasados.addEventListener('click', async () => {
+  resultadoAtrasados.innerHTML = '';
+
+  try {
+    const res = await fetch(`${URL_SERVICO}/emprestimos/inadimplentes`);
+    if (!res.ok) throw new Error('Erro na busca de atrasados');
+
+    const dados = await res.json();
+
+    if (!dados.length) {
+      resultadoAtrasados.innerHTML = '<li>Nenhum empréstimo atrasado encontrado.</li>';
+      return;
+    }
+
+    dados.forEach((emprestimo, index) => {
+      const li = document.createElement('li');
+      li.setAttribute('tabindex', '-1');
+      li.classList.add('card-vencimento');
+      li.innerHTML = `
+        <h3>${emprestimo.nome}</h3>
+        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
+        <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
+        <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
+        <p style="color: red; font-weight: bold;">ATRASADO</p>
+      `;
+
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        abrirModal(emprestimo);
+      });
+
+      resultadoAtrasados.appendChild(li);
+
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, index * 100);
+    });
+  } catch (err) {
+    console.error(err);
+    mostrarAlertaError('Erro ao buscar empréstimos atrasados');
+  }
+});
+
+
+
+
+
 
 // --- Busca por data de vencimento ---
 btnBuscarPorData.addEventListener('click', async () => {

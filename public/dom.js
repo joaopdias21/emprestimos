@@ -31,3 +31,5 @@ export const btnConsultarAtivos = document.getElementById('btnConsultarAtivos');
 
 export const btnConsultarQuitados = document.getElementById('btnConsultarQuitados');
 
+export const btnConsultarAtrasados = document.getElementById('btnConsultarAtrasados');
+export const resultadoAtrasados = document.getElementById('resultadoAtrasados');
