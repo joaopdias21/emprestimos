@@ -36,10 +36,17 @@
         <div id="tabelaParcelas"></div>
         <br><br>
         <div class="campo-anexo">
-          <label for="anexos">Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
+        <label for="anexos">📎 Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
+
+        <div class="upload-wrapper">
           <input type="file" id="anexos" name="anexos" multiple
             accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
+          <label for="anexos" class="upload-label">📁 Escolher arquivos</label>
+          <span id="nomeArquivos">Nenhum arquivo selecionado</span>
         </div>
+      </div>
+
+
         <br><br>
         <button type="submit">Cadastrar</button>
       </form>
@@ -148,9 +155,33 @@
         <div class="export-buttons">
           <button id="exportCSV">Exportar CSV do tipo selecionado</button>
         </div>
+        <div style="max-width: 700px; margin-top: 40px;">
+    <canvas id="graficoEmprestimosMes"></canvas>
+  </div>
+  <div style="max-width: 400px; margin-top: 40px;">
+    <canvas id="graficoDistribuicao"></canvas>
+  </div>
+</section>
       </section>
     </div>
   </div>
+
+
+
+  <section id="filtroPagamentos" style="margin-top: 30px;">
+  <h3>Extrair Pagamentos por Intervalo</h3>
+  <label>
+    Início:
+    <input type="date" id="dataInicio" />
+  </label>
+  <label>
+    Fim:
+    <input type="date" id="dataFim" />
+  </label>
+  <button id="btnExtrairPagamentos">Extrair</button>
+
+  <div id="resultadoExtracao" style="margin-top: 20px;"></div>
+</section>
 
   <!-- MODAL DE DETALHES -->
   <div id="modalDetalhes" class="modal">
@@ -187,6 +218,9 @@
     </div>
   </div>
 
+
+  
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="./main.js"></script>
 
 </body>

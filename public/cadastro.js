@@ -182,6 +182,7 @@ form.addEventListener('submit', async (e) => {
         throw new Error(erroTexto);
       }
 
+
       mostrarAlerta('Empréstimo cadastrado com sucesso!');
       form.reset();
       infoValores.textContent = '';
@@ -192,4 +193,11 @@ form.addEventListener('submit', async (e) => {
       mostrarAlertaError(`Erro ao cadastrar empréstimo: ${err.message}`);
     }
   });
+});
+
+      document.getElementById('anexos').addEventListener('change', function () {
+  const files = Array.from(this.files).map(file => file.name);
+  document.getElementById('nomeArquivos').textContent = files.length
+    ? files.join(', ')
+    : 'Nenhum arquivo selecionado';
 });

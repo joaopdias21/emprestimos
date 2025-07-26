@@ -278,6 +278,99 @@ app.post('/upload-arquivos', upload.array('anexos'), (req, res) => {
 /* health‑check */
 app.get('/ping', (_req, res) => res.send('pong'));
 
+
+
+/* ⇢ Dados do Dashboard */
+app.get('/dashboard/dados', async (_req, res) => {
+  try {
+    const todos = await Emprestimo.find();
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    let ativos = 0, quitados = 0, inadimplentes = 0;
+    const porMes = {};
+
+    for (const emp of todos) {
+      const dataCriacao = new Date(emp.createdAt);
+      const chaveMes = `${dataCriacao.getFullYear()}-${String(dataCriacao.getMonth() + 1).padStart(2, '0')}`;
+      porMes[chaveMes] = (porMes[chaveMes] || 0) + emp.valorOriginal;
+
+      if (emp.quitado) {
+        quitados++;
+        continue;
+      }
+
+      const temParcelaVencida = emp.datasVencimentos?.some((d, i) => {
+        const venc = new Date(d);
+        venc.setHours(0, 0, 0, 0);
+        return venc < hoje && !emp.statusParcelas[i];
+      });
+
+      if (temParcelaVencida) {
+        inadimplentes++;
+      } else {
+        ativos++;
+      }
+    }
+
+    res.json({ ativos, quitados, inadimplentes, porMes });
+  } catch (err) {
+    console.error('Erro em /dashboard/dados:', err);
+    res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
+  }
+});
+
+
+
+app.get('/relatorio/pagamentos', async (req, res) => {
+  try {
+    const { inicio, fim } = req.query;
+    if (!inicio || !fim) {
+      return res.status(400).json({ erro: 'Informe os parâmetros ?inicio=AAAA-MM-DD&fim=AAAA-MM-DD' });
+    }
+
+    const dataInicio = new Date(inicio);
+    const dataFim = new Date(fim);
+    dataFim.setHours(23, 59, 59, 999); // incluir o dia inteiro
+
+    const emprestimos = await Emprestimo.find();
+
+    const resultado = [];
+    let totalPago = 0;
+
+    for (const emp of emprestimos) {
+      const pagamentos = [];
+
+      emp.datasPagamentos?.forEach((dataPag, idx) => {
+        const data = new Date(dataPag);
+        if (data >= dataInicio && data <= dataFim) {
+          const valor = emp.valoresRecebidos?.[idx] || emp.valorParcela || 0;
+          pagamentos.push({ parcela: idx + 1, dataPagamento: dataPag, valor });
+          totalPago += valor;
+        }
+      });
+
+      if (pagamentos.length > 0) {
+      resultado.push({
+        nomeCliente: emp.nome,
+        id: emp._id,
+        pagamentos
+      });
+
+      }
+    }
+
+    res.json({ emprestimos: resultado, totalPago });
+  } catch (err) {
+    console.error('Erro em /relatorio/pagamentos:', err);
+    res.status(500).json({ erro: 'Erro ao processar relatório' });
+  }
+});
+
+
+
+
+
 /* ----------------------- START SERVER ---------------------- */
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);

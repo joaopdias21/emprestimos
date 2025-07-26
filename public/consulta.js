@@ -95,6 +95,11 @@ btnConsultarAtivos.addEventListener('click', async () => {
             }, index * 100);
           });
 
+
+
+
+          
+
             } catch (err) {
               console.error(err);
               mostrarAlertaError('Erro ao buscar empréstimos');
