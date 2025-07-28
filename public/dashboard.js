@@ -113,7 +113,7 @@ async function carregarDashboard() {
   const fim = document.getElementById('dataFim').value;
 
   if (!inicio || !fim) {
-    alert('Informe o intervalo de datas');
+    mostrarAlertaError('Informe o intervalo de datas');
     return;
   }
 
@@ -124,8 +124,9 @@ async function carregarDashboard() {
 const container = document.getElementById('resultadoExtracao');
 container.innerHTML = `
   <div class="resumo-total">
-    <strong>Total Pago:</strong> R$ ${dados.totalPago.toFixed(2)}
+    <strong>Total recebido:</strong> R$ ${dados.totalPago.toFixed(2)}
   </div>
+  
 `;
 
 dados.emprestimos.forEach(e => {
@@ -149,8 +150,135 @@ dados.emprestimos.forEach(e => {
 
   } catch (err) {
     console.error(err);
-    alert('Erro ao buscar dados de pagamento');
+    mostrarAlertaError('Erro ao buscar dados de pagamento');
   }
 });
+
+
+
+
+
+document.getElementById('btnExportarPDF').addEventListener('click', async () => {
+  const original = document.getElementById('resultadoExtracao');
+
+  if (!original || original.innerHTML.trim() === '') {
+    mostrarAlertaError('Nenhum dado para exportar');
+    return;
+  }
+
+  const dataInicio = document.getElementById('dataInicio').value;
+  const dataFim = document.getElementById('dataFim').value;
+
+  if (!dataInicio || !dataFim) {
+    mostrarAlertaError('Informe o intervalo de datas para exportar o PDF');
+    return;
+  }
+
+  // Logo URL (troque para sua logo)
+  const logoUrl = 'wbanco.png';
+
+  // Cria container temporário para renderização
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.width = '800px';
+  container.style.background = '#fff';
+  container.style.color = '#000';
+  container.style.padding = '20px';
+  container.style.zIndex = 9999;
+  container.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
+
+  // Cabeçalho fixo com logo e datas
+  const header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.alignItems = 'center';
+  header.style.marginBottom = '20px';
+  header.style.borderBottom = '2px solid #4caf50';
+  header.style.paddingBottom = '10px';
+
+  const img = document.createElement('img');
+  img.src = logoUrl;
+  img.style.height = '40px';
+  img.style.marginRight = '15px';
+  img.alt = 'Logo';
+
+  const headerText = document.createElement('div');
+  headerText.style.fontSize = '16px';
+  headerText.style.color = '#222';
+  function formatarDataLocalISO(isoDate) {
+    const date = new Date(isoDate + 'T00:00:00'); // corrige UTC para local
+    return date.toLocaleDateString('pt-BR');
+  }
+
+  headerText.innerHTML = `
+    <strong>Relatório de Pagamentos</strong><br/>
+    Período: ${formatarDataLocalISO(dataInicio)} até ${formatarDataLocalISO(dataFim)}
+  `;
+
+
+  header.appendChild(img);
+  header.appendChild(headerText);
+
+  // Clona o conteúdo para manter visualização correta
+  const clone = original.cloneNode(true);
+  clone.style.background = '#fff';
+  clone.style.color = '#000';
+  clone.style.width = '100%';
+
+  // Monta container para renderizar o header + conteúdo
+  container.appendChild(header);
+  container.appendChild(clone);
+
+  document.body.appendChild(container);
+
+  try {
+    // Aguarda o render completo
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Faz captura com html2canvas
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let position = 0;
+    let heightLeft = imgHeight;
+
+    // Se a imagem couber numa página só
+    if (imgHeight < pageHeight) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+    } else {
+      // Conteúdo longo com paginação
+      while (heightLeft > 0) {
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        position -= pageHeight;
+
+        if (heightLeft > 0) {
+          pdf.addPage();
+        }
+      }
+    }
+
+    pdf.save(`pagamentos_${dataInicio}_a_${dataFim}.pdf`);
+  } catch (err) {
+    console.error('Erro ao gerar PDF:', err);
+  } finally {
+    document.body.removeChild(container);
+  }
+});
+
+
+
+
+
 
 
