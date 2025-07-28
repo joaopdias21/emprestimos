@@ -55,7 +55,12 @@ btnConsultarAtivos.addEventListener('click', async () => {
     const dados = await res.json();
 
     if (!dados.length) {
-      resultado.innerHTML = '<li>Nenhum empréstimo encontrado.</li>';
+      resultado.innerHTML = 
+       `<li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo encontrado</p>
+        </li>
+`;
       return;
     }
 
@@ -118,7 +123,12 @@ btnConsultarQuitados.addEventListener('click', async () => {
     const dados = await res.json();
 
     if (!dados.length) {
-      resultadoQuitados.innerHTML = '<li>Nenhum empréstimo quitado encontrado.</li>';
+      resultadoQuitados.innerHTML =        
+      `<li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo encontrado</p>
+        </li>
+`;
       return;
     }
 
@@ -164,7 +174,12 @@ btnConsultarAtrasados.addEventListener('click', async () => {
     const dados = await res.json();
 
     if (!dados.length) {
-      resultadoAtrasados.innerHTML = '<li>Nenhum empréstimo atrasado encontrado.</li>';
+      resultadoAtrasados.innerHTML =        
+      `<li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo encontrado</p>
+        </li>
+`;
       return;
     }
 

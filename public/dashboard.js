@@ -121,22 +121,36 @@ async function carregarDashboard() {
     const res = await fetch(`${URL_SERVICO}/relatorio/pagamentos?inicio=${inicio}&fim=${fim}`);
     const dados = await res.json();
 
-    const container = document.getElementById('resultadoExtracao');
-    container.innerHTML = `<p><strong>Total Pago:</strong> R$ ${dados.totalPago.toFixed(2)}</p>`;
+const container = document.getElementById('resultadoExtracao');
+container.innerHTML = `
+  <div class="resumo-total">
+    <strong>Total Pago:</strong> R$ ${dados.totalPago.toFixed(2)}
+  </div>
+`;
 
-    dados.emprestimos.forEach(e => {
-      const div = document.createElement('div');
-      div.innerHTML = `
-        <h4>Cliente: ${e.nomeCliente}</h4>
-        <ul>
-          ${e.pagamentos.map(p => `<li>Parcela ${p.parcela} - ${new Date(p.dataPagamento).toLocaleDateString()} - R$ ${p.valor.toFixed(2)}</li>`).join('')}
-        </ul>
-      `;
-      container.appendChild(div);
-    });
+dados.emprestimos.forEach(e => {
+  const div = document.createElement('div');
+  div.classList.add('card-cliente');
+
+  div.innerHTML = `
+    <h4>Cliente: ${e.nomeCliente}</h4>
+    <ul>
+      ${e.pagamentos.map(p => `
+        <li>
+          Parcela <strong>${p.parcela}</strong> • 
+          ${new Date(p.dataPagamento).toLocaleDateString()} • 
+          <strong>R$ ${p.valor.toFixed(2)}</strong>
+        </li>`).join('')}
+    </ul>
+  `;
+  container.appendChild(div);
+});
+
 
   } catch (err) {
     console.error(err);
     alert('Erro ao buscar dados de pagamento');
   }
 });
+
+
