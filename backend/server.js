@@ -369,6 +369,40 @@ app.get('/relatorio/pagamentos', async (req, res) => {
 
 
 
+// Atualizar dados gerais do empréstimo (ex: nome, email, telefone, etc)
+app.patch('/emprestimos/:id', async (req, res) => {
+  try {
+    const idNum = Number(req.params.id);
+    if (isNaN(idNum)) {
+      return res.status(400).json({ erro: 'ID inválido' });
+    }
+
+    const dadosAtualizados = req.body;
+
+    // Remova campos que não quer atualizar direto, por segurança (opcional)
+    delete dadosAtualizados._id;
+    delete dadosAtualizados.id; // se quiser manter id fixo
+
+    const emprestimo = await Emprestimo.findOne({ id: idNum });
+    if (!emprestimo) {
+      return res.status(404).json({ erro: 'Empréstimo não encontrado' });
+    }
+
+    // Atualiza apenas os campos enviados no corpo
+    Object.assign(emprestimo, dadosAtualizados);
+
+    await emprestimo.save();
+
+    res.json(emprestimo);
+  } catch (err) {
+    console.error('PATCH /emprestimos/:id:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar empréstimo' });
+  }
+});
+
+
+
+
 
 
 /* ----------------------- START SERVER ---------------------- */

@@ -239,11 +239,89 @@ const taxaFormatada = taxa.toFixed(0);
           ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
         </div>
       </div>
+
+
+
+       <button id="btnEditar" style="margin-top:20px;">Editar Empréstimo</button>
+  <div id="editarContainer" style="margin-top: 15px; display:none;">
+    <form id="formEditarEmprestimo">
+      <label>Nome: <input type="text" name="nome" value="${emprestimo.nome}" required></label><br>
+      <label>Email: <input type="email" name="email" value="${emprestimo.email}" required></label><br>
+      <label>Telefone: <input type="text" name="telefone" value="${emprestimo.telefone}" required></label><br>
+      <label>CPF: <input type="text" name="cpf" value="${emprestimo.cpf}" required></label><br>
+      <label>CEP: <input type="text" name="cep" value="${emprestimo.cep}" required></label><br>
+      <label>Endereço: <input type="text" name="endereco" value="${emprestimo.endereco}" required></label><br>
+      <label>Número: <input type="text" name="numero" value="${emprestimo.numero}" required></label><br>
+      <label>Complemento: <input type="text" name="complemento" value="${emprestimo.complemento || ''}"></label><br>
+      <label>Cidade: <input type="text" name="cidade" value="${emprestimo.cidade}" required></label><br>
+      <label>Estado: <input type="text" name="estado" value="${emprestimo.estado}" maxlength="2" required></label><br>
+      <label>Valor original: <input type="number" step="0.01" name="valorOriginal" value="${emprestimo.valorOriginal}" required></label><br>
+      <label>Taxa de Juros (%): <input type="number" step="0.01" name="taxaJuros" value="${emprestimo.taxaJuros || 0}" required></label><br>
+      <label>Parcelas: <input type="number" name="parcelas" value="${emprestimo.parcelas}" min="1" max="100" required></label><br>
+
+      <button type="submit" id="btnSalvarEdicao">Salvar</button>
+      <button type="button" id="btnCancelarEdicao">Cancelar</button>
+    </form>
+  </div>
+
+
+
       <div id="parcelasContainer" style="flex: 1;">
         <h3>📆 Parcelas</h3>
       </div>
     </div>
   `;
+
+   const btnEditar = document.getElementById('btnEditar');
+const editarContainer = document.getElementById('editarContainer');
+
+btnEditar.addEventListener('click', () => {
+  btnEditar.style.display = 'none';       // Esconde o botão editar
+  editarContainer.style.display = 'block'; // Mostra o formulário de edição
+});
+
+// Cancelar edição - volta para visualização normal (fecha form e mostra botão editar)
+document.getElementById('btnCancelarEdicao').addEventListener('click', () => {
+  editarContainer.style.display = 'none';
+  btnEditar.style.display = 'inline-block';
+});
+
+// Salvar edição
+document.getElementById('formEditarEmprestimo').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const formData = new FormData(e.target);
+  const dadosAtualizados = Object.fromEntries(formData.entries());
+
+  // Converter os tipos que precisam ser numéricos
+  dadosAtualizados.valorOriginal = parseFloat(dadosAtualizados.valorOriginal);
+  dadosAtualizados.taxaJuros = parseFloat(dadosAtualizados.taxaJuros);
+  dadosAtualizados.parcelas = parseInt(dadosAtualizados.parcelas, 10);
+
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoSelecionado.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro ao salvar: ${errorText}`);
+    }
+
+    const emprestimoAtualizado = await response.json();
+    mostrarAlerta('Empréstimo atualizado com sucesso!');
+
+    // Atualizar a visualização do modal com os dados novos
+    abrirModal(emprestimoAtualizado);
+
+  } catch (err) {
+    mostrarAlertaError(`Erro ao salvar: ${err.message}`);
+    console.error(err);
+  }
+});
 
   // Se tiver arquivos
   if (emprestimo.arquivos?.length) {
