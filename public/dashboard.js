@@ -55,49 +55,34 @@ async function carregarDashboard() {
     document.getElementById('quitadosCount').textContent = dados.quitados;
     document.getElementById('inadimplentesCount').textContent = dados.inadimplentes;
 
-    // Gráfico de pizza
-    new Chart(document.getElementById('graficoDistribuicao'), {
-      type: 'pie',
-      data: {
-        labels: ['Ativos', 'Quitados', 'Inadimplentes'],
-        datasets: [{
-          data: [dados.ativos, dados.quitados, dados.inadimplentes],
-          backgroundColor: ['#2196f3', '#4caf50', '#f44336']
-        }]
-      },
-      options: {
-        plugins: {
-          title: { display: true, text: 'Distribuição de Empréstimos' }
-        }
-      }
-    });
-
-    // Gráfico de barras - Total Emprestado por Mês
+        // Gráfico de barras - Total Emprestado por Mês
     const meses = Object.keys(dados.porMes);
     const valores = meses.map(m => dados.porMes[m]);
-
-    new Chart(document.getElementById('graficoEmprestimosMes'), {
-      type: 'bar',
-      data: {
-        labels: meses,
-        datasets: [{
-          label: 'Total Emprestado (R$)',
-          data: valores,
-          backgroundColor: '#4caf50'
-        }]
-      },
-      options: {
-        plugins: {
-          title: { display: true, text: 'Total Emprestado por Mês' }
-        },
-        scales: {
-          y: { beginAtZero: true }
-        }
+    // Gráfico de pizza
+    const graficoEmprestimos = new Chart(document.getElementById('graficoEmprestimosMes'), {
+  type: 'bar',
+  data: {
+    labels: meses,
+    datasets: [{
+      label: 'Total Emprestado (R$)',
+      data: valores,
+      backgroundColor: '#4caf50'
+    }]
+  },
+  options: {
+    onClick: async (evt, elements) => {
+      if (elements.length > 0) {
+        const mesSelecionado = graficoEmprestimos.data.labels[elements[0].index];
+        await mostrarDadosDoMes(mesSelecionado, 'emprestimos');
       }
-    });
+    },
+    plugins: { title: { display: true, text: 'Total Emprestado por Mês' } },
+    scales: { y: { beginAtZero: true } }
+  }
+});
 
-    // Gráfico de linhas - Juros a Receber por Mês
-    const jurosMes = Object.keys(dados.jurosMes)
+    // Juros a Receber por Mês
+    const jurosMes = Object.keys(dados.jurosMes);
     const valoresJuros = jurosMes.map(m => dados.jurosMes[m]);
 
     new Chart(document.getElementById('graficoJurosMes'), {
@@ -113,12 +98,8 @@ async function carregarDashboard() {
         }]
       },
       options: {
-        plugins: {
-          title: { display: true, text: 'Juros a Receber por Mês' }
-        },
-        scales: {
-          y: { beginAtZero: true }
-        }
+        plugins: { title: { display: true, text: 'Juros a Receber por Mês' } },
+        scales: { y: { beginAtZero: true } }
       }
     });
 
@@ -126,7 +107,7 @@ async function carregarDashboard() {
     const vencimentosMes = Object.keys(dados.parcelasVencimento)
     const valoresVencimentos = vencimentosMes.map(m => dados.parcelasVencimento[m]);
 
-    new Chart(document.getElementById('graficoVencimentosMes'), {
+    const graficoVencimentos = new Chart(document.getElementById('graficoVencimentosMes'), {
       type: 'bar',
       data: {
         labels: vencimentosMes,
@@ -137,14 +118,17 @@ async function carregarDashboard() {
         }]
       },
       options: {
-        plugins: {
-          title: { display: true, text: 'Parcelas com Vencimento no Mês' }
+        onClick: async (evt, elements) => {
+          if (elements.length > 0) {
+            const mesSelecionado = graficoVencimentos.data.labels[elements[0].index];
+            await mostrarDadosDoMes(mesSelecionado, 'parcelas');
+          }
         },
-        scales: {
-          y: { beginAtZero: true }
-        }
+        plugins: { title: { display: true, text: 'Parcelas com Vencimento no Mês' } },
+        scales: { y: { beginAtZero: true } }
       }
     });
+
 
   } catch (err) {
     console.error('Erro ao carregar dashboard:', err);
@@ -152,6 +136,116 @@ async function carregarDashboard() {
 }
 
 carregarDashboard();
+
+
+async function mostrarDadosDoMes(mes, tipo) {
+  const container = document.getElementById('dadosDetalhadosMes');
+  const secao = document.getElementById('dadosGraficoMesSelecionado');
+  container.innerHTML = '<p>Carregando...</p>';
+  secao.style.display = 'block';
+
+  try {
+    // Ajusta o formato de mes para o esperado na URL (MM-AAAA)
+    const mesAno = mes.replace('/', '-');
+
+    const res = await fetch(`${URL_SERVICO}/dashboard/detalhes/${tipo}/${mesAno}`);
+    const dados = await res.json();
+
+    let html = '';
+
+    if (tipo === 'emprestimos') {
+      // Soma total no frontend (caso queira mostrar)
+      const total = dados.reduce((acc, e) => acc + (e.valorOriginal || 0), 0);
+      html += `<h4>Total Emprestado no mês: R$ ${total.toFixed(2)}</h4>`;
+
+      dados.forEach(e => {
+        html += `
+          <div class="card-cliente">
+          <div id="corContainer">
+            <strong>Cliente:</strong> ${e.nome}<br>
+            Valor: R$ ${e.valorOriginal.toFixed(2)}<br>
+            Parcelas: ${e.parcelas}<br>
+         </div></div><br>`;
+      });
+
+    } else if (tipo === 'parcelas') {
+      html += `<h4>Total de Parcelas no mês: ${dados.length}</h4>`;
+      dados.forEach(p => {
+        html += `
+          <div class="card-cliente">
+          <div id="corContainer">
+            <strong>Cliente:</strong> ${p.nome}<br>
+            Parcela ${p.parcela} de ${p.totalParcelas || 'N/A'}<br>
+            Valor: R$ ${p.valorPrevisto.toFixed(2)}<br>
+            Vencimento: ${new Date(p.dataVencimento).toLocaleDateString('pt-BR')}
+          </div></div><br>`;
+      });
+    }
+
+    container.innerHTML = html;
+
+    // Salva dados para PDF, se usar depois
+    window.ultimoMesSelecionado = { mes, tipo, html };
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = '<p>Erro ao carregar dados do mês</p>';
+  }
+}
+
+
+document.getElementById('btnExportarPDFGrafico').addEventListener('click', async () => {
+  const { jsPDF } = window.jspdf;
+  const container = document.getElementById('dadosDetalhadosMes');
+
+  if (!window.ultimoMesSelecionado || !container || container.innerHTML.trim() === '') {
+    mostrarAlertaError('Nenhum dado carregado para exportar');
+    return;
+  }
+
+  const { mes, tipo } = window.ultimoMesSelecionado;
+
+  const clone = container.cloneNode(true);
+  clone.style.width = '800px';
+  clone.style.padding = '20px';
+  clone.style.color = '#000';
+  clone.style.background = '#fff';
+
+  document.body.appendChild(clone);
+
+  try {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const canvas = await html2canvas(clone, { scale: 2 });
+    const imgData = canvas.toDataURL('image/jpeg', 1.0);
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+    let position = 0;
+    let heightLeft = imgHeight;
+
+    if (imgHeight < pageHeight) {
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, imgHeight);
+    } else {
+      while (heightLeft > 0) {
+        pdf.addImage(imgData, 'JPEG', 0, position, pageWidth, imgHeight);
+        heightLeft -= pageHeight;
+        position -= pageHeight;
+        if (heightLeft > 0) pdf.addPage();
+      }
+    }
+
+    const nomeArquivo = `${tipo}_${mes.replaceAll('/', '-')}.pdf`;
+    pdf.save(nomeArquivo);
+  } catch (err) {
+    console.error('Erro ao exportar PDF:', err);
+  } finally {
+    document.body.removeChild(clone);
+  }
+});
+
 
 
 // EXTRAÇÃO DE PAGAMENTOS

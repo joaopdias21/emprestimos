@@ -428,6 +428,61 @@ app.get('/relatorio/pagamentos', async (req, res) => {
 
 
 
+
+/* ⇢ Detalhes por mês (para uso nos gráficos) */
+app.get('/dashboard/detalhes/:tipo/:mesAno', async (req, res) => {
+  try {
+    const { tipo, mesAno } = req.params; // tipo: 'emprestimos' ou 'parcelas'
+    const [mes, ano] = mesAno.split('-').map(Number);
+
+    if (!['emprestimos', 'parcelas'].includes(tipo)) {
+      return res.status(400).json({ erro: 'Tipo inválido. Use emprestimos ou parcelas.' });
+    }
+
+    const emprestimos = await Emprestimo.find();
+
+    const resultado = [];
+
+    for (const emp of emprestimos) {
+      if (tipo === 'emprestimos') {
+        const dataCriacao = new Date(emp.createdAt);
+        if (dataCriacao.getMonth() + 1 === mes && dataCriacao.getFullYear() === ano) {
+          resultado.push({
+            nome: emp.nome,
+            valorOriginal: emp.valorOriginal,
+            valorComJuros: emp.valorComJuros,
+            parcelas: emp.parcelas,
+            valorParcela: emp.valorParcela,
+            criadoEm: emp.createdAt,
+            quitado: emp.quitado
+          });
+        }
+      } else if (tipo === 'parcelas') {
+        const vencimentos = emp.datasVencimentos || [];
+        vencimentos.forEach((dataStr, idx) => {
+          const data = new Date(dataStr);
+          if (data.getMonth() + 1 === mes && data.getFullYear() === ano) {
+            resultado.push({
+              nome: emp.nome,
+              parcela: idx + 1,
+              valorPrevisto: emp.valorParcelasPendentes?.[idx] || emp.valorParcela,
+              status: emp.statusParcelas?.[idx] ? 'Paga' : 'Pendente',
+              dataVencimento: dataStr
+            });
+          }
+        });
+      }
+    }
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('Erro em /dashboard/detalhes:', err);
+    res.status(500).json({ erro: 'Erro ao buscar dados detalhados' });
+  }
+});
+
+
+
 // Atualizar dados gerais do empréstimo (ex: nome, email, telefone, etc)
 app.patch('/emprestimos/:id', async (req, res) => {
   try {
@@ -460,6 +515,57 @@ app.patch('/emprestimos/:id', async (req, res) => {
 });
 
 
+/* ⇢ Detalhes por mês (para uso nos gráficos) */
+app.get('/dashboard/detalhes/:tipo/:mesAno', async (req, res) => {
+  try {
+    const { tipo, mesAno } = req.params; // tipo: 'emprestimos' ou 'parcelas'
+    const [mes, ano] = mesAno.split('-').map(Number);
+
+    if (!['emprestimos', 'parcelas'].includes(tipo)) {
+      return res.status(400).json({ erro: 'Tipo inválido. Use emprestimos ou parcelas.' });
+    }
+
+    const emprestimos = await Emprestimo.find();
+
+    const resultado = [];
+
+    for (const emp of emprestimos) {
+      if (tipo === 'emprestimos') {
+        const dataCriacao = new Date(emp.createdAt);
+        if (dataCriacao.getMonth() + 1 === mes && dataCriacao.getFullYear() === ano) {
+          resultado.push({
+            nome: emp.nome,
+            valorOriginal: emp.valorOriginal,
+            valorComJuros: emp.valorComJuros,
+            parcelas: emp.parcelas,
+            valorParcela: emp.valorParcela,
+            criadoEm: emp.createdAt,
+            quitado: emp.quitado
+          });
+        }
+      } else if (tipo === 'parcelas') {
+        const vencimentos = emp.datasVencimentos || [];
+        vencimentos.forEach((dataStr, idx) => {
+          const data = new Date(dataStr);
+          if (data.getMonth() + 1 === mes && data.getFullYear() === ano) {
+            resultado.push({
+              nome: emp.nome,
+              parcela: idx + 1,
+              valorPrevisto: emp.valorParcelasPendentes?.[idx] || emp.valorParcela,
+              status: emp.statusParcelas?.[idx] ? 'Paga' : 'Pendente',
+              dataVencimento: dataStr
+            });
+          }
+        });
+      }
+    }
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('Erro em /dashboard/detalhes:', err);
+    res.status(500).json({ erro: 'Erro ao buscar dados detalhados' });
+  }
+});
 
 
 
