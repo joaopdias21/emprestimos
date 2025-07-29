@@ -281,6 +281,7 @@ app.get('/ping', (_req, res) => res.send('pong'));
 
 
 /* ⇢ Dados do Dashboard */
+
 app.get('/dashboard/dados', async (_req, res) => {
   try {
     const todos = await Emprestimo.find();
@@ -288,12 +289,29 @@ app.get('/dashboard/dados', async (_req, res) => {
     hoje.setHours(0, 0, 0, 0);
 
     let ativos = 0, quitados = 0, inadimplentes = 0;
-    const porMes = {};
+    const porMes = {}; // Valor original por mês
+    const jurosMes = {}; // Juros a receber por mês
+    const parcelasVencimento = {}; // Parcelas com vencimento no mês
 
     for (const emp of todos) {
       const dataCriacao = new Date(emp.createdAt);
-      const chaveMes = `${dataCriacao.getFullYear()}-${String(dataCriacao.getMonth() + 1).padStart(2, '0')}`;
-      porMes[chaveMes] = (porMes[chaveMes] || 0) + emp.valorOriginal;
+      const mesCriacao = `${String(dataCriacao.getMonth() + 1).padStart(2, '0')}/${dataCriacao.getFullYear()}`;
+      porMes[mesCriacao] = (porMes[mesCriacao] || 0) + emp.valorOriginal;
+
+      const totalJuros = emp.valorComJuros - emp.valorOriginal;
+      const jurosPorParcela = totalJuros / emp.parcelas;
+
+      emp.datasVencimentos?.forEach((dataStr, idx) => {
+        const data = new Date(dataStr);
+        const chave = `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+
+        // Juros para parcela do mês
+        jurosMes[chave] = (jurosMes[chave] || 0) + jurosPorParcela;
+
+        // Valor da parcela prevista para o mês
+        const valorParcela = emp.valorParcelasPendentes?.[idx] || emp.valorParcela;
+        parcelasVencimento[chave] = (parcelasVencimento[chave] || 0) + valorParcela;
+      });
 
       if (emp.quitado) {
         quitados++;
@@ -313,12 +331,47 @@ app.get('/dashboard/dados', async (_req, res) => {
       }
     }
 
-    res.json({ ativos, quitados, inadimplentes, porMes });
+
+    // Função para ordenar as chaves no formato MM/AAAA
+    function ordenarDatas(a, b) {
+      const [mesA, anoA] = a.split('/').map(Number);
+      const [mesB, anoB] = b.split('/').map(Number);
+      
+      // Primeiro compara o ano, depois o mês
+      return anoA - anoB || mesA - mesB;
+    }
+
+    // Criar objetos ordenados
+    const porMesOrdenado = {};
+    const jurosMesOrdenado = {};
+    const parcelasVencimentoOrdenado = {};
+
+    Object.keys(porMes).sort(ordenarDatas).forEach(key => {
+      porMesOrdenado[key] = porMes[key];
+    });
+
+    Object.keys(jurosMes).sort(ordenarDatas).forEach(key => {
+      jurosMesOrdenado[key] = jurosMes[key];
+    });
+
+    Object.keys(parcelasVencimento).sort(ordenarDatas).forEach(key => {
+      parcelasVencimentoOrdenado[key] = parcelasVencimento[key];
+    });
+
+    res.json({
+      ativos,
+      quitados,
+      inadimplentes,
+      porMes: porMesOrdenado,
+      jurosMes: jurosMesOrdenado,
+      parcelasVencimento: parcelasVencimentoOrdenado
+    });
   } catch (err) {
     console.error('Erro em /dashboard/dados:', err);
     res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
   }
 });
+
 
 
 
@@ -345,7 +398,13 @@ app.get('/relatorio/pagamentos', async (req, res) => {
         const data = new Date(dataPag);
         if (data >= dataInicio && data <= dataFim) {
           const valor = emp.valoresRecebidos?.[idx] || emp.valorParcela || 0;
-          pagamentos.push({ parcela: idx + 1, dataPagamento: dataPag, valor });
+          pagamentos.push({
+          parcela: idx + 1,
+          dataPagamento: dataPag,
+          valor,
+          recebidoPor: emp.recebidoPor?.[idx] || 'N/A'
+        });
+
           totalPago += valor;
         }
       });

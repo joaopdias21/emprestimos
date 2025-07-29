@@ -1038,7 +1038,7 @@ body.modal-aberto {
   list-style: none;
 }
 
-.card-cliente ul li {
+#corContainer{
   margin-bottom: 8px;
   font-size: 0.96rem;
   background: #e3f2fd;
@@ -1046,10 +1046,9 @@ body.modal-aberto {
   border-radius: 6px;
   color: #1a237e;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  gap: 16px;
 }
+
 
 /* IMPRESSÃO */
 @media print {

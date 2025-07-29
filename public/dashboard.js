@@ -1,10 +1,6 @@
 import { URL_SERVICO } from './config.js';
 import { mostrarAlertaError } from './utils.js';
 
-// resto do código do dashboard.js ...
-
-
-
 let tipoSelecionado = 'ativos';
 
 export async function carregarEstatisticas() {
@@ -51,64 +47,115 @@ function destacarTipoSelecionado() {
 });
 
 async function carregarDashboard() {
-    try {
-      const res = await fetch(`${URL_SERVICO}/dashboard/dados`);
-      const dados = await res.json();
+  try {
+    const res = await fetch(`${URL_SERVICO}/dashboard/dados`);
+    const dados = await res.json();
 
-      document.getElementById('ativosCount').textContent = dados.ativos;
-      document.getElementById('quitadosCount').textContent = dados.quitados;
-      document.getElementById('inadimplentesCount').textContent = dados.inadimplentes;
+    document.getElementById('ativosCount').textContent = dados.ativos;
+    document.getElementById('quitadosCount').textContent = dados.quitados;
+    document.getElementById('inadimplentesCount').textContent = dados.inadimplentes;
 
-      // Gráfico de pizza
-      new Chart(document.getElementById('graficoDistribuicao'), {
-        type: 'pie',
-        data: {
-          labels: ['Ativos', 'Quitados', 'Inadimplentes'],
-          datasets: [{
-            data: [dados.ativos, dados.quitados, dados.inadimplentes],
-            backgroundColor: ['#2196f3', '#4caf50', '#f44336']
-          }]
-        },
-        options: {
-          plugins: {
-            title: { display: true, text: 'Distribuição de Empréstimos' }
-          }
+    // Gráfico de pizza
+    new Chart(document.getElementById('graficoDistribuicao'), {
+      type: 'pie',
+      data: {
+        labels: ['Ativos', 'Quitados', 'Inadimplentes'],
+        datasets: [{
+          data: [dados.ativos, dados.quitados, dados.inadimplentes],
+          backgroundColor: ['#2196f3', '#4caf50', '#f44336']
+        }]
+      },
+      options: {
+        plugins: {
+          title: { display: true, text: 'Distribuição de Empréstimos' }
         }
-      });
+      }
+    });
 
-      // Gráfico de barras
-      const meses = Object.keys(dados.porMes).sort();
-      const valores = meses.map(m => dados.porMes[m]);
+    // Gráfico de barras - Total Emprestado por Mês
+    const meses = Object.keys(dados.porMes);
+    const valores = meses.map(m => dados.porMes[m]);
 
-      new Chart(document.getElementById('graficoEmprestimosMes'), {
-        type: 'bar',
-        data: {
-          labels: meses,
-          datasets: [{
-            label: 'Total Emprestado (R$)',
-            data: valores,
-            backgroundColor: '#4caf50'
-          }]
+    new Chart(document.getElementById('graficoEmprestimosMes'), {
+      type: 'bar',
+      data: {
+        labels: meses,
+        datasets: [{
+          label: 'Total Emprestado (R$)',
+          data: valores,
+          backgroundColor: '#4caf50'
+        }]
+      },
+      options: {
+        plugins: {
+          title: { display: true, text: 'Total Emprestado por Mês' }
         },
-        options: {
-          plugins: {
-            title: { display: true, text: 'Total Emprestado por Mês' }
-          },
-          scales: {
-            y: { beginAtZero: true }
-          }
+        scales: {
+          y: { beginAtZero: true }
         }
-      });
-    } catch (err) {
-      console.error('Erro ao carregar dashboard:', err);
-    }
+      }
+    });
+
+    // Gráfico de linhas - Juros a Receber por Mês
+    const jurosMes = Object.keys(dados.jurosMes)
+    const valoresJuros = jurosMes.map(m => dados.jurosMes[m]);
+
+    new Chart(document.getElementById('graficoJurosMes'), {
+      type: 'line',
+      data: {
+        labels: jurosMes,
+        datasets: [{
+          label: 'Juros a Receber (R$)',
+          data: valoresJuros,
+          borderColor: '#fbc02d',
+          fill: false,
+          tension: 0.1
+        }]
+      },
+      options: {
+        plugins: {
+          title: { display: true, text: 'Juros a Receber por Mês' }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    // Gráfico de barras - Parcelas com Vencimento por Mês
+    const vencimentosMes = Object.keys(dados.parcelasVencimento)
+    const valoresVencimentos = vencimentosMes.map(m => dados.parcelasVencimento[m]);
+
+    new Chart(document.getElementById('graficoVencimentosMes'), {
+      type: 'bar',
+      data: {
+        labels: vencimentosMes,
+        datasets: [{
+          label: 'Parcelas com Vencimento (R$)',
+          data: valoresVencimentos,
+          backgroundColor: '#ff9800'
+        }]
+      },
+      options: {
+        plugins: {
+          title: { display: true, text: 'Parcelas com Vencimento no Mês' }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Erro ao carregar dashboard:', err);
   }
+}
 
-  carregarDashboard();
+carregarDashboard();
 
 
-
-  document.getElementById('btnExtrairPagamentos').addEventListener('click', async () => {
+// EXTRAÇÃO DE PAGAMENTOS
+document.getElementById('btnExtrairPagamentos').addEventListener('click', async () => {
   const inicio = document.getElementById('dataInicio').value;
   const fim = document.getElementById('dataFim').value;
 
@@ -121,32 +168,31 @@ async function carregarDashboard() {
     const res = await fetch(`${URL_SERVICO}/relatorio/pagamentos?inicio=${inicio}&fim=${fim}`);
     const dados = await res.json();
 
-const container = document.getElementById('resultadoExtracao');
-container.innerHTML = `
-  <div class="resumo-total">
-    <strong>Total recebido:</strong> R$ ${dados.totalPago.toFixed(2)}
-  </div>
-  
-`;
+    const container = document.getElementById('resultadoExtracao');
+    container.innerHTML = `
+      <div class="resumo-total">
+        <strong>Total recebido:</strong> R$ ${dados.totalPago.toFixed(2)}
+      </div>
+    `;
 
-dados.emprestimos.forEach(e => {
-  const div = document.createElement('div');
-  div.classList.add('card-cliente');
+    dados.emprestimos.forEach(e => {
+      const div = document.createElement('div');
+      div.classList.add('card-cliente');
 
-  div.innerHTML = `
-    <h4>Cliente: ${e.nomeCliente}</h4>
-    <ul>
-      ${e.pagamentos.map(p => `
-        <li>
-          Parcela <strong>${p.parcela}</strong> • 
-          ${new Date(p.dataPagamento).toLocaleDateString()} • 
-          <strong>R$ ${p.valor.toFixed(2)}</strong>
-        </li>`).join('')}
-    </ul>
-  `;
-  container.appendChild(div);
-});
+      div.innerHTML = `
+        <h4>Cliente: ${e.nomeCliente}</h4>
+        ${e.pagamentos.map(p => `
+          <div id="corContainer">
+            <strong>Parcela ${p.parcela}</strong><br>
+            Data do pagamento: ${new Date(p.dataPagamento).toLocaleDateString('pt-BR')}<br>
+            Valor: <strong>R$ ${p.valor.toFixed(2)}</strong><br>
+            Recebido por: <em>${p.recebidoPor || 'N/A'}</em>
+          </div>
+        `).join('')}
+      `;
 
+      container.appendChild(div);
+    });
 
   } catch (err) {
     console.error(err);
@@ -155,9 +201,7 @@ dados.emprestimos.forEach(e => {
 });
 
 
-
-
-
+// EXPORTAR PDF
 document.getElementById('btnExportarPDF').addEventListener('click', async () => {
   const original = document.getElementById('resultadoExtracao');
 
@@ -174,10 +218,8 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     return;
   }
 
-  // Logo URL (troque para sua logo)
   const logoUrl = 'wbanco.png';
 
-  // Cria container temporário para renderização
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.top = '0';
@@ -189,7 +231,6 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
   container.style.zIndex = 9999;
   container.style.fontFamily = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
 
-  // Cabeçalho fixo com logo e datas
   const header = document.createElement('div');
   header.style.display = 'flex';
   header.style.alignItems = 'center';
@@ -206,8 +247,9 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
   const headerText = document.createElement('div');
   headerText.style.fontSize = '16px';
   headerText.style.color = '#222';
+
   function formatarDataLocalISO(isoDate) {
-    const date = new Date(isoDate + 'T00:00:00'); // corrige UTC para local
+    const date = new Date(isoDate + 'T00:00:00');
     return date.toLocaleDateString('pt-BR');
   }
 
@@ -216,27 +258,20 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     Período: ${formatarDataLocalISO(dataInicio)} até ${formatarDataLocalISO(dataFim)}
   `;
 
-
   header.appendChild(img);
   header.appendChild(headerText);
 
-  // Clona o conteúdo para manter visualização correta
   const clone = original.cloneNode(true);
   clone.style.background = '#fff';
   clone.style.color = '#000';
   clone.style.width = '100%';
 
-  // Monta container para renderizar o header + conteúdo
   container.appendChild(header);
   container.appendChild(clone);
-
   document.body.appendChild(container);
 
   try {
-    // Aguarda o render completo
     await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Faz captura com html2canvas
     const canvas = await html2canvas(container, { scale: 2, useCORS: true });
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
 
@@ -252,19 +287,14 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     let position = 0;
     let heightLeft = imgHeight;
 
-    // Se a imagem couber numa página só
     if (imgHeight < pageHeight) {
       pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
     } else {
-      // Conteúdo longo com paginação
       while (heightLeft > 0) {
         pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
         position -= pageHeight;
-
-        if (heightLeft > 0) {
-          pdf.addPage();
-        }
+        if (heightLeft > 0) pdf.addPage();
       }
     }
 
@@ -275,10 +305,3 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     document.body.removeChild(container);
   }
 });
-
-
-
-
-
-
-
