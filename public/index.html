@@ -11,9 +11,37 @@
 </head>
 
 <body>
-  <header class="header-auth">
-    <div id="authButtonsContainer"></div>
-  </header>
+<header class="header-auth">
+  <div class="header-left">
+    <img src="wbanco.png" alt="Logo Banco" class="header-logo" />
+    <h1 class="header-title">Controle de Empréstimos</h1>
+  </div>
+  <div id="authButtonsContainer" class="header-right"></div>
+
+  <button id="menuToggle" class="menu-toggle" aria-label="Abrir menu">
+      <img src="menu.png" alt="Menu" class="menu-icon" />
+  </button>
+</header>
+
+
+<!-- Menu lateral -->
+<nav class="sidebar" id="sidebarMenu">
+  <ul>
+    <li><a href="#pesquisasLinha">✔️ Empréstimos Ativos</a></li>
+    <li><a href="#pesquisasLinha">⚠️ Empréstimos Atrasados</a></li>
+    <li><a href="#pesquisasLinha">📅 Por Data de Vencimento</a></li>
+    <li><a href="#painelUnificado">🏙️ Por Vencimento - Cidades</a></li>
+    <li><a href="#dashboardLinha">📊 Dashboards</a></li>
+    <li><a href="#filtroPagamentos">💵 Pagamento por Intervalo</a></li>
+  </ul>
+</nav>
+
+
+
+              <div class="separador">
+        <span>Cadastro</span>
+      </div>
+
 
   <div class="main-container">
     <div class="form-column">
@@ -55,8 +83,16 @@
     </div>
         <br><br>
         <br><br>
-        <br><br>
 
+
+
+              <div class="separador">
+        <span id="pesquisasLinha">Pesquisas</span>
+      </div>
+
+
+          <br><br>
+        <br><br>
     <div class="admin-panel">
       <!-- NOVO CONTAINER VERTICAL PARA OS PAINÉIS DE BUSCA -->
       <div class="painel-de-buscas">
@@ -68,7 +104,7 @@
           </div>
           <ul id="resultado"></ul>
         </div>
-        <br><br>
+      
 
         <div class="form-column" id="buscarQuitados">
           <h2>Pesquisar Empréstimos Quitados</h2>
@@ -87,6 +123,10 @@
           <button type="button" id="btnConsultarAtrasados">Consultar</button>
         </div>
         <ul id="resultadoAtrasados"></ul>
+      </div>
+
+                    <div class="separador">
+        <span>Datas de Vencimento</span>
       </div>
 
         <div class="form-column" id="emprestimosPorData">
@@ -125,6 +165,9 @@
   <ul id="resultadoUnico"></ul>
 </div>
 
+              <div class="separador">
+        <span id="dashboardLinha" >Grafícos</span>
+      </div>
 
       <!-- DASHBOARD -->
       <section id="dashboard" class="dashboard-container">
@@ -230,6 +273,14 @@
     </div>
   </div>
 
+<script>
+  const menuToggle = document.getElementById('menuToggle');
+  const sidebarMenu = document.getElementById('sidebarMenu');
+
+  menuToggle.addEventListener('click', () => {
+    sidebarMenu.classList.toggle('active');
+  });
+</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>

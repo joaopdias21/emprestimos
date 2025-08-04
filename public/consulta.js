@@ -382,7 +382,7 @@ document.getElementById('btnBuscarUnico').addEventListener('click', () => {
   const data = document.getElementById('inputDataUnica').value;
 
   if (!cidade || !data) {
-    alert('Por favor, selecione uma cidade e uma data.');
+    mostrarAlertaWarning('Por favor, selecione uma cidade e uma data.');
     return;
   }
 

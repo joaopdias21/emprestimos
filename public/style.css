@@ -26,6 +26,160 @@ h3 {
   font-size: 1.2rem;
 }
 
+
+
+/* Header principal */
+.header-auth {
+  position: sticky; /* ou fixed se quiser fixo no scroll */
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, #4a90e2, #357ABD);
+  color: white;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+  z-index: 1000;
+}
+
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-logo {
+  height: 40px;
+  width: 40px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: white;
+  padding: 3px;
+}
+
+.header-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+
+/* Área dos botões de autenticação */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Botão do menu hamburguer (desktop escondido, mobile visível) */
+.menu-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  width: 32px;
+  height: 32px;
+  display: none; /* visível só no mobile */
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-icon {
+  width: 100%;
+  height: auto;
+}
+
+/* Mostrar só no mobile */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: flex;
+  }
+}
+
+
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+
+
+
+
+/* Botão hambúrguer */
+.menu-toggle {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 999;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.menu-toggle span {
+  display: block;
+  width: 30px;
+  height: 4px;
+  background-color: #1e3a8a;
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+/* Sidebar oculta inicialmente */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -250px;
+  width: 230px;
+  height: 100%;
+  background-color: #ffffff;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);
+  padding-top: 80px;
+  transition: left 0.3s ease;
+  z-index: 998;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar ul li {
+  border-bottom: 1px solid #ddd;
+}
+
+.sidebar ul li a {
+  display: block;
+  padding: 15px 20px;
+  color: #1e3a8a;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.sidebar ul li a:hover {
+  background-color: #f0f4ff;
+}
+
+/* Mostrar sidebar quando ativa */
+.sidebar.active {
+  left: 0;
+}
+
+
+
 .alerta-custom {
   position: fixed;
   top: 20px;
@@ -88,12 +242,30 @@ h1 {
 /* COLUNAS */
 .form-column {
   background: white;
-  padding: 20px;
-  border-radius: 12px;
-  /* border-left: 6px solid #2563eb; */
+  padding: 1.25rem; /* equivalente a 20px */
+  border-radius: 0.75rem; /* equivalente a 12px */
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.3s ease;
+  max-width: 100%;
+  box-sizing: border-box;
 }
+
+/* Ajuste em telas menores */
+@media (max-width: 768px) {
+  .form-column {
+    padding: 1rem; /* reduz o padding */
+    border-radius: 0.5rem;
+  }
+}
+
+/* Ajuste em telas muito pequenas (ex: celular) */
+@media (max-width: 480px) {
+  .form-column {
+    padding: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+}
+
 
 .form-column:hover {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
@@ -581,13 +753,12 @@ body.modal-aberto {
 
 
 
+/* Torna os campos de busca e botões responsivos */
 .campo-busca {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-
-
 
 #resultadoPorData {
   list-style: none;
@@ -1174,4 +1345,32 @@ select:focus {
 }
 
 
+.separador {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 40px 0;
+}
+
+.separador::before,
+.separador::after {
+  content: '';
+  flex: 1;
+  border-bottom: 2px solid #1e3a8a; /* azul elegante */
+}
+
+.separador::before {
+  margin-right: 15px;
+}
+.separador::after {
+  margin-left: 15px;
+}
+
+.separador span {
+  font-weight: 600;
+  color: #1e3a8a;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
 
