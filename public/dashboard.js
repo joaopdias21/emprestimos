@@ -2,6 +2,9 @@ import { URL_SERVICO } from './config.js';
 import { mostrarAlertaError } from './utils.js';
 
 let tipoSelecionado = 'ativos';
+let graficoEmprestimos;
+let graficoJuros;
+let graficoVencimentos;
 
 export async function carregarEstatisticas() {
   try {
@@ -46,46 +49,59 @@ function destacarTipoSelecionado() {
   }
 });
 
-async function carregarDashboard() {
+// --- FUNÇÃO PARA CARREGAR OS GRÁFICOS E DADOS DETALHADOS POR MÊS ---
+async function carregarDashboard(mesSelecionado = null) {
   try {
-    const res = await fetch(`${URL_SERVICO}/dashboard/dados`);
+    let url = `${URL_SERVICO}/dashboard/dados`;
+
+    if (mesSelecionado) {
+      url += `?mes=${mesSelecionado}`;
+    }
+
+    const res = await fetch(url);
     const dados = await res.json();
 
-    document.getElementById('ativosCount').textContent = dados.ativos;
-    document.getElementById('quitadosCount').textContent = dados.quitados;
-    document.getElementById('inadimplentesCount').textContent = dados.inadimplentes;
+    // NÃO ATUALIZAR OS CONTADORES GERAIS AQUI — MANTER RESUMO GERAL SEPARADO
+    // document.getElementById('ativosCount').textContent = dados.ativos;
+    // document.getElementById('quitadosCount').textContent = dados.quitados;
+    // document.getElementById('inadimplentesCount').textContent = dados.inadimplentes;
 
-        // Gráfico de barras - Total Emprestado por Mês
+    // Destrói gráficos anteriores se existirem
+    if (graficoEmprestimos) graficoEmprestimos.destroy();
+    if (graficoJuros) graficoJuros.destroy();
+    if (graficoVencimentos) graficoVencimentos.destroy();
+
+    // Gráfico Total Emprestado por Mês
     const meses = Object.keys(dados.porMes);
     const valores = meses.map(m => dados.porMes[m]);
-    // Gráfico de pizza
-    const graficoEmprestimos = new Chart(document.getElementById('graficoEmprestimosMes'), {
-  type: 'bar',
-  data: {
-    labels: meses,
-    datasets: [{
-      label: 'Total Emprestado (R$)',
-      data: valores,
-      backgroundColor: '#4caf50'
-    }]
-  },
-  options: {
-    onClick: async (evt, elements) => {
-      if (elements.length > 0) {
-        const mesSelecionado = graficoEmprestimos.data.labels[elements[0].index];
-        await mostrarDadosDoMes(mesSelecionado, 'emprestimos');
+    const ctxEmprestimos = document.getElementById('graficoEmprestimosMes').getContext('2d');
+    graficoEmprestimos = new Chart(ctxEmprestimos, {
+      type: 'bar',
+      data: {
+        labels: meses,
+        datasets: [{
+          label: 'Total Emprestado (R$)',
+          data: valores,
+          backgroundColor: '#4caf50'
+        }]
+      },
+      options: {
+        onClick: async (evt, elements) => {
+          if (elements.length > 0) {
+            const mesSelecionado = graficoEmprestimos.data.labels[elements[0].index];
+            await mostrarDadosDoMes(mesSelecionado, 'emprestimos');
+          }
+        },
+        plugins: { title: { display: true, text: 'Total Emprestado por Mês' } },
+        scales: { y: { beginAtZero: true } }
       }
-    },
-    plugins: { title: { display: true, text: 'Total Emprestado por Mês' } },
-    scales: { y: { beginAtZero: true } }
-  }
-});
+    });
 
-    // Juros a Receber por Mês
+    // Gráfico Juros a Receber por Mês
     const jurosMes = Object.keys(dados.jurosMes);
     const valoresJuros = jurosMes.map(m => dados.jurosMes[m]);
-
-    new Chart(document.getElementById('graficoJurosMes'), {
+    const ctxJuros = document.getElementById('graficoJurosMes').getContext('2d');
+    graficoJuros = new Chart(ctxJuros, {
       type: 'line',
       data: {
         labels: jurosMes,
@@ -103,11 +119,11 @@ async function carregarDashboard() {
       }
     });
 
-    // Gráfico de barras - Parcelas com Vencimento por Mês
-    const vencimentosMes = Object.keys(dados.parcelasVencimento)
+    // Gráfico Parcelas com Vencimento por Mês
+    const vencimentosMes = Object.keys(dados.parcelasVencimento);
     const valoresVencimentos = vencimentosMes.map(m => dados.parcelasVencimento[m]);
-
-    const graficoVencimentos = new Chart(document.getElementById('graficoVencimentosMes'), {
+    const ctxVencimentos = document.getElementById('graficoVencimentosMes').getContext('2d');
+    graficoVencimentos = new Chart(ctxVencimentos, {
       type: 'bar',
       data: {
         labels: vencimentosMes,
@@ -129,13 +145,36 @@ async function carregarDashboard() {
       }
     });
 
-
   } catch (err) {
     console.error('Erro ao carregar dashboard:', err);
   }
 }
 
-carregarDashboard();
+// --- FUNÇÃO PARA INICIALIZAR OS DOIS PAINÉIS ---
+async function inicializarDashboard() {
+  const inputMes = document.getElementById('mesSelecionado');
+  const mesAtual = new Date().toISOString().slice(0, 7);
+
+  // Define valor padrão do input mesSelecionado
+  inputMes.value = mesAtual;
+
+  // Carrega resumo geral (ativos, quitados, inadimplentes)
+  await carregarEstatisticas();
+
+  // Carrega gráficos e dados do mês atual
+  await carregarDashboard(mesAtual);
+
+  // Configura listener para mudar o mês e atualizar só os gráficos
+  inputMes.addEventListener('change', async (e) => {
+    const mesSelecionado = e.target.value;
+    if (mesSelecionado) {
+      await carregarDashboard(mesSelecionado);
+    }
+  });
+}
+
+// Executa a inicialização ao carregar o script
+inicializarDashboard();
 
 
 async function mostrarDadosDoMes(mes, tipo) {
@@ -263,6 +302,7 @@ document.getElementById('btnExtrairPagamentos').addEventListener('click', async 
     const dados = await res.json();
 
     const container = document.getElementById('resultadoExtracao');
+    
     container.innerHTML = `
       <div class="resumo-total">
         <strong>Total recebido:</strong> R$ ${dados.totalPago.toFixed(2)}
@@ -288,11 +328,50 @@ document.getElementById('btnExtrairPagamentos').addEventListener('click', async 
       container.appendChild(div);
     });
 
+    container.style.display = 'block';
+
+    // Mostra o botão de exportar PDF
+    document.getElementById('btnExportarPDF').style.display = 'inline-block';
+
   } catch (err) {
     console.error(err);
     mostrarAlertaError('Erro ao buscar dados de pagamento');
   }
 });
+
+
+
+
+
+
+function splitCanvasToImages(canvas, pageWidthMM, pageHeightMM, scale = 2) {
+  const pxPerMM = 96 / 25.4; // aproximado: 96dpi / 25.4mm
+  const pageWidthPx = Math.floor(pageWidthMM * pxPerMM * scale);
+  const pageHeightPx = Math.floor(pageHeightMM * pxPerMM * scale);
+
+  const images = [];
+  let y = 0;
+
+  while (y < canvas.height) {
+    const sliceHeight = Math.min(pageHeightPx, canvas.height - y);
+
+    // Cria um canvas temporário para o pedaço
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = canvas.width;
+    tmpCanvas.height = sliceHeight;
+
+    const ctx = tmpCanvas.getContext('2d');
+    // Desenha no canvas temporário só o pedaço desejado
+    ctx.drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+    const imgData = tmpCanvas.toDataURL('image/jpeg', 1.0);
+    images.push({ imgData, heightPx: sliceHeight });
+
+    y += sliceHeight;
+  }
+
+  return images;
+}
 
 
 // EXPORTAR PDF
@@ -384,12 +463,24 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     if (imgHeight < pageHeight) {
       pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
     } else {
-      while (heightLeft > 0) {
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-        position -= pageHeight;
-        if (heightLeft > 0) pdf.addPage();
+            const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const images = splitCanvasToImages(canvas, pageWidth, pageHeight, 2);
+
+      let position = 0;
+
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        const imgHeightMM = (img.heightPx * pageWidth) / canvas.width / 2; // dividir por 2 pois scale=2
+
+        pdf.addImage(img.imgData, 'JPEG', 0, 0, pageWidth, imgHeightMM);
+
+        if (i < images.length - 1) {
+          pdf.addPage();
+        }
       }
+
     }
 
     pdf.save(`pagamentos_${dataInicio}_a_${dataFim}.pdf`);
@@ -399,3 +490,34 @@ document.getElementById('btnExportarPDF').addEventListener('click', async () => 
     document.body.removeChild(container);
   }
 });
+
+
+
+// Pega o mês atual no formato yyyy-MM e define como valor padrão do input
+const inputMes = document.getElementById('mesSelecionado');
+const mesAtual = new Date().toISOString().slice(0, 7);
+inputMes.value = mesAtual;
+
+inputMes.addEventListener('click', () => {
+  if (inputMes.showPicker) {
+    inputMes.showPicker();
+  }
+});
+// Carrega inicialmente com o mês atual
+carregarDashboard(mesAtual);
+
+// Quando o usuário mudar o mês, recarrega os dados
+inputMes.addEventListener('change', (e) => {
+  const mesSelecionado = e.target.value; // yyyy-MM
+  if (mesSelecionado) {
+    carregarDashboard(mesSelecionado);
+  }
+});
+
+document.getElementById('btnLimparExtracao').addEventListener('click', () => {
+  document.getElementById('dataInicio').value = '';
+  document.getElementById('dataFim').value = '';
+  document.getElementById('resultadoExtracao').innerHTML = '';
+  document.getElementById('btnExportarPDF').style.display = 'none'; // Esconde o botão
+});
+

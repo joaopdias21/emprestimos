@@ -104,41 +104,25 @@
 
 
 
+<div class="form-column" id="painelUnificado">
+  <h2>Empréstimos por Vencimento - Cidades </h2>
 
-      <!-- PAINEL SÃO ROQUE -->
-<div class="form-column" id="emprestimosPorDataSaoRoque">
-  <h2>Empréstimos por Vencimento (São Roque)</h2>
   <div class="campo-busca">
-    <input type="date" id="inputDataSaoRoque" />
-    <button type="button" id="btnBuscarSaoRoque">Buscar</button>
-    <button type="button" id="btnHojeSaoRoque">Hoje</button>
-    <button type="button" id="btnLimparSaoRoque">Limpar Resultados</button>
-  </div>
-  <ul id="resultadoSaoRoque"></ul>
-</div>
+    <label for="seletorCidade"><strong>Cidade:</strong></label>
+    <select id="seletorCidade">
+      <option value="" disabled selected>Selecione a cidade</option>
+      <option value="São Roque">São Roque</option>
+      <option value="Cotia">Cotia</option>
+      <option value="Sorocaba">Sorocaba</option>
+    </select>
 
-<!-- PAINEL COTIA -->
-<div class="form-column" id="emprestimosPorDataCotia">
-  <h2>Empréstimos por Vencimento (Cotia)</h2>
-  <div class="campo-busca">
-    <input type="date" id="inputDataCotia" />
-    <button type="button" id="btnBuscarCotia">Buscar</button>
-    <button type="button" id="btnHojeCotia">Hoje</button>
-    <button type="button" id="btnLimparCotia">Limpar Resultados</button>
+    <input type="date" id="inputDataUnica" />
+    <button type="button" id="btnBuscarUnico">Consultar</button>
+    <button type="button" id="btnHojeUnico">Hoje</button>
+    <button type="button" id="btnLimparUnico">Limpar</button>
   </div>
-  <ul id="resultadoCotia"></ul>
-</div>
 
-<!-- PAINEL SOROCABA -->
-<div class="form-column" id="emprestimosPorDataSorocaba">
-  <h2>Empréstimos por Vencimento (Sorocaba)</h2>
-  <div class="campo-busca">
-    <input type="date" id="inputDataSorocaba" />
-    <button type="button" id="btnBuscarSorocaba">Buscar</button>
-    <button type="button" id="btnHojeSorocaba">Hoje</button>
-    <button type="button" id="btnLimparSorocaba">Limpar Resultados</button>
-  </div>
-  <ul id="resultadoSorocaba"></ul>
+  <ul id="resultadoUnico"></ul>
 </div>
 
 
@@ -157,6 +141,11 @@
         <div class="export-buttons">
           <button id="exportCSV">Exportar CSV do tipo selecionado</button>
         </div>
+
+        <label for="mesSelecionado" class="label-mes">Selecionar Mês:</label>
+        <input type="month" id="mesSelecionado" class="input-mes" />
+
+
         <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 40px;">
         <div style="flex: 1; min-width: 300px;">
           <canvas id="graficoEmprestimosMes"></canvas>
@@ -171,6 +160,7 @@
 
 </section>
 
+                                                                                    
 <!-- DADOS DO MÊS SELECIONADO PELO GRÁFICO -->
 <section id="dadosGraficoMesSelecionado" style="display: none; margin-top: 30px;">
   <h3>Dados do Mês Selecionado</h3>
@@ -183,8 +173,9 @@
 
 
 
-  <section id="filtroPagamentos" style="margin-top: 30px;">
+<section id="filtroPagamentos" style="margin-top: 30px;">
   <h3>Extrair Pagamentos por Intervalo</h3>
+
   <label>
     Início:
     <input type="date" id="dataInicio" />
@@ -193,9 +184,15 @@
     Fim:
     <input type="date" id="dataFim" />
   </label>
-  <button id="btnExtrairPagamentos">Extrair</button>
-  <div id="resultadoExtracao" style="margin-top: 20px;"></div>
-  <button id="btnExportarPDF">Exportar PDF</button>
+
+  <div style="display: flex; gap: 10px; margin-top: 10px;">
+    <button id="btnExtrairPagamentos">Extrair</button>
+    <button id="btnLimparExtracao" style="background-color: #f44336; color: white;">Limpar</button>
+  </div>
+
+<div id="resultadoExtracao" style="margin-top: 20px; display: none;"></div>
+
+  <button id="btnExportarPDF" style="display: none;">Exportar PDF</button>
 
 </section>
 
@@ -210,9 +207,8 @@
   </div>
 
   <!-- ALERTA -->
-  <div id="alertaCustom"
-    style="display:none; position: fixed; top: 20px; right: 20px; background-color: #4caf50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); z-index: 9999; font-weight: bold;">
-  </div>
+<div id="alertaCustom" class="alerta-custom"></div>
+
 
   <!-- MODAL DE CONFIRMAÇÃO DE RECEBEDOR -->
   <div id="modalRecebedor" class="modal">

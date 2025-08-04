@@ -376,53 +376,47 @@ async function filtrarPorDataECidade(dataSelecionada, cidadeFiltro, resultadoId)
 }
 
 
-// ======== SÃO ROQUE ========
-document.getElementById('btnBuscarSaoRoque').addEventListener('click', () => {
-  const data = document.getElementById('inputDataSaoRoque').value;
-  filtrarPorDataECidade(data, 'São Roque', 'resultadoSaoRoque');
+// Consulta única por cidade e data
+document.getElementById('btnBuscarUnico').addEventListener('click', () => {
+  const cidade = document.getElementById('seletorCidade').value;
+  const data = document.getElementById('inputDataUnica').value;
+
+  if (!cidade || !data) {
+    alert('Por favor, selecione uma cidade e uma data.');
+    return;
+  }
+
+  filtrarPorDataECidade(data, cidade, 'resultadoUnico');
 });
 
-document.getElementById('btnHojeSaoRoque').addEventListener('click', () => {
+// Preenche com a data de hoje e dispara busca se cidade estiver selecionada
+document.getElementById('btnHojeUnico').addEventListener('click', () => {
   const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('inputDataSaoRoque').value = hoje;
-  filtrarPorDataECidade(hoje, 'São Roque', 'resultadoSaoRoque');
+  document.getElementById('inputDataUnica').value = hoje;
+
+  const cidade = document.getElementById('seletorCidade').value;
+  if (cidade) {
+    filtrarPorDataECidade(hoje, cidade, 'resultadoUnico');
+  }
 });
 
-document.getElementById('btnLimparSaoRoque').addEventListener('click', () => {
-  document.getElementById('resultadoSaoRoque').innerHTML = '';
-  document.getElementById('inputDataSaoRoque').value = '';
+// Limpa resultados e inputs
+document.getElementById('btnLimparUnico').addEventListener('click', () => {
+  document.getElementById('resultadoUnico').innerHTML = '';
+  document.getElementById('inputDataUnica').value = '';
+  document.getElementById('seletorCidade').selectedIndex = 0;
 });
 
-// ======== COTIA ========
-document.getElementById('btnBuscarCotia').addEventListener('click', () => {
-  const data = document.getElementById('inputDataCotia').value;
-  filtrarPorDataECidade(data, 'Cotia', 'resultadoCotia');
-});
+document.getElementById('btnHojeUnico').addEventListener('click', () => {
+  const cidade = document.getElementById('seletorCidade').value;
 
-document.getElementById('btnHojeCotia').addEventListener('click', () => {
+  if (!cidade) {
+    mostrarAlertaError('Por favor, selecione uma cidade antes de usar o botão "Hoje"');
+    return;
+  }
+
   const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('inputDataCotia').value = hoje;
-  filtrarPorDataECidade(hoje, 'Cotia', 'resultadoCotia');
+  document.getElementById('inputDataUnica').value = hoje;
+  filtrarPorDataECidade(hoje, cidade, 'resultadoUnico');
 });
 
-document.getElementById('btnLimparCotia').addEventListener('click', () => {
-  document.getElementById('resultadoCotia').innerHTML = '';
-  document.getElementById('inputDataCotia').value = '';
-});
-
-// ======== SOROCABA ========
-document.getElementById('btnBuscarSorocaba').addEventListener('click', () => {
-  const data = document.getElementById('inputDataSorocaba').value;
-  filtrarPorDataECidade(data, 'Sorocaba', 'resultadoSorocaba');
-});
-
-document.getElementById('btnHojeSorocaba').addEventListener('click', () => {
-  const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('inputDataSorocaba').value = hoje;
-  filtrarPorDataECidade(hoje, 'Sorocaba', 'resultadoSorocaba');
-});
-
-document.getElementById('btnLimparSorocaba').addEventListener('click', () => {
-  document.getElementById('resultadoSorocaba').innerHTML = '';
-  document.getElementById('inputDataSorocaba').value = '';
-});

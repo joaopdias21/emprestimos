@@ -244,9 +244,23 @@ app.get('/emprestimos/quitados', async (_req, res) => {
 /* ⇢ Listagem geral ou busca por CPF */
 app.get('/emprestimos', async (req, res) => {
   try {
-    const { termo } = req.query;
+    const { termo, status } = req.query;
     let filtro = {};
-    if (termo) filtro = { quitado: false, cpf: { $regex: termo, $options: 'i' } };
+
+    if (termo) {
+      filtro.cpf = { $regex: termo, $options: 'i' };
+    }
+
+    if (status === 'ativo') {
+      filtro.quitado = false;
+    } else if (status === 'quitado') {
+      filtro.quitado = true;
+    } else if (status === 'inadimplente') {
+      // Para inadimplentes, você pode chamar a lógica da rota /emprestimos/inadimplentes
+      // mas para manter simples, aqui retorna vazio ou manda erro, ou chama função auxiliar
+      return res.status(400).json({ erro: 'Use /emprestimos/inadimplentes para status inadimplente' });
+    }
+
     const lista = await Emprestimo.find(filtro);
     res.json(lista);
   } catch (err) {
@@ -254,6 +268,7 @@ app.get('/emprestimos', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao listar empréstimos' });
   }
 });
+
 
 /* ⇢ Por data de vencimento */
 app.get('/emprestimos/vencimento/:data', async (req, res) => {
@@ -282,20 +297,45 @@ app.get('/ping', (_req, res) => res.send('pong'));
 
 /* ⇢ Dados do Dashboard */
 
-app.get('/dashboard/dados', async (_req, res) => {
+app.get('/dashboard/dados', async (req, res) => {
   try {
+    const { mes } = req.query; // ex: "2025-08"
     const todos = await Emprestimo.find();
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
     let ativos = 0, quitados = 0, inadimplentes = 0;
-    const porMes = {}; // Valor original por mês
-    const jurosMes = {}; // Juros a receber por mês
-    const parcelasVencimento = {}; // Parcelas com vencimento no mês
+    const porMes = {};
+    const jurosMes = {};
+    const parcelasVencimento = {};
+
+    // Função auxiliar para formatar mês: MM/YYYY
+    function formatarMesAno(date) {
+      return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    }
+
+    // Se parâmetro mes informado, extrair ano e mês
+    let filtroAno, filtroMes;
+    if (mes) {
+      const partes = mes.split('-');
+      if (partes.length === 2) {
+        filtroAno = Number(partes[0]);
+        filtroMes = Number(partes[1]);
+      }
+    }
 
     for (const emp of todos) {
       const dataCriacao = new Date(emp.createdAt);
-      const mesCriacao = `${String(dataCriacao.getMonth() + 1).padStart(2, '0')}/${dataCriacao.getFullYear()}`;
+      const mesCriacao = formatarMesAno(dataCriacao);
+
+      // Só considera o empréstimo se estiver no mês filtrado (se filtrado)
+      if (filtroAno && filtroMes) {
+        if (dataCriacao.getFullYear() !== filtroAno || (dataCriacao.getMonth() + 1) !== filtroMes) {
+          continue; // pula empréstimos fora do mês selecionado
+        }
+      }
+
+      // Acumula valor original por mês
       porMes[mesCriacao] = (porMes[mesCriacao] || 0) + emp.valorOriginal;
 
       const totalJuros = emp.valorComJuros - emp.valorOriginal;
@@ -303,12 +343,16 @@ app.get('/dashboard/dados', async (_req, res) => {
 
       emp.datasVencimentos?.forEach((dataStr, idx) => {
         const data = new Date(dataStr);
-        const chave = `${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+        const chave = formatarMesAno(data);
 
-        // Juros para parcela do mês
+        // Filtra parcelas para o mês, se mes informado
+        if (filtroAno && filtroMes) {
+          if (data.getFullYear() !== filtroAno || (data.getMonth() + 1) !== filtroMes) {
+            return; // pula esta parcela
+          }
+        }
+
         jurosMes[chave] = (jurosMes[chave] || 0) + jurosPorParcela;
-
-        // Valor da parcela prevista para o mês
         const valorParcela = emp.valorParcelasPendentes?.[idx] || emp.valorParcela;
         parcelasVencimento[chave] = (parcelasVencimento[chave] || 0) + valorParcela;
       });
@@ -331,46 +375,35 @@ app.get('/dashboard/dados', async (_req, res) => {
       }
     }
 
-
-    // Função para ordenar as chaves no formato MM/AAAA
+    // Ordenação das chaves MM/YYYY
     function ordenarDatas(a, b) {
       const [mesA, anoA] = a.split('/').map(Number);
       const [mesB, anoB] = b.split('/').map(Number);
-      
-      // Primeiro compara o ano, depois o mês
       return anoA - anoB || mesA - mesB;
     }
 
-    // Criar objetos ordenados
-    const porMesOrdenado = {};
-    const jurosMesOrdenado = {};
-    const parcelasVencimentoOrdenado = {};
-
-    Object.keys(porMes).sort(ordenarDatas).forEach(key => {
-      porMesOrdenado[key] = porMes[key];
-    });
-
-    Object.keys(jurosMes).sort(ordenarDatas).forEach(key => {
-      jurosMesOrdenado[key] = jurosMes[key];
-    });
-
-    Object.keys(parcelasVencimento).sort(ordenarDatas).forEach(key => {
-      parcelasVencimentoOrdenado[key] = parcelasVencimento[key];
-    });
+    const ordenarEConstruir = (obj) => {
+      const ordenado = {};
+      Object.keys(obj).sort(ordenarDatas).forEach(k => {
+        ordenado[k] = obj[k];
+      });
+      return ordenado;
+    };
 
     res.json({
       ativos,
       quitados,
       inadimplentes,
-      porMes: porMesOrdenado,
-      jurosMes: jurosMesOrdenado,
-      parcelasVencimento: parcelasVencimentoOrdenado
+      porMes: ordenarEConstruir(porMes),
+      jurosMes: ordenarEConstruir(jurosMes),
+      parcelasVencimento: ordenarEConstruir(parcelasVencimento)
     });
   } catch (err) {
     console.error('Erro em /dashboard/dados:', err);
     res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
   }
 });
+
 
 
 
