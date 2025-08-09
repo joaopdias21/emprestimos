@@ -171,6 +171,34 @@ app.get('/emprestimos/inadimplentes', async (_req, res) => {
 });
 
 
+/* ⇢ Empréstimos vencidos ou vencendo hoje */
+app.get('/emprestimos/vencidos-ou-hoje', async (_req, res) => {
+  try {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const lista = await Emprestimo.find({ quitado: false });
+
+    const resultado = lista.filter(emp => {
+      return emp.datasVencimentos.some((data, i) => {
+        if (emp.statusParcelas[i]) return false; // já paga
+
+        const [ano, mes, dia] = data.split('-').map(Number);
+        const venc = new Date(ano, mes - 1, dia);
+        venc.setHours(0, 0, 0, 0);
+
+        return venc <= hoje; // vencidos ou vencendo hoje
+      });
+    });
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('GET /emprestimos/vencidos-ou-hoje:', err);
+    res.status(500).json({ erro: 'Erro ao buscar vencidos ou vencendo hoje' });
+  }
+});
+
+
 /* ⇢ Marcar parcela como paga */
 app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
   try {

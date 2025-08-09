@@ -104,8 +104,27 @@
           <span>Datas de Vencimento</span>
         </div>
 
+
+<div class="form-column" id="emprestimosPorData">
+  <h2>Vencimentos do dia</h2>
+  <div class="duas-colunas">
+    <div id="containerAtrasados">
+      <h3>Empréstimos Atrasados</h3>
+      <ul class="lista-vencidos"></ul>
+    </div>
+    <div id="containerVencendoHoje">
+      <h3>Vencendo Hoje</h3>
+      <ul class="lista-vencidos"></ul>
+    </div>
+  </div>
+</div>
+
+
+
+
         <div class="form-column" id="emprestimosPorData">
           <h2>Empréstimos por Data de Vencimento</h2>
+          <div id="resultadoVencimento" class="lista-vencidos"></div>
           <div class="campo-busca" id="responsividadetresbotoes">
             <input type="date" id="inputDataVencimento" />
             <button type="button" id="btnBuscarPorData">Buscar</button>

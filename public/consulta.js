@@ -420,3 +420,112 @@ document.getElementById('btnHojeUnico').addEventListener('click', () => {
   filtrarPorDataECidade(hoje, cidade, 'resultadoUnico');
 });
 
+
+document.addEventListener("DOMContentLoaded", () => {
+  listarVencidosOuHoje();
+});
+
+function formatarCPF(cpf) {
+  // Formata CPF como 000.000.000-00
+  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+}
+
+function criarDataLocal(dataStr) {
+  const partes = dataStr.split('-');
+  return new Date(partes[0], partes[1] - 1, partes[2]);
+}
+
+async function listarVencidosOuHoje() {
+  try {
+    const res = await fetch(`${URL_SERVICO}/emprestimos/vencidos-ou-hoje`);
+    const dados = await res.json();
+
+    const containerAtrasados = document.querySelector('#containerAtrasados ul');
+    const containerVencendoHoje = document.querySelector('#containerVencendoHoje ul');
+
+    containerAtrasados.innerHTML = "";
+    containerVencendoHoje.innerHTML = "";
+
+    if (dados.length === 0) {
+      const vazioHTML = `
+        <li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo vencido ou vencendo hoje.</p>
+        </li>
+      `;
+      containerAtrasados.innerHTML = vazioHTML;
+      containerVencendoHoje.innerHTML = vazioHTML;
+      return;
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    dados.forEach((emp, index) => {
+      let proxVencimento = null;
+      let statusVencimento = ''; // ATRASADO, VENCE HOJE ou vazio
+
+      emp.datasVencimentos.forEach((dataStr, i) => {
+        const dataVenc = criarDataLocal(dataStr);
+        dataVenc.setHours(0, 0, 0, 0);
+
+        // Considera apenas parcelas não pagas
+        if (!emp.statusParcelas[i]) {
+          if (!proxVencimento || dataVenc < proxVencimento) {
+            proxVencimento = dataVenc;
+          }
+        }
+      });
+
+      if (proxVencimento) {
+        if (proxVencimento < hoje) {
+          statusVencimento = '<span style="color: red; font-weight: bold;"><br><br>ATRASADO</span>';
+        } else if (proxVencimento.getTime() === hoje.getTime()) {
+          statusVencimento = '<span style="color: orange; font-weight: bold;"><br><br>VENCE HOJE</span>';
+        }
+      }
+
+      const dataFormatada = proxVencimento
+        ? proxVencimento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : 'Data não disponível';
+
+      // Se não for atrasado nem vence hoje, ignora (não exibe)
+      if (!statusVencimento) return;
+
+      const li = document.createElement('li');
+      li.setAttribute('tabindex', '-1');
+      li.classList.add('card-vencimento');
+
+      li.innerHTML = `
+        <h3>${emp.nome}</h3>
+        <p><strong>CPF:</strong> ${formatarCPF(emp.cpf)}</p>
+        <p><strong>Telefone:</strong> ${emp.telefone || 'Não informado'}</p>
+        <p class="data-vencimento"><strong>Vencimento:</strong> ${dataFormatada} ${statusVencimento}</p>
+      `;
+
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        abrirModal(emp);
+      });
+
+      if (statusVencimento.includes('ATRASADO')) {
+        containerAtrasados.appendChild(li);
+      } else if (statusVencimento.includes('VENCE HOJE')) {
+        containerVencendoHoje.appendChild(li);
+      }
+
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, index * 100);
+    });
+
+  } catch (err) {
+    console.error("Erro ao listar vencidos ou vencendo hoje", err);
+    // Opcional: mostrar alerta na tela para o usuário
+  }
+}
+
+
+
+
