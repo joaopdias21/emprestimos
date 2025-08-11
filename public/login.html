@@ -1,10 +1,13 @@
+
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login Administrador</title>
-  <link rel="stylesheet" href="style.css"> <!-- Usa seu CSS completo -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="wbanco.png" type="image/x-icon" />
+
+  <title>Login</title>
   <style>
     .login-container {
       display: flex;
@@ -30,16 +33,19 @@
       font-size: 1.5rem;
     }
 
-    .login-box input {
+    .login-box input,
+    .login-box select {
       width: 100%;
       padding: 12px;
       margin-bottom: 15px;
       border: 1px solid #ddd;
       border-radius: 6px;
       font-size: 16px;
+      background-color: white;
     }
 
-    .login-box input:focus {
+    .login-box input:focus,
+    .login-box select:focus {
       border-color: #004085;
       box-shadow: 0 0 0 2px rgba(0,64,133,0.2);
       outline: none;
@@ -71,24 +77,96 @@
   </style>
 </head>
 <body>
-  <div class="login-container">
-    <div class="login-box">
-      <h2>Login Administrador</h2>
-      <input type="password" id="senhaAdm" placeholder="Digite a senha" />
-      <button onclick="logarAdmin()">Entrar</button>
-    </div>
-  </div>
 
-  <script>
-    function logarAdmin() {
-      const senha = document.getElementById("senhaAdm").value;
-      if (senha === "Adm!2025$Gp9@#zXq") {
-        localStorage.setItem("isAdmin", "true");
-        window.location.href = "index.html";
-      } else {
-        alert("Senha incorreta");
-      }
+<div class="login-container">
+  <div class="login-box">
+    <h2>Login</h2>
+    <input type="password" id="senha" placeholder="Digite a senha" />
+    <select id="tipoUsuario">
+      <option value="admin">Administrador</option>
+      <option value="operador">Operador</option>
+    </select>
+    <button onclick="logar()">Entrar</button>
+  </div>
+</div>
+
+<script type="module">
+import { URL_SERVICO } from './config.js';
+
+  import { mostrarAlertaError, mostrarAlertaWarning, formatarMoeda } from './utils.js';
+
+  async function logar() {
+  const senha = document.getElementById("senha").value;
+  const tipo = document.getElementById("tipoUsuario").value;
+
+  try {
+    const res = await fetch(`${URL_SERVICO}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, senha })
+    });
+
+    if (!res.ok) {
+      const erro = await res.json();
+      mostrarAlertaError(erro.erro || 'Erro no login');
+      return;
     }
-  </script>
+
+    const dados = await res.json();
+if (dados.sucesso) {
+  if (dados.tipo === 'admin') {
+    localStorage.setItem("isAdmin", "true");
+    localStorage.removeItem("isOperador");
+  } else if (dados.tipo === 'operador') {
+    localStorage.setItem("isOperador", "true");
+    localStorage.removeItem("isAdmin");
+    localStorage.setItem("operadorNome", dados.user); // salva qual operador exatamente
+  }
+  window.location.href = "index.html";
+}
+
+
+  } catch (err) {
+    mostrarAlertaError('Erro ao conectar no servidor');
+  }
+}
+window.logar = logar; // para botão onclick
+
+</script>
+
+<div id="alertaCustom" style="
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 250px;
+  max-width: 350px;
+  padding: 16px 20px;
+  color: white;
+  font-weight: 500;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: none;
+  z-index: 9999;
+  animation: slideIn 0.4s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+"></div>
+<style>
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+</style>
 </body>
 </html>

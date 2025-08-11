@@ -341,7 +341,7 @@ function exibirResultados(lista, resultadoId, index) {
       <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
       <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
       <br>
-        <p><strong>Abrir no Waze</strong> </p>
+      <p><strong>Abrir no Waze</strong> </p>
         <a href="${urlWaze}" target="_blank" title="Abrir no Waze" style="margin-left: 10px;">
             <img src="waze.png" alt="Waze" width="24" height="24" style="vertical-align: middle;" />
         </a>
@@ -429,9 +429,10 @@ function formatarCPF(cpf) {
   // Formata CPF como 000.000.000-00
   return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }
-
 function criarDataLocal(dataStr) {
+  if (!dataStr || typeof dataStr !== 'string') return null; // ignora inválidos
   const partes = dataStr.split('-');
+  if (partes.length !== 3) return null; // formato errado
   return new Date(partes[0], partes[1] - 1, partes[2]);
 }
 
@@ -463,13 +464,16 @@ async function listarVencidosOuHoje() {
 
     dados.forEach((emp, index) => {
       let proxVencimento = null;
-      let statusVencimento = ''; // ATRASADO, VENCE HOJE ou vazio
+      let statusVencimento = '';
+      const enderecoCompleto = `${emp.endereco}, ${emp.numero} ${emp.complemento || ''}, ${emp.cidade} - ${emp.estado}, ${emp.cep}`;
+      const urlWaze = `https://waze.com/ul?q=${encodeURIComponent(enderecoCompleto)}`;
 
-      emp.datasVencimentos.forEach((dataStr, i) => {
+      (emp.datasVencimentos || []).forEach((dataStr, i) => {
         const dataVenc = criarDataLocal(dataStr);
+        if (!dataVenc) return; // ignora inválidas
         dataVenc.setHours(0, 0, 0, 0);
 
-        // Considera apenas parcelas não pagas
+        // apenas parcelas não pagas
         if (!emp.statusParcelas[i]) {
           if (!proxVencimento || dataVenc < proxVencimento) {
             proxVencimento = dataVenc;
@@ -489,8 +493,7 @@ async function listarVencidosOuHoje() {
         ? proxVencimento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
         : 'Data não disponível';
 
-      // Se não for atrasado nem vence hoje, ignora (não exibe)
-      if (!statusVencimento) return;
+      if (!statusVencimento) return; // ignora quem não é atrasado nem vence hoje
 
       const li = document.createElement('li');
       li.setAttribute('tabindex', '-1');
@@ -498,9 +501,14 @@ async function listarVencidosOuHoje() {
 
       li.innerHTML = `
         <h3>${emp.nome}</h3>
-        <p><strong>CPF:</strong> ${formatarCPF(emp.cpf)}</p>
+        <p><strong>Endereço:</strong> ${emp.endereco}, Nº ${emp.numero}${emp.complemento ? '- ' + emp.complemento : ''}, ${emp.cidade} - ${emp.estado}</p>
         <p><strong>Telefone:</strong> ${emp.telefone || 'Não informado'}</p>
         <p class="data-vencimento"><strong>Vencimento:</strong> ${dataFormatada} ${statusVencimento}</p>
+        <br>
+        <p><strong>Abrir no Waze</strong></p>
+        <a href="${urlWaze}" target="_blank" title="Abrir no Waze" style="margin-left: 10px;">
+            <img src="waze.png" alt="Waze" width="24" height="24" style="vertical-align: middle;" />
+        </a>
       `;
 
       li.addEventListener('click', (e) => {
@@ -508,6 +516,11 @@ async function listarVencidosOuHoje() {
         e.stopPropagation();
         abrirModal(emp);
       });
+
+      const linkWaze = li.querySelector('a[href^="https://waze.com"]');
+      if (linkWaze) {
+        linkWaze.addEventListener('click', e => e.stopPropagation());
+      }
 
       if (statusVencimento.includes('ATRASADO')) {
         containerAtrasados.appendChild(li);
@@ -522,9 +535,9 @@ async function listarVencidosOuHoje() {
 
   } catch (err) {
     console.error("Erro ao listar vencidos ou vencendo hoje", err);
-    // Opcional: mostrar alerta na tela para o usuário
   }
 }
+
 
 
 

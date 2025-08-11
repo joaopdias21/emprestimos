@@ -1,41 +1,60 @@
-import { carregarEstatisticas } from './dashboard.js';
-
-
 document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = localStorage.getItem("isAdmin") === "true";
+  const isOperador = localStorage.getItem("isOperador") === "true";
+  
   const authButtonsContainer = document.getElementById("authButtonsContainer");
-  const adminPanel = document.querySelector(".admin-panel");
 
   authButtonsContainer.innerHTML = '';
-
-  if (isAdmin) {
+  
+  if (isAdmin || isOperador) {
+    // Botão de sair
     const logoutBtn = document.createElement('button');
     logoutBtn.id = 'logoutBtn';
     logoutBtn.textContent = 'Sair';
     authButtonsContainer.appendChild(logoutBtn);
-
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("isAdmin");
+      localStorage.removeItem("isOperador");
       location.reload();
     });
 
-    adminPanel && (adminPanel.style.display = "flex");
-    document.getElementById("buscarEmprestimos").style.display = "block";
-    document.getElementById("buscarQuitados").style.display = "block";
-    document.getElementById("emprestimosPorData").style.display = "block";
-    document.getElementById("dashboard").style.display = "flex";
+    if (isAdmin) {
+      // Mostra tudo
+      document.querySelectorAll(".form-column, #dashboard, #filtroPagamentos").forEach(el => {
+        el.style.display = "block";
+      });
+      //carregarEstatisticas();
+    }
 
-    carregarEstatisticas(); // se for admin
+    if (isOperador) {
+      // Esconde tudo
+      document.querySelectorAll(".separadorCadastro,.separadorPesquisas, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+        el.style.display = "none";
+      });
+
+      // Mostra só o permitido
+      document.querySelectorAll("#emprestimosPorDataDia, #emprestimosPorData, #painelUnificado").forEach(el => {
+        el.style.display = "block";
+      });
+
+      // ATENÇÃO: se o "Vencimentos do dia" está dentro de #emprestimosPorData, ele já será exibido
+    }
+
   } else {
+    // Usuário não logado
     const loginBtn = document.createElement('button');
-    loginBtn.textContent = 'Fazer login como administrador';
+    loginBtn.textContent = 'Fazer login';
     loginBtn.onclick = () => { window.location.href = 'login.html'; };
     authButtonsContainer.appendChild(loginBtn);
 
-    adminPanel && (adminPanel.style.display = "none");
-    document.getElementById("buscarEmprestimos").style.display = "none";
-    document.getElementById("buscarQuitados").style.display = "none";
-    document.getElementById("emprestimosPorData").style.display = "none";
-    document.getElementById("dashboard").style.display = "none";
+    document.querySelectorAll(".separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+      el.style.display = "none";
+    });
+
+          document.querySelectorAll(".sessaoCadastro").forEach(el => {
+        el.style.display = "block";
+      });
   }
 });
+
+

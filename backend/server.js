@@ -27,6 +27,74 @@ app.use(express.json());
 // Deve ficar antes das rotas que usam uploads
 app.use('/uploads', express.static(uploadDir));
 
+// Função auxiliar para preencher datasVencimentos faltantes com datas mensais a partir do próximo mês
+function preencherDatasPadrao(datasVencimentos, parcelas) {
+  if (!Array.isArray(datasVencimentos)) {
+    datasVencimentos = [];
+  }
+
+  for (let i = 0; i < parcelas; i++) {
+    if (!datasVencimentos[i]) {
+      const data = new Date();
+      data.setMonth(data.getMonth() + i + 1); // 1 mês adicionado para a primeira parcela
+      const yyyy = data.getFullYear();
+      const mm = String(data.getMonth() + 1).padStart(2, '0');
+      const dd = String(data.getDate()).padStart(2, '0');
+      datasVencimentos[i] = `${yyyy}-${mm}-${dd}`;
+    }
+  }
+
+  return datasVencimentos;
+}
+
+
+
+// Defina suas senhas seguras aqui (ou melhor ainda, use variáveis de ambiente)
+const SENHAS = {
+  admin: 'Adm!2025$Gp9@#zXq',
+  operadores: {
+    Gugu: 'Operador1Senha123!',
+    Bigu: 'Operador2Senha456!',
+  }
+};
+
+app.post('/login', (req, res) => {
+  const { tipo, senha } = req.body;
+
+  if (!tipo || !senha) {
+    return res.status(400).json({ erro: 'Insira a senha para login' });
+  }
+
+  if (!['admin', 'operador'].includes(tipo)) {
+    return res.status(400).json({ erro: 'Tipo inválido' });
+  }
+
+  if (tipo === 'admin') {
+    if (senha === SENHAS.admin) {
+      return res.json({ sucesso: true, tipo: 'admin' });
+    } else {
+      return res.status(401).json({ erro: 'Senha incorreta' });
+    }
+  }
+
+  if (tipo === 'operador') {
+    // Verifica se a senha bate com algum operador
+    const operadorLogado = Object.entries(SENHAS.operadores).find(
+      ([nome, senhaOperador]) => senha === senhaOperador
+    );
+
+    if (operadorLogado) {
+      const [nomeOperador] = operadorLogado;
+      return res.json({ sucesso: true, tipo: 'operador', user: nomeOperador });
+    } else {
+      return res.status(401).json({ erro: 'Senha incorreta' });
+    }
+  }
+});
+
+
+
+
 /* ------------------- CONEXÃO COM MONGODB ------------------ */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Conectado ao MongoDB Atlas'))
@@ -90,32 +158,27 @@ const upload = multer({ storage });
 app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
   try {
     const {
-  nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
-  valor, parcelas, datasVencimentos = []
-} = req.body;
-console.log(req.body.taxaJuros)
-const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
+      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+      valor, parcelas, datasVencimentos = []
+    } = req.body;
 
+    const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
 
-    const valorNum      = Number(valor);
-    const parcelasNum   = Number(parcelas);
-    const taxa          = parseFloat(taxaJuros) / 100;
-    const vencimentos   = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+    const valorNum = Number(valor);
+    const parcelasNum = Number(parcelas);
 
-    const datasCalc = vencimentos.length === parcelasNum
-      ? vencimentos
-      : Array.from({ length: parcelasNum }, (_, i) => {
-          const d = new Date();
-          d.setMonth(d.getMonth() + i + 1);
-          return formatarDataLocal(d);
-        });
+    // Garante que datasVencimentos seja array
+    const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
 
-    const valorComJuros = valorNum * (1 + taxa);
-    const valorParcela  = valorComJuros / parcelasNum;
+    // Preenche datas faltantes com datas padrão mensais
+    const datasCalc = preencherDatasPadrao(vencimentos, parcelasNum);
+
+    const valorComJuros = valorNum * (1 + taxaJuros / 100);
+    const valorParcela = valorComJuros / parcelasNum;
 
     const arquivos = (req.files || []).map(f => ({
       nomeOriginal: f.originalname,
-      caminho:      `/uploads/${f.filename}`
+      caminho: `/uploads/${f.filename}`
     }));
 
     const novo = await Emprestimo.create({
@@ -134,7 +197,6 @@ const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) 
       quitado: false
     });
 
-    // Loga o caminho completo dos arquivos no servidor
     (req.files || []).forEach(f => console.log('Arquivo salvo em:', path.join(uploadDir, f.filename)));
 
     res.status(201).json(novo);
@@ -144,57 +206,102 @@ const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) 
   }
 });
 
+
+// Atualizar datas de vencimento das parcelas de um empréstimo
+app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
+  try {
+    const idNum = Number(req.params.id);
+    const { datasVencimentos } = req.body;
+
+    if (isNaN(idNum)) {
+      return res.status(400).json({ erro: 'ID inválido' });
+    }
+
+    if (!Array.isArray(datasVencimentos)) {
+      return res.status(400).json({ erro: 'O campo datasVencimentos deve ser um array de strings' });
+    }
+
+    // Validação simples das datas (formato YYYY-MM-DD)
+    for (const data of datasVencimentos) {
+      if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+        return res.status(400).json({ erro: `Data inválida no array: ${data}` });
+      }
+    }
+
+    const emprestimo = await Emprestimo.findOne({ id: idNum });
+    if (!emprestimo) {
+      return res.status(404).json({ erro: 'Empréstimo não encontrado' });
+    }
+
+    if (datasVencimentos.length !== emprestimo.parcelas) {
+      return res.status(400).json({ erro: `O array datasVencimentos deve ter o mesmo número de parcelas (${emprestimo.parcelas})` });
+    }
+
+    emprestimo.datasVencimentos = datasVencimentos;
+    await emprestimo.save();
+
+    return res.json({ sucesso: true, emprestimo });
+  } catch (err) {
+    console.error('PATCH /emprestimos/:id/datas-vencimento:', err);
+    return res.status(500).json({ erro: 'Erro ao atualizar datas de vencimento' });
+  }
+});
+
+
+/* ⇢ Empréstimos inadimplentes */
 /* ⇢ Empréstimos inadimplentes */
 app.get('/emprestimos/inadimplentes', async (_req, res) => {
   try {
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // zera a hora para comparar apenas a data
+    hoje.setHours(0, 0, 0, 0);
 
-    const lista = await Emprestimo.find({ quitado: false });
+    const lista = await Emprestimo.find({ quitado: false, datasVencimentos: { $exists: true, $not: { $size: 0 } } });
 
     const inadimplentes = lista.filter(emp => {
-      return emp.datasVencimentos.some((data, i) => {
-        const [a, m, d] = data.split('-').map(Number);
-        const venc = new Date(a, m - 1, d);
-        venc.setHours(0, 0, 0, 0); // zera também o vencimento
-
-        // considera inadimplente apenas se o vencimento for anterior a hoje
-        return venc < hoje && !emp.statusParcelas[i];
+      // Usamos .some() para encontrar pelo menos uma parcela inadimplente
+      return emp.datasVencimentos.some((dataStr, i) => {
+        // Valida se a parcela existe e se não foi paga
+        if (!emp.statusParcelas?.[i]) {
+          const venc = new Date(dataStr);
+          venc.setHours(0, 0, 0, 0);
+          return venc < hoje; // Inadimplente se o vencimento foi antes de hoje
+        }
+        return false;
       });
     });
 
     res.json(inadimplentes);
   } catch (err) {
-    console.error('GET /inadimplentes:', err);
-    res.status(500).json({ erro: 'Erro ao buscar inadimplentes' });
+    console.error('GET /emprestimos/inadimplentes:', err);
+    res.status(500).json({ erro: 'Erro ao buscar inadimplentes', detalhes: err.message });
   }
 });
 
 
+/* ⇢ Empréstimos vencidos ou vencendo hoje */
 /* ⇢ Empréstimos vencidos ou vencendo hoje */
 app.get('/emprestimos/vencidos-ou-hoje', async (_req, res) => {
   try {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
-    const lista = await Emprestimo.find({ quitado: false });
+    const lista = await Emprestimo.find({ quitado: false, datasVencimentos: { $exists: true, $not: { $size: 0 } } });
 
     const resultado = lista.filter(emp => {
-      return emp.datasVencimentos.some((data, i) => {
-        if (emp.statusParcelas[i]) return false; // já paga
+      return emp.datasVencimentos.some((dataStr, i) => {
+        // Valida se a parcela existe e se não foi paga
+        if (emp.statusParcelas?.[i]) return false;
 
-        const [ano, mes, dia] = data.split('-').map(Number);
-        const venc = new Date(ano, mes - 1, dia);
+        const venc = new Date(dataStr);
         venc.setHours(0, 0, 0, 0);
-
-        return venc <= hoje; // vencidos ou vencendo hoje
+        return venc <= hoje; // Vencidos ou vencendo hoje
       });
     });
 
     res.json(resultado);
   } catch (err) {
     console.error('GET /emprestimos/vencidos-ou-hoje:', err);
-    res.status(500).json({ erro: 'Erro ao buscar vencidos ou vencendo hoje' });
+    res.status(500).json({ erro: 'Erro ao buscar vencidos ou vencendo hoje', detalhes: err.message });
   }
 });
 
@@ -259,9 +366,19 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
 });
 
 /* ⇢ Quitados */
-app.get('/emprestimos/quitados', async (_req, res) => {
+app.get('/emprestimos/quitados', async (req, res) => {
   try {
-    const lista = await Emprestimo.find({ quitado: true });
+    const termo = req.query.termo || '';
+    const regex = new RegExp(termo, 'i'); // case insensitive
+
+    const lista = await Emprestimo.find({
+      quitado: true,
+      $or: [
+        { nome: { $regex: regex } },
+        { cpf: { $regex: regex } },
+      ]
+    });
+
     res.json(lista);
   } catch (err) {
     console.error(err);
@@ -545,6 +662,7 @@ app.get('/dashboard/detalhes/:tipo/:mesAno', async (req, res) => {
 
 
 // Atualizar dados gerais do empréstimo (ex: nome, email, telefone, etc)
+/* ⇢ Atualizar dados gerais do empréstimo */
 app.patch('/emprestimos/:id', async (req, res) => {
   try {
     const idNum = Number(req.params.id);
@@ -552,19 +670,65 @@ app.patch('/emprestimos/:id', async (req, res) => {
       return res.status(400).json({ erro: 'ID inválido' });
     }
 
-    const dadosAtualizados = req.body;
-
-    // Remova campos que não quer atualizar direto, por segurança (opcional)
-    delete dadosAtualizados._id;
-    delete dadosAtualizados.id; // se quiser manter id fixo
-
     const emprestimo = await Emprestimo.findOne({ id: idNum });
     if (!emprestimo) {
       return res.status(404).json({ erro: 'Empréstimo não encontrado' });
     }
 
-    // Atualiza apenas os campos enviados no corpo
+    const dadosAtualizados = req.body;
+
+    // Segurança: remove campos que não devem ser alterados diretamente
+    delete dadosAtualizados._id;
+    delete dadosAtualizados.id;
+
+    // Atualiza os campos enviados
     Object.assign(emprestimo, dadosAtualizados);
+
+    // Parse dos campos numéricos
+    const valorOriginal  = parseFloat(dadosAtualizados.valorOriginal);
+    const taxaJuros      = parseFloat(dadosAtualizados.taxaJuros);
+    const parcelas       = parseInt(dadosAtualizados.parcelas, 10);
+
+    if (!isNaN(valorOriginal) && !isNaN(taxaJuros) && !isNaN(parcelas)) {
+      emprestimo.valorOriginal = valorOriginal;
+      emprestimo.taxaJuros = taxaJuros;
+      emprestimo.parcelas = parcelas;
+
+      const valorComJuros = valorOriginal * (1 + taxaJuros / 100);
+      const valorParcela = valorComJuros / parcelas;
+
+      emprestimo.valorComJuros = valorComJuros;
+      emprestimo.valorParcela = valorParcela;
+
+      // Ajustar arrays relacionados ao número de parcelas
+      const novosStatus = Array(parcelas).fill(false);
+      // Preenche as datas vencimentos já existentes e completa as que estiverem faltando
+      const novasDatasVencimento = preencherDatasPadrao(
+        Array.isArray(emprestimo.datasVencimentos) ? emprestimo.datasVencimentos : [],
+        parcelas
+      );
+
+      const novosValoresPendentes = Array(parcelas).fill(valorParcela);
+
+      // Migrar status, valores e datas já existentes para os novos arrays
+      for (let i = 0; i < Math.min(emprestimo.statusParcelas.length, parcelas); i++) {
+        if (emprestimo.statusParcelas[i]) {
+          novosStatus[i] = true;
+        }
+        if (emprestimo.valoresRecebidos && emprestimo.valoresRecebidos[i] != null) {
+          novosValoresPendentes[i] = emprestimo.valoresRecebidos[i];
+        }
+      }
+
+      emprestimo.statusParcelas = novosStatus;
+      emprestimo.datasVencimentos = novasDatasVencimento;
+      emprestimo.valorParcelasPendentes = novosValoresPendentes;
+      emprestimo.datasPagamentos = Array(parcelas).fill(null);
+      emprestimo.recebidoPor = Array(parcelas).fill(null);
+      emprestimo.valoresRecebidos = Array(parcelas).fill(null);
+    }
+
+    emprestimo.quitado = emprestimo.statusParcelas.every(Boolean);
 
     await emprestimo.save();
 

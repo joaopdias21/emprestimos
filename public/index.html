@@ -11,6 +11,8 @@
 
 <body>
   <header class="header-auth">
+    <div id="saudacaoOperador" style="color:#004085; font-weight:600; margin-left:10px;"></div>
+
     <div class="header-left">
       <img src="wbanco.png" alt="Logo Banco" class="header-logo" />
       <h1 class="header-title">Controle de Empréstimos</h1>
@@ -20,12 +22,12 @@
 
   <main class="main-container">
 
-  <div class="separador">
+  <div class="separador separadorCadastro">
     <span>Cadastro</span>
   </div>
 
-  <div class="main-container">
-    <div class="form-column">
+
+    <div class="form-column sessaoCadastro">
       <h2>Cadastro de Empréstimo</h2>
       <form id="emprestimoForm" enctype="multipart/form-data">
         <input type="text" placeholder="Nome" id="nome" required />
@@ -65,7 +67,7 @@
 
     <br /><br />
 
-    <div class="separador">
+    <div class="separador separadorPesquisas">
       <span id="pesquisasLinha">Pesquisas</span>
     </div>
 
@@ -100,12 +102,12 @@
           <ul id="resultadoAtrasados"></ul>
         </div>
 
-        <div class="separador">
+        <div class="separador separadorDataDeVencimento">
           <span>Datas de Vencimento</span>
         </div>
 
 
-<div class="form-column" id="emprestimosPorData">
+<div class="form-column" id="emprestimosPorDataDia">
   <h2>Vencimentos do dia</h2>
   <div class="duas-colunas">
     <div id="containerAtrasados">
@@ -134,6 +136,8 @@
           <ul id="resultadoPorData"></ul>
         </div>
       </div>
+        <br>
+        <br>
 
       <div class="form-column" id="painelUnificado">
         <h2>Empréstimos por Vencimento - Cidades </h2>
@@ -156,7 +160,7 @@
         <ul id="resultadoUnico"></ul>
       </div>
 
-      <div class="separador">
+      <div class="separador separadorGraficos">
         <span id="dashboardLinha">Grafícos</span>
       </div>
 
@@ -166,9 +170,12 @@
         <div class="dashboard-item" id="ativos">
           Empréstimos Ativos: <span id="ativosCount">0</span>
         </div>
+        <br>
         <div class="dashboard-item" id="quitados">
           Empréstimos Quitados: <span id="quitadosCount">0</span>
         </div>
+        <br>
+
         <div class="dashboard-item" id="inadimplentes">
           Empréstimos Inadimplentes: <span id="inadimplentesCount">0</span>
         </div>
@@ -245,7 +252,7 @@
       <p>Informe o nome de quem recebeu a parcela:</p>
       <select id="inputRecebedor">
         <option value="" disabled selected>Selecione o nome</option>
-        <option value="Gustavo">Gustavo</option>
+        <option value="Gustavo">Gugu</option>
         <option value="Bigu">Bigu</option>
       </select>
       <label for="valorRecebido">Valor Recebido:</label>
@@ -264,6 +271,11 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="./main.js"></script>
 </main>
+        <br>
+        <br>
+        <br>
+        <br>
+
   <footer class="footer">
     <div class="footer-content">
       <div class="footer-left">
@@ -277,6 +289,74 @@
       </div>
     </div>
   </footer>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const saudacaoDiv = document.getElementById('saudacaoOperador');
+  const operadorNome = localStorage.getItem("operadorNome");
+  const isAdmin = localStorage.getItem("isAdmin") === "true";
+  const isOperador = localStorage.getItem("isOperador") === "true";
+
+  const authButtonsContainer = document.getElementById("authButtonsContainer");
+
+  if (!isAdmin && !isOperador) {
+    // Não está logado - mostra só cadastro e botão login
+
+    // Esconde tudo menos sessão cadastro
+    document.querySelectorAll(".separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column:not(.sessaoCadastro), #dashboard, #filtroPagamentos, .admin-panel").forEach(el => {
+      el.style.display = "none";
+    });
+
+    // Garante que a sessão de cadastro está visível
+    document.querySelectorAll(".sessaoCadastro").forEach(el => {
+      el.style.display = "block";
+    });
+
+    // Cria botão de login e adiciona
+    const loginBtn = document.createElement('button');
+    loginBtn.textContent = 'Fazer login';
+    loginBtn.style.marginTop = '20px';
+    loginBtn.addEventListener('click', () => {
+      window.location.href = 'login.html';
+    });
+    authButtonsContainer.appendChild(loginBtn);
+
+  } else {
+    // Está logado
+
+    // Exibe saudação
+    if (isAdmin) {
+      saudacaoDiv.textContent = "Olá, Administrador";
+    } else if (isOperador && operadorNome) {
+      saudacaoDiv.textContent = `Olá, ${operadorNome}`;
+    }
+
+    // Remove qualquer botão login caso tenha
+    authButtonsContainer.innerHTML = '';
+
+    // Cria botão sair
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'logoutBtn';
+    logoutBtn.textContent = 'Sair';
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem("isAdmin");
+      localStorage.removeItem("isOperador");
+      localStorage.removeItem("operadorNome");
+      location.reload();
+    });
+    authButtonsContainer.appendChild(logoutBtn);
+
+    // Exibe todas as áreas importantes
+    document.querySelectorAll(".form-column, #dashboard, #filtroPagamentos, .admin-panel, .separadorCadastro, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos").forEach(el => {
+      el.style.display = "block";
+    });
+  }
+});
+
+
+
+</script>
+
+
 </body>
 
 </html>
