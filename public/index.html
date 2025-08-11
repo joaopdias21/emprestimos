@@ -7,9 +7,51 @@
   <title>Controle de Empréstimos</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="shortcut icon" href="wbanco.png" type="image/x-icon" />
+
+  <style>
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+  </style>
 </head>
 
 <body>
+<div id="loadingOverlay" style="
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(255,255,255,0.9);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+">
+  <div class="spinner-container" style="position: relative; width: 120px; height: 120px;">
+    <img src="wbanco.png" alt="Logo Banco" style="width: 80px; height: 80px; position: absolute; top: 20px; left: 20px;" />
+    <div class="spinner" style="
+      box-sizing: border-box;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      margin: auto;
+      width: 120px;
+      height: 120px;
+      border: 8px solid #004085;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1.5s linear infinite;
+    "></div>
+  </div>
+  <p id="loadingMessage" style="margin-top: 20px; font-size: 1.2rem; font-weight: 600; color: #004085;">
+    Carregando, aguarde um minuto...
+  </p>
+</div>
+
+
+
   <header class="header-auth">
     <div id="saudacaoOperador" style="color:#004085; font-weight:600; margin-left:10px;"></div>
 
@@ -350,10 +392,48 @@ document.addEventListener('DOMContentLoaded', () => {
       el.style.display = "block";
     });
   }
+
 });
 
 
 
+</script>
+<script type="module">
+import { URL_SERVICO } from './config.js';
+
+  // URL do backend (ajuste para a sua real URL ou rota)
+  const backendUrl = `${URL_SERVICO}/health`; // ou qualquer rota leve que confirme backend ativo
+
+   const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingMessage = document.getElementById('loadingMessage');
+
+  function testarBackend() {
+    // Mostra overlay e mensagem inicial
+    loadingOverlay.style.display = 'flex';
+    loadingMessage.textContent = 'Carregando, aguarde um minuto...';
+
+    fetch(backendUrl, { method: 'GET', cache: 'no-store' })
+      .then(response => {
+        if (!response.ok) throw new Error('Backend indisponível');
+        return response.text();
+      })
+      .then(() => {
+        // Backend ativo, esconde overlay
+        loadingOverlay.style.display = 'none';
+      })
+      .catch((err) => {
+        // Mostra mensagem de erro e tenta novamente
+      loadingMessage.style.textAlign = 'center';
+      loadingMessage.textContent = 'Erro ao conectar backend. Tentando novamente...';
+
+        console.error(err);
+        setTimeout(testarBackend, 5000);
+      });
+  }
+
+  window.addEventListener('load', () => {
+    testarBackend();
+  });
 </script>
 
 

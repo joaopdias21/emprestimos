@@ -436,7 +436,10 @@ app.post('/upload-arquivos', upload.array('anexos'), (req, res) => {
 });
 
 /* health‑check */
-app.get('/ping', (_req, res) => res.send('pong'));
+// server.js ou app.js
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 
 

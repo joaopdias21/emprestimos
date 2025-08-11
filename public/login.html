@@ -74,6 +74,25 @@
         margin: 10px;
       }
     }
+
+
+    .spinner {
+  border: 3px solid #f3f3f3; /* fundo */
+  border-top: 3px solid #004085; /* cor */
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
   </style>
 </head>
 <body>
@@ -86,7 +105,11 @@
       <option value="admin">Administrador</option>
       <option value="operador">Operador</option>
     </select>
-    <button onclick="logar()">Entrar</button>
+<button id="btnLogin">
+  <span>Entrar</span>
+</button>
+
+
   </div>
 </div>
 
@@ -95,7 +118,19 @@ import { URL_SERVICO } from './config.js';
 
   import { mostrarAlertaError, mostrarAlertaWarning, formatarMoeda } from './utils.js';
 
-  async function logar() {
+async function logar() {
+  // após definir a função logar()
+
+  const btnLogin = document.getElementById('btnLogin');
+  const btnText = btnLogin.querySelector('span');
+
+  // Desabilitar botão e mostrar spinner
+  btnLogin.disabled = true;
+  btnText.textContent = 'Entrando...';
+  const spinner = document.createElement('span');
+  spinner.classList.add('spinner');
+  btnLogin.appendChild(spinner);
+
   const senha = document.getElementById("senha").value;
   const tipo = document.getElementById("tipoUsuario").value;
 
@@ -113,24 +148,32 @@ import { URL_SERVICO } from './config.js';
     }
 
     const dados = await res.json();
-if (dados.sucesso) {
-  if (dados.tipo === 'admin') {
-    localStorage.setItem("isAdmin", "true");
-    localStorage.removeItem("isOperador");
-  } else if (dados.tipo === 'operador') {
-    localStorage.setItem("isOperador", "true");
-    localStorage.removeItem("isAdmin");
-    localStorage.setItem("operadorNome", dados.user); // salva qual operador exatamente
-  }
-  window.location.href = "index.html";
-}
-
+    if (dados.sucesso) {
+      if (dados.tipo === 'admin') {
+        localStorage.setItem("isAdmin", "true");
+        localStorage.removeItem("isOperador");
+      } else if (dados.tipo === 'operador') {
+        localStorage.setItem("isOperador", "true");
+        localStorage.removeItem("isAdmin");
+        localStorage.setItem("operadorNome", dados.user);
+      }
+      window.location.href = "index.html";
+    } else {
+      mostrarAlertaError('Login falhou');
+    }
 
   } catch (err) {
     mostrarAlertaError('Erro ao conectar no servidor');
+  } finally {
+    // Reabilitar botão e esconder spinner, só se não redirecionou
+    btnLogin.disabled = false;
+    btnText.textContent = 'Entrar';
+    if (btnLogin.contains(spinner)) btnLogin.removeChild(spinner);
   }
 }
-window.logar = logar; // para botão onclick
+document.getElementById('btnLogin').addEventListener('click', logar);
+
+
 
 </script>
 
