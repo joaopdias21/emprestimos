@@ -51,10 +51,10 @@ function preencherDatasPadrao(datasVencimentos, parcelas) {
 
 // Defina suas senhas seguras aqui (ou melhor ainda, use variáveis de ambiente)
 const SENHAS = {
-  admin: 'Adm!2025$Gp9@#zXq',
+  admin: 'Z9#vLp!2@WdXq7&Fs',
   operadores: {
-    Gugu: 'Operador1Senha123!',
-    Bigu: 'Operador2Senha456!',
+    Gugu: 'N7%rTb$5!QmVz1@Wy',
+    Bigu: 'K2!xFd#8@PcJs6%Rt',
   }
 };
 
