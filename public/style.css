@@ -28,13 +28,13 @@ h3 {
 
 
 
-/* Header principal */
+/* Estilos padrão para desktop e telas maiores */
 .header-auth {
-  position: static; /* ou fixed se quiser fixo no scroll */
+  position: static;
   top: 0;
   left: 0;
   right: 0;
-  width: 100vw;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   padding: 0.8rem 1.5rem;
@@ -47,11 +47,11 @@ h3 {
   z-index: 1000;
 }
 
-
 .header-left {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  flex-direction: column; /* Altera a direção dos itens para coluna */
+  align-items: flex-start; /* Alinha os itens à esquerda */
+  gap: 0; /* Remove o espaçamento padrão entre os itens */
 }
 
 .header-logo {
@@ -61,6 +61,8 @@ h3 {
   border-radius: 6px;
   background: white;
   padding: 3px;
+  margin-left: 40px;
+  margin-bottom: 5px; /* Adiciona um pequeno espaço abaixo do logo */
 }
 
 .header-title {
@@ -71,18 +73,46 @@ h3 {
   letter-spacing: 1.2px;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
   user-select: none;
-  margin-left: 10px;
-  margin-top: 20px;
+  margin-left: 15px;
+
 }
 
-/* Área dos botões de autenticação */
 .header-right {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
+/* --- Media Query para telas menores que 768px (smartphones) --- */
+@media (max-width: 768px) {
+  .header-auth {
+    /* Diminui o padding para telas menores */
+    padding: 0.8rem 1rem;
+  }
+  
+  .header-left {
+    /* Diminui o gap para um espaçamento mais compacto */
+    gap: 0.5rem;
+  }
 
+  .header-logo {
+    /* Reduz o tamanho do logo */
+    height: 35px;
+    width: 35px;
+  }
+
+  .header-title {
+    /* Reduz o tamanho da fonte do título */
+    font-size: 1rem; 
+    /* Reduz o espaçamento entre as letras */
+    letter-spacing: 1px;
+  }
+
+  .header-right {
+    /* Diminui o gap para botões */
+    gap: 0.7rem;
+  }
+}
 
 
 
