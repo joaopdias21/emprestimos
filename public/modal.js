@@ -197,11 +197,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
         <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
         <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
 
-      if (Math.abs(diferenca) >= 0.01) {
-        info += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
-          diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
-        }</strong><br>`;
-      }
 
       label.innerHTML += info;
       checkbox.parentElement.classList.add('parcela-paga');
@@ -271,11 +266,24 @@ export async function abrirModal(emprestimo) {
               <label>Parcelas: <input type="number" name="parcelas" value="${emprestimo.parcelas}" min="1" max="100" required></label><br>
             </div>
             
-            <div id="valoresCalculados" style="margin-top: 10px;">
-                <strong>Valor original:</strong> <span id="displayValorOriginal">${formatarMoeda(emprestimo.valorOriginal)}</span><br>
-                <strong>Valor com juros (<span id="displayTaxaJuros">${taxaFormatada}</span>%):</strong> <span id="displayValorComJuros">${formatarMoeda(emprestimo.valorComJuros)}</span><br>
-                <strong>Parcelas:</strong> <span id="displayParcelas">${emprestimo.parcelas}</span>x de <span id="displayValorParcela">${formatarMoeda(emprestimo.valorParcela)}</span>
+            <div id="valoresCalculados" class="valores-card">
+                <div class="valor-item">
+                    <span class="label">💰 Valor Original:</span>
+                    <span class="valor" id="displayValorOriginal">${formatarMoeda(emprestimo.valorOriginal)}</span>
+                </div>
+                <div class="valor-item">
+                    <span class="label">📈 Valor com juros (<span id="displayTaxaJuros">${taxaFormatada}</span>%):</span>
+                    <span class="valor destaque" id="displayValorComJuros">${formatarMoeda(emprestimo.valorComJuros)}</span>
+                </div>
+                <div class="valor-item">
+                    <span class="label">📅 Parcelas:</span>
+                    <span class="valor" id="displayParcelas">${emprestimo.parcelas}</span>
+                    <span class="label">x de</span>
+                    <span class="valor" id="displayValorParcela">${formatarMoeda(emprestimo.valorParcela)}</span>
+                </div>
             </div>
+                <br>
+
 
             <button type="submit" id="btnSalvarEdicao">Salvar</button>
             <button type="button" id="btnCancelarEdicao">Cancelar</button>
@@ -283,13 +291,17 @@ export async function abrirModal(emprestimo) {
         </div>
 
         <hr /><br>
-        <h3>💰 Informações Financeiras</h3>
-        <div id="infoFinanceira" class="grid-detalhes">
-          <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
-          <div><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</div>
-          <div><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</div>
-          ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
-        </div>
+      <h3>💰 Informações Financeiras</h3>
+      <div id="infoFinanceira" class="grid-detalhes">
+        <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
+        <div><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</div>
+        <div><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</div>
+        <div><strong>Valor do juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros - emprestimo.valorOriginal)}</div>
+
+        ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
+
+      </div>
+
       </div>
       <div id="parcelasContainer" style="flex: 1;">
         <h3>📆 Parcelas</h3>
@@ -431,18 +443,18 @@ console.log('Datas de vencimento:', emprestimo.datasVencimentos);
   }
 
 
-  btnEditarVencimentos.addEventListener('click', () => {
-    if (containerEditarVencimentos.style.display === 'none') {
-      containerEditarVencimentos.style.display = 'block';
-      btnEditarVencimentos.textContent = 'Cancelar Edição';
+    btnEditarVencimentos.addEventListener('click', () => {
+      if (containerEditarVencimentos.style.display === 'none') {
+        containerEditarVencimentos.style.display = 'block';
+        btnEditarVencimentos.textContent = 'Cancelar Edição';
 
-      montarCamposEdicaoVencimentos(emprestimo);
-    } else {
-      containerEditarVencimentos.style.display = 'none';
-      btnEditarVencimentos.textContent = 'Editar Vencimentos';
-      containerEditarVencimentos.innerHTML = '';
-    }
-  });
+        montarCamposEdicaoVencimentos(emprestimo);
+      } else {
+        containerEditarVencimentos.style.display = 'none';
+        btnEditarVencimentos.textContent = 'Editar Vencimentos';
+        containerEditarVencimentos.innerHTML = '';
+      }
+});
 
 
 
@@ -472,56 +484,56 @@ function montarCamposEdicaoVencimentos(emprestimo) {
     containerEditarVencimentos.appendChild(div);
   }
 
-    // Botão para salvar as datas novas
-    const btnSalvarVencimentos = document.createElement('button');
-    btnSalvarVencimentos.textContent = 'Salvar Vencimentos';
-    btnSalvarVencimentos.style.marginTop = '10px';
+      // Botão para salvar as datas novas
+      const btnSalvarVencimentos = document.createElement('button');
+      btnSalvarVencimentos.textContent = 'Salvar Vencimentos';
+          btnSalvarVencimentos.style.marginTop = '10px';
 
-    btnSalvarVencimentos.addEventListener('click', async () => {
-      const inputs = containerEditarVencimentos.querySelectorAll('input[type="date"]');
-      const novasDatas = [];
+      btnSalvarVencimentos.addEventListener('click', async () => {
+        const inputs = containerEditarVencimentos.querySelectorAll('input[type="date"]');
+        const novasDatas = [];
 
-      for (const input of inputs) {
-        if (!input.value) {
-          alert(`Informe a data de vencimento da parcela ${parseInt(input.dataset.index) + 1}`);
-          return;
+        for (const input of inputs) {
+          if (!input.value) {
+            alert(`Informe a data de vencimento da parcela ${parseInt(input.dataset.index) + 1}`);
+            return;
+          }
+          novasDatas.push(input.value);
         }
-        novasDatas.push(input.value);
-      }
 
-      // Chama função para enviar as novas datas ao backend
-      await salvarNovasDatasVencimento(emprestimo.id, novasDatas);
+        // Chama função para enviar as novas datas ao backend
+        await salvarNovasDatasVencimento(emprestimo.id, novasDatas);
 
-      // Atualiza visualização no modal
-      emprestimo.datasVencimentos = novasDatas;
-      containerEditarVencimentos.style.display = 'none';
-      btnEditarVencimentos.textContent = 'Editar Vencimentos';
-      abrirModal(emprestimo); // Reabre modal para atualizar dados
-    });
-
-    containerEditarVencimentos.appendChild(btnSalvarVencimentos);
-  }
-
-  async function salvarNovasDatasVencimento(emprestimoId, novasDatas) {
-    try {
-      const res = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/datas-vencimento`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ datasVencimentos: novasDatas })
+        // Atualiza visualização no modal
+        emprestimo.datasVencimentos = novasDatas;
+        containerEditarVencimentos.style.display = 'none';
+        btnEditarVencimentos.textContent = 'Editar Vencimentos';
+        abrirModal(emprestimo); // Reabre modal para atualizar dados
       });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText);
-      }
-
-      mostrarAlerta('Datas de vencimento atualizadas com sucesso!');
-    } catch (err) {
-      mostrarAlertaError(`Erro ao atualizar datas: ${err.message}`);
+      containerEditarVencimentos.appendChild(btnSalvarVencimentos);
     }
-  }
 
-  // >>>>> NOVO CÓDIGO
+    async function salvarNovasDatasVencimento(emprestimoId, novasDatas) {
+      try {
+        const res = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/datas-vencimento`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ datasVencimentos: novasDatas })
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText);
+        }
+
+        mostrarAlerta('Datas de vencimento atualizadas com sucesso!');
+      } catch (err) {
+        mostrarAlertaError(`Erro ao atualizar datas: ${err.message}`);
+      }
+    }
+
+      // >>>>> NOVO CÓDIGO
   function atualizarCardsEmprestimo(emprestimoAtualizado) {
     const parcelasContainer = document.getElementById('parcelasContainer');
     if (!parcelasContainer) {
@@ -597,11 +609,6 @@ function montarCamposEdicaoVencimentos(emprestimo) {
 
           html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
 
-          if (Math.abs(diferenca) >= 0.01) {
-            html += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
-              diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
-            }</strong><br>`;
-          }
         }
 
       }
@@ -662,7 +669,7 @@ function montarCamposEdicaoVencimentos(emprestimo) {
     });
   }
   // <<<<<
-
+  
 
   const parcelasContainer = document.getElementById('parcelasContainer');
   const parcelas = emprestimo.statusParcelas || Array(emprestimo.parcelas).fill(false);
@@ -729,11 +736,6 @@ function montarCamposEdicaoVencimentos(emprestimo) {
 
         html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
 
-        if (Math.abs(diferenca) >= 0.01) {
-          html += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
-            diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
-          }</strong><br>`;
-        }
       }
 
     }
@@ -869,11 +871,7 @@ function atualizarVisualParcelas(emprestimo) {
       if (valorRecebido != null) {
         const diferenca = valorRecebido - valorOriginal;
         html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-        if (Math.abs(diferenca) >= 0.01) {
-          html += `<strong style="color:${diferenca > 0 ? 'green' : 'red'};">${
-            diferenca > 0 ? '📈 Pagou mais que o valor original' : '📉 Pagou menos que o valor original'
-          }</strong><br>`;
-        }
+
       }
 
       statusClass = 'parcela-paga';

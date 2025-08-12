@@ -221,7 +221,6 @@ app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
       return res.status(400).json({ erro: 'O campo datasVencimentos deve ser um array de strings' });
     }
 
-    // Validação simples das datas (formato YYYY-MM-DD)
     for (const data of datasVencimentos) {
       if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
         return res.status(400).json({ erro: `Data inválida no array: ${data}` });
@@ -233,11 +232,10 @@ app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
       return res.status(404).json({ erro: 'Empréstimo não encontrado' });
     }
 
-    if (datasVencimentos.length !== emprestimo.parcelas) {
-      return res.status(400).json({ erro: `O array datasVencimentos deve ter o mesmo número de parcelas (${emprestimo.parcelas})` });
-    }
-
+    // Atualiza o array e o número de parcelas
     emprestimo.datasVencimentos = datasVencimentos;
+    emprestimo.parcelas = datasVencimentos.length;  // <---- aqui
+
     await emprestimo.save();
 
     return res.json({ sucesso: true, emprestimo });
@@ -246,6 +244,7 @@ app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
     return res.status(500).json({ erro: 'Erro ao atualizar datas de vencimento' });
   }
 });
+
 
 
 /* ⇢ Empréstimos inadimplentes */
@@ -318,44 +317,72 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     if (indice < 0 || indice >= emp.parcelas)
       return res.status(400).json({ erro: 'Parcela inválida' });
 
-    /* garante arrays */
+    // Garante arrays
     ['statusParcelas','datasPagamentos','recebidoPor','valorParcelasPendentes','valoresRecebidos']
-      .forEach(campo => { if (!Array.isArray(emp[campo])) emp[campo] = Array.from(
-        { length: emp.parcelas },
-        () => campo === 'statusParcelas' ? false : null
-      ); });
+      .forEach(campo => { 
+        if (!Array.isArray(emp[campo])) emp[campo] = Array.from(
+          { length: emp.parcelas },
+          () => campo === 'statusParcelas' ? false : null
+        ); 
+      });
 
     const recebido = parseFloat(req.body.valorRecebido);
     const previsto = emp.valorParcelasPendentes[indice];
 
     emp.statusParcelas[indice]   = true;
+    // Usa a data enviada ou a data atual
     emp.datasPagamentos[indice]  = req.body.dataPagamento || new Date().toISOString();
     emp.recebidoPor[indice]      = req.body.nomeRecebedor || 'Desconhecido';
     emp.valoresRecebidos[indice] = recebido;
 
-    /* redistribui diferença */
-    const diff   = previsto - recebido;
-    const rest   = emp.statusParcelas
-      .map((paga, i) => (!paga ? i : null))
-      .filter(i => i !== null && i > indice);
+    if (recebido < previsto) {
+      const saldoRestante = previsto - recebido;
 
-    if (rest.length && diff !== 0) {
-      const ajuste = diff / rest.length;
-      rest.forEach((i, k) => {
-        if (k === rest.length - 1) {
-          const somaParcial = rest.slice(0,-1)
-            .reduce((s,j)=>s+emp.valorParcelasPendentes[j],0);
-          emp.valorParcelasPendentes[i] = parseFloat(
-            (emp.valorParcelasPendentes[i]
-             + (diff - ajuste * (rest.length - 1))).toFixed(2));
-        } else {
-          emp.valorParcelasPendentes[i] = parseFloat(
-            (emp.valorParcelasPendentes[i] + ajuste).toFixed(2));
-        }
-      });
+      // Aumenta total parcelas em 1
+      emp.parcelas += 1;
+
+      emp.statusParcelas.push(false);
+      emp.datasPagamentos.push(null);
+      emp.recebidoPor.push(null);
+      emp.valoresRecebidos.push(null);
+      emp.valorParcelasPendentes.push(parseFloat(saldoRestante.toFixed(2)));
+
+      // Data do pagamento da parcela paga
+      const dataPagamentoStr = emp.datasPagamentos[indice];
+      const dataPagamento = new Date(dataPagamentoStr);
+
+      const totalParcelas = emp.parcelas;
+
+      // Recalcular datas vencimento mantendo as parcelas pagas e ajustando as futuras
+      const novasDatasVencimento = [];
+
+      // Manter datas originais das parcelas já pagas
+      for (let i = 0; i <= indice; i++) {
+        novasDatasVencimento[i] = emp.datasVencimentos[i] || null;
+      }
+
+      // Ajustar datas das parcelas futuras (incluindo a nova)
+      for (let i = indice + 1; i < totalParcelas; i++) {
+        const novaData = new Date(dataPagamento);
+        novaData.setMonth(novaData.getMonth() + (i - indice));
+        novasDatasVencimento[i] = novaData.toISOString().slice(0, 10);
+      }
+
+      emp.datasVencimentos = novasDatasVencimento;
+    } else {
+      const ultimaParcela = (indice === emp.parcelas - 1);
+      
+      if (ultimaParcela && emp.statusParcelas.every(Boolean)) {
+        // A última parcela foi quitada, mantém o valor pendente dela igual ao valor pendente ANTES da quitação
+        emp.valorParcelasPendentes[indice] = parseFloat(previsto.toFixed(2));
+      } else {
+        emp.valorParcelasPendentes[indice] = 0;
+      }
     }
 
+
     emp.quitado = emp.statusParcelas.every(Boolean);
+
     await emp.save();
 
     res.json(emp);
@@ -364,6 +391,8 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
+
+
 
 /* ⇢ Quitados */
 app.get('/emprestimos/quitados', async (req, res) => {
@@ -698,37 +727,68 @@ app.patch('/emprestimos/:id', async (req, res) => {
       emprestimo.parcelas = parcelas;
 
       const valorComJuros = valorOriginal * (1 + taxaJuros / 100);
-      const valorParcela = valorComJuros / parcelas;
-
       emprestimo.valorComJuros = valorComJuros;
-      emprestimo.valorParcela = valorParcela;
 
-      // Ajustar arrays relacionados ao número de parcelas
-      const novosStatus = Array(parcelas).fill(false);
       // Preenche as datas vencimentos já existentes e completa as que estiverem faltando
       const novasDatasVencimento = preencherDatasPadrao(
         Array.isArray(emprestimo.datasVencimentos) ? emprestimo.datasVencimentos : [],
         parcelas
       );
 
-      const novosValoresPendentes = Array(parcelas).fill(valorParcela);
+      // Inicializa os arrays novos do tamanho correto
+      const novosStatus = Array(parcelas).fill(false);
+      const novosDatasPagamentos = Array(parcelas).fill(null);
+      const novosRecebidoPor = Array(parcelas).fill(null);
+      const novosValoresRecebidos = Array(parcelas).fill(null);
+      const novosValoresPendentes = Array(parcelas).fill(0); // vamos setar depois
 
-      // Migrar status, valores e datas já existentes para os novos arrays
-      for (let i = 0; i < Math.min(emprestimo.statusParcelas.length, parcelas); i++) {
-        if (emprestimo.statusParcelas[i]) {
-          novosStatus[i] = true;
-        }
-        if (emprestimo.valoresRecebidos && emprestimo.valoresRecebidos[i] != null) {
-          novosValoresPendentes[i] = emprestimo.valoresRecebidos[i];
+      const qtdAntiga = emprestimo.statusParcelas.length;
+
+      // Copia dados antigos para os novos arrays (preserva o que já tem)
+      for (let i = 0; i < Math.min(qtdAntiga, parcelas); i++) {
+        novosStatus[i] = emprestimo.statusParcelas[i];
+        novosDatasPagamentos[i] = emprestimo.datasPagamentos[i];
+        novosRecebidoPor[i] = emprestimo.recebidoPor[i];
+        novosValoresRecebidos[i] = emprestimo.valoresRecebidos[i];
+      }
+
+      // Soma do valor já pago (parcelas marcadas como pagas)
+      const totalPago = novosValoresRecebidos.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
+
+      // Quantidade de parcelas pendentes
+      const numPendentes = novosStatus.filter(paga => !paga).length;
+
+      // Valor que falta pagar
+      const saldoRestante = valorComJuros - totalPago;
+
+      // Valor da parcela pendente (divide o saldo restante igualmente)
+      const valorParcelaPendente = numPendentes > 0 ? saldoRestante / numPendentes : 0;
+
+      // Atualiza valorParcelasPendentes
+      for (let i = 0; i < parcelas; i++) {
+        if (novosStatus[i]) {
+          // Parcela já paga: mantém o valor pendente original
+          // Para manter o valor pendente antigo, podemos usar valorParcelaPendentes[i] antigo ou calcular como (valorRecebido[i] ?? 0)
+          // Porém o valor pendente geralmente é zero para pagas, então manteremos o valor que já existia ou zero.
+          novosValoresPendentes[i] = emprestimo.valorParcelasPendentes && emprestimo.valorParcelasPendentes[i] != null
+            ? emprestimo.valorParcelasPendentes[i]
+            : 0;
+        } else {
+          // Parcela pendente recebe o valor recalculado
+          novosValoresPendentes[i] = parseFloat(valorParcelaPendente.toFixed(2));
         }
       }
 
+      // Atualiza os campos no empréstimo
       emprestimo.statusParcelas = novosStatus;
-      emprestimo.datasVencimentos = novasDatasVencimento;
+      emprestimo.datasPagamentos = novosDatasPagamentos;
+      emprestimo.recebidoPor = novosRecebidoPor;
+      emprestimo.valoresRecebidos = novosValoresRecebidos;
       emprestimo.valorParcelasPendentes = novosValoresPendentes;
-      emprestimo.datasPagamentos = Array(parcelas).fill(null);
-      emprestimo.recebidoPor = Array(parcelas).fill(null);
-      emprestimo.valoresRecebidos = Array(parcelas).fill(null);
+      emprestimo.datasVencimentos = novasDatasVencimento;
+
+      // Atualiza o valorParcela com o valor das parcelas pendentes (que agora são todas iguais)
+      emprestimo.valorParcela = valorParcelaPendente;
     }
 
     emprestimo.quitado = emprestimo.statusParcelas.every(Boolean);
@@ -741,6 +801,9 @@ app.patch('/emprestimos/:id', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao atualizar empréstimo' });
   }
 });
+
+
+
 
 
 /* ⇢ Detalhes por mês (para uso nos gráficos) */

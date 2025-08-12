@@ -50,7 +50,8 @@ btnConsultarAtivos.addEventListener('click', async () => {
   if (!texto) return;
 
   try {
-    const res = await fetch(`${URL_SERVICO}/emprestimos?termo=${encodeURIComponent(texto)}`);
+  const res = await fetch(`${URL_SERVICO}/emprestimos?status=ativo&termo=${encodeURIComponent(texto)}`);
+
     if (!res.ok) throw new Error('Erro na busca');
     const dados = await res.json();
 

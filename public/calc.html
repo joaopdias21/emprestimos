@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculadora de Empréstimo</title>
+</head>
+<body>
+
+    <h2>Calculadora de Empréstimo</h2>
+
+    <p>
+        Digite o valor total dos juros (ex: 500): <br>
+        <input type="number" id="valorJuros" placeholder="Ex: 500">
+    </p>
+
+    <p>
+        Digite a taxa de juros (em % ao ano, ex: 20): <br>
+        <input type="number" id="taxaJuros" placeholder="Ex: 20">
+    </p>
+
+    <button onclick="calcularEmprestimo()">Calcular Valor do Empréstimo</button>
+
+    <h3>Resultado:</h3>
+    <p id="resultado"></p>
+
+    <script>
+        function calcularEmprestimo() {
+            // Pega os valores dos campos de input
+            const juros = document.getElementById('valorJuros').value;
+            const taxa = document.getElementById('taxaJuros').value;
+
+            // Verifica se os campos estão preenchidos
+            if (juros === "" || taxa === "") {
+                alert("Por favor, preencha todos os campos.");
+                return;
+            }
+
+            // Converte os valores para números e ajusta a taxa para a fórmula (ex: 20% vira 0.20)
+            const jurosNumerico = parseFloat(juros);
+            const taxaNumerica = parseFloat(taxa) / 100;
+
+            // Calcula o valor do empréstimo (Principal = Juros / Taxa)
+            const emprestimo = jurosNumerico / taxaNumerica;
+
+            // Exibe o resultado na página, formatando o valor como moeda
+            document.getElementById('resultado').innerHTML = `O valor do empréstimo foi de: <strong>R$ ${emprestimo.toFixed(2)}</strong>`;
+        }
+    </script>
+
+</body>
+</html>

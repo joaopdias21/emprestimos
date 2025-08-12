@@ -28,3 +28,10 @@ export function formatarMoeda(valor) {
     currency: 'BRL'
   }).format(valor);
 }
+
+
+export function formatarDataParaBR(dataISO) {
+  if (!dataISO) return '';
+  const [ano, mes, dia] = dataISO.split('-');
+  return `${dia}/${mes}/${ano}`;
+}

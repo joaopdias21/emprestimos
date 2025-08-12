@@ -1693,3 +1693,39 @@ input[type="date"] {
   margin-top: 0;
   margin-bottom: 10px;
 }
+
+
+.valores-card {
+    background: #f8fafc; /* tom claro */
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-top: 10px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.valor-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.label {
+    font-weight: 600;
+    color: #374151;
+    margin-right: 5px;
+}
+
+.valor {
+    font-weight: 700;
+    color: #111827;
+}
+
+.destaque {
+    color: #1e40af; /* azul mais forte para destaque */
+}
+
+
+
