@@ -924,6 +924,56 @@ app.get('/dashboard/detalhes/:tipo/:mesAno', async (req, res) => {
 });
 
 
+// Criar vários empréstimos de uma vez
+app.post('/emprestimos/lote', upload.none(), async (req, res) => {
+  try {
+    const lista = req.body.emprestimos;
+
+    if (!Array.isArray(lista) || lista.length === 0) {
+      return res.status(400).json({ erro: 'Envie um array de empréstimos.' });
+    }
+
+    const emprestimosFormatados = lista.map((dados) => {
+      const {
+        nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+        valor, parcelas, datasVencimentos = [], taxaJuros
+      } = dados;
+
+      const taxa = taxaJuros !== undefined ? Number(taxaJuros) : 20;
+      const valorNum = Number(valor);
+      const parcelasNum = Number(parcelas);
+      const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+      const datasCalc = preencherDatasPadrao(vencimentos, parcelasNum);
+      const valorComJuros = valorNum * (1 + taxa / 100);
+
+      return {
+        id: Date.now() + Math.floor(Math.random() * 1000), // evitar duplicidade
+        nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+        valorOriginal: valorNum,
+        valorComJuros,
+        parcelas: parcelasNum,
+        valorParcela: null,
+        valorParcelasPendentes: Array.from({ length: parcelasNum }, () => null),
+        taxaJuros: taxa,
+        statusParcelas: Array.from({ length: parcelasNum }, () => false),
+        datasPagamentos: Array.from({ length: parcelasNum }, () => null),
+        datasVencimentos: datasCalc,
+        valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
+        recebidoPor: Array.from({ length: parcelasNum }, () => null),
+        arquivos: [],
+        quitado: false
+      };
+    });
+
+    const inseridos = await Emprestimo.insertMany(emprestimosFormatados);
+
+    res.status(201).json({ sucesso: true, inseridos });
+  } catch (err) {
+    console.error('POST /emprestimos/lote:', err);
+    res.status(500).json({ erro: 'Erro ao criar empréstimos em lote' });
+  }
+});
+
 
 
 /* ----------------------- START SERVER ---------------------- */
