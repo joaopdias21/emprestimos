@@ -21,6 +21,20 @@ let parcelaSelecionada = null;
 let termoAtual = '';
 let scrollPos = 0;
 
+// Adicione isso no início do arquivo, após os imports
+function calcularDiasAtraso(dataVencimentoStr) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  
+  const vencimento = new Date(dataVencimentoStr);
+  vencimento.setHours(0, 0, 0, 0);
+  
+  const diffTime = hoje.getTime() - vencimento.getTime();
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+  
+  return Math.max(0, Math.floor(diffDays));
+}
+
 function preencherDatasPadraoFrontend(datasVencimentos, parcelas) {
   if (!Array.isArray(datasVencimentos)) {
     datasVencimentos = [];
@@ -40,8 +54,6 @@ function preencherDatasPadraoFrontend(datasVencimentos, parcelas) {
   return datasVencimentos;
 }
 
-
-// === MÁSCARA DE FORMATAÇÃO PARA INPUT DE MOEDA (R$) ===
 const inputValorRecebido = document.getElementById('valorRecebido');
 
 inputValorRecebido.addEventListener('input', (e) => {
@@ -95,7 +107,6 @@ async function realizarBusca(termo) {
         <p><strong>Cidade:</strong> ${e.cidade} - ${e.estado} | <strong>CEP:</strong> ${e.cep}</p>
       `;
 
-      // Abrir modal ao clicar no item
       li.addEventListener('click', (event) => {
         abrirModal(e);
       });
@@ -107,10 +118,10 @@ async function realizarBusca(termo) {
     });
   } catch (err) {
     mostrarAlertaError(`Erro ao realizar busca: ${err.message}`);
-    console.error('Erro na busca:', err); // Log para depuração
+    console.error('Erro na busca:', err);
   }
 }
-// ====== Fechar modal principal ======
+
 modalFechar.addEventListener('click', (e) => {
   console.log('[DEBUG] Modal principal fechado manualmente');
   e.preventDefault();
@@ -120,17 +131,46 @@ modalFechar.addEventListener('click', (e) => {
   window.scrollTo(0, scrollPos);
 });
 
-// ====== Cancelar recebedor ======
 btnCancelarRecebedor.addEventListener('click', () => {
-modalRecebedor.style.display = 'none';
-inputValorRecebido.value = '';
-
-parcelaSelecionada = null;
-atualizarVisualParcelas(emprestimoSelecionado);
-
+  modalRecebedor.style.display = 'none';
+  inputValorRecebido.value = '';
+  parcelaSelecionada = null;
+  atualizarVisualParcelas(emprestimoSelecionado);
 });
 
-// ====== Confirmar parcela paga ======
+// Função para verificar se há atraso e calcular multa
+function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
+  const infoDiv = document.getElementById('infoMulta') || document.createElement('div');
+  infoDiv.id = 'infoMulta';
+  infoDiv.style.margin = '10px 0';
+  infoDiv.style.padding = '10px';
+  infoDiv.style.backgroundColor = '#fff3e0';
+  infoDiv.style.borderRadius = '4px';
+  infoDiv.style.borderLeft = '4px solid #ffb74d';
+  
+  const valorParcela = emprestimo.valorParcelasPendentes?.[indiceParcela] ?? emprestimo.valorParcela;
+  let valorMinimo = valorParcela;
+  let mensagemInfo = '';
+
+  if (emprestimo.datasVencimentos?.[indiceParcela]) {
+    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indiceParcela]);
+    if (diasAtraso > 0) {
+      const multa = diasAtraso * 20;
+      valorMinimo = valorParcela + multa;
+      mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). Multa: ${formatarMoeda(multa)}<br>Valor mínimo a receber: ${formatarMoeda(valorMinimo)}`;
+    }
+  }
+
+  if (mensagemInfo) {
+    infoDiv.innerHTML = mensagemInfo;
+    modalRecebedor.insertBefore(infoDiv, btnConfirmarRecebedor);
+  } else if (infoDiv.parentNode) {
+    infoDiv.parentNode.removeChild(infoDiv);
+  }
+
+  return valorMinimo;
+}
+
 btnConfirmarRecebedor.addEventListener('click', async () => {
   const nome = inputRecebedor.value.trim();
   if (!nome) {
@@ -141,14 +181,36 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   const { emprestimo, indice, checkbox } = parcelaSelecionada;
   const dataPagamento = new Date().toISOString();
   const valorRecebidoRaw = document.getElementById('valorRecebido').value;
-    const valorLimpoString = valorRecebidoRaw.replace(/\D/g, ''); // remove tudo que não for dígito
-    const valorRecebido = parseFloat(valorLimpoString) / 100;
+  const valorLimpoString = valorRecebidoRaw.replace(/\D/g, '');
+  const valorRecebido = parseFloat(valorLimpoString) / 100;
 
-    if (isNaN(valorRecebido) || valorRecebido <= 0) {
-      mostrarAlertaWarning('Informe um valor válido para o pagamento.');
-      return;
+  if (isNaN(valorRecebido)) {
+    mostrarAlertaWarning('Informe um valor válido para o pagamento.');
+    return;
+  }
+
+  // Verificar atraso e calcular valor mínimo
+  let valorMinimo = 0;
+  let mensagemErro = 'Informe um valor válido para o pagamento.';
+
+  if (emprestimo.datasVencimentos?.[indice]) {
+    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indice]);
+    if (diasAtraso > 0) {
+      const multa = diasAtraso * 20;
+      valorMinimo = multa;
+      mensagemErro = `Esta parcela está atrasada ${diasAtraso} dia(s). O valor mínimo a receber é a multa: ${formatarMoeda(multa)}`;
     }
+  }
 
+  if (valorRecebido < valorMinimo) {
+    mostrarAlertaWarning(mensagemErro);
+    return;
+  }
+
+  if (valorRecebido <= 0) {
+    mostrarAlertaWarning('Informe um valor válido para o pagamento.');
+    return;
+  }
 
   try {
     const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
@@ -169,19 +231,16 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     const emprestimoAtualizado = await response.json();
     Object.assign(emprestimo, emprestimoAtualizado);
 
-    // Garante arrays locais
     if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
     if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
     if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
-    // Atualiza dados da parcela
     emprestimo.statusParcelas[indice] = true;
     emprestimo.datasPagamentos[indice] = dataPagamento;
     emprestimo.recebidoPor[indice] = nome;
     emprestimo.valoresRecebidos[indice] = valorRecebido;
 
-    // Atualiza UI
     checkbox.checked = true;
     checkbox.disabled = true;
 
@@ -197,9 +256,28 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
         <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
         <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
 
+      if (emprestimoAtualizado.diasAtraso > 0) {
+        info += `
+          <strong>⚠️ Parcela paga com atraso</strong><br>
+          <hr>
+          <strong>⚠️ Dias de atraso:</strong> ${emprestimoAtualizado.diasAtraso}<br>
+          <strong>💰 Multa:</strong> ${formatarMoeda(emprestimoAtualizado.multa)}<br>
+          <strong>💸 Total pagoooooooo:</strong> ${formatarMoeda(valorRecebido)} (incluindo multa)<br>`;
+
+        if (valorRecebido === emprestimoAtualizado.multa) {
+          info += `<em>Foi realizado apenas o pagamento da multa.</em>`;
+        } else if (valorRecebido > emprestimoAtualizado.multa) {
+          const extra = valorRecebido - emprestimoAtualizado.multa;
+          info += `<em>Valor pago além da multa: ${formatarMoeda(extra)}</em>`;
+        }
+      }
 
       label.innerHTML += info;
       checkbox.parentElement.classList.add('parcela-paga');
+      
+      if (emprestimoAtualizado.diasAtraso > 0) {
+        checkbox.parentElement.classList.add('parcela-paga-com-atraso');
+      }
     }
 
     mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
@@ -211,7 +289,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
   modalRecebedor.style.display = 'none';
   inputValorRecebido.value = '';
-
   parcelaSelecionada = null;
   atualizarVisualParcelas(emprestimoSelecionado);
 });
@@ -267,8 +344,6 @@ function atualizarValorRestante(emprestimoAtualizado) {
   }
 }
 
-
-// ====== Abrir modal principal ======
 export async function abrirModal(emprestimo) {
   scrollPos = window.scrollY || document.documentElement.scrollTop;
   document.body.classList.add('modal-aberto');
@@ -335,7 +410,6 @@ export async function abrirModal(emprestimo) {
             </div>
                 <br>
 
-
             <button type="submit" id="btnSalvarEdicao">Salvar</button>
             <button type="button" id="btnCancelarEdicao">Cancelar</button>
           </form>
@@ -350,7 +424,6 @@ export async function abrirModal(emprestimo) {
         <div><strong>Valor do juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros - emprestimo.valorOriginal)}</div>
 
         ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
-
       </div>
 
       </div>
@@ -359,16 +432,11 @@ export async function abrirModal(emprestimo) {
           <button id="btnEditarVencimentos" style="margin-bottom: 15px;">Editar Vencimentos</button>
           <div id="containerEditarVencimentos" style="display:none; margin-bottom: 15px;"></div>
           <br>
-          <!-- Valor restante para quitar -->
-        <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;">
-          <!-- Conteúdo será atualizado pelo JS -->
-        </div>
+          <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;"></div>
         </div>
   `;
   atualizarValorRestante(emprestimo);
-console.log('Datas de vencimento:', emprestimo.datasVencimentos);
 
-  // Se tiver arquivos
   if (emprestimo.arquivos?.length) {
     const lista = emprestimo.arquivos.map(a =>
       `<li><a href="${URL_SERVICO}${a.caminho}" target="_blank">${a.nomeOriginal}</a></li>`).join('');
@@ -392,13 +460,9 @@ console.log('Datas de vencimento:', emprestimo.datasVencimentos);
   btnCancelarEdicao.addEventListener('click', () => {
     editarContainer.style.display = 'none';
     btnEditar.style.display = 'inline-block';
-    infoFinanceiraDiv.style.display = 'grid'; // Volta a exibir as informações financeiras
+    infoFinanceiraDiv.style.display = 'grid';
   });
 
-
-  // ===============================================
-  // LÓGICA DE CÁLCULO E ATUALIZAÇÃO DINÂMICA
-  // ===============================================
   const formEditarEmprestimo = document.getElementById('formEditarEmprestimo');
   const inputValorOriginal = formEditarEmprestimo.querySelector('input[name="valorOriginal"]');
   const inputTaxaJuros = formEditarEmprestimo.querySelector('input[name="taxaJuros"]');
@@ -415,7 +479,6 @@ console.log('Datas de vencimento:', emprestimo.datasVencimentos);
     const taxaJuros = parseFloat(inputTaxaJuros.value);
     const numParcelas = parseInt(inputParcelas.value, 10);
 
-    // Validação básica para evitar NaN
     if (isNaN(valorOriginal) || isNaN(taxaJuros) || isNaN(numParcelas) || numParcelas <= 0) {
       return;
     }
@@ -430,66 +493,50 @@ console.log('Datas de vencimento:', emprestimo.datasVencimentos);
     displayValorParcela.textContent = formatarMoeda(valorParcela);
   }
 
-  // Adiciona listeners para os campos que afetam o cálculo
   inputValorOriginal.addEventListener('input', calcularValores);
   inputTaxaJuros.addEventListener('input', calcularValores);
   inputParcelas.addEventListener('input', calcularValores);
 
-  // Inicializa a exibição dos valores calculados ao abrir o formulário de edição
   calcularValores();
-  // ===============================================
 
-
-  // Salvar edição
   formEditarEmprestimo.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const formData = new FormData(e.target);
     const dadosAtualizados = Object.fromEntries(formData.entries());
 
-    // Converter os tipos que precisam ser numéricos
     dadosAtualizados.valorOriginal = parseFloat(dadosAtualizados.valorOriginal);
     dadosAtualizados.taxaJuros = parseFloat(dadosAtualizados.taxaJuros);
     dadosAtualizados.parcelas = parseInt(dadosAtualizados.parcelas, 10);
 
-    // Recalcular os valores financeiros para enviar ao servidor
     dadosAtualizados.valorComJuros = dadosAtualizados.valorOriginal * (1 + dadosAtualizados.taxaJuros / 100);
     dadosAtualizados.valorParcela = dadosAtualizados.valorComJuros / dadosAtualizados.parcelas;
-   dadosAtualizados.datasVencimentos = emprestimoSelecionado.datasVencimentos || [];
-
+    dadosAtualizados.datasVencimentos = emprestimoSelecionado.datasVencimentos || [];
 
     try {
-        const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoSelecionado.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dadosAtualizados)
-        });
+      const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoSelecionado.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dadosAtualizados)
+      });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erro ao salvar: ${errorText}`);
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao salvar: ${errorText}`);
+      }
 
-        const emprestimoAtualizado = await response.json();
-        mostrarAlerta('Empréstimo atualizado com sucesso!');
-
-        // Esta linha atualiza o modal com os dados novos
-        abrirModal(emprestimoAtualizado);
-
-        // >>> IMPORTANTE: ADICIONE ESTA LINHA ABAIXO! <<<
-        // Ela vai recarregar a lista principal de empréstimos na página.
-        realizarBusca(termoAtual); // Recarrega os cards da página inicial.
-
+      const emprestimoAtualizado = await response.json();
+      mostrarAlerta('Empréstimo atualizado com sucesso!');
+      abrirModal(emprestimoAtualizado);
+      realizarBusca(termoAtual);
     } catch (err) {
-        mostrarAlertaError(`Erro ao salvar: ${err.message}`);
-        console.error(err);
+      mostrarAlertaError(`Erro ao salvar: ${err.message}`);
+      console.error(err);
     }
-});
-
+  });
 
   const btnEditarVencimentos = document.getElementById('btnEditarVencimentos');
   const containerEditarVencimentos = document.getElementById('containerEditarVencimentos');
-
 
   const isOperador = localStorage.getItem("isOperador") === "true";
 
@@ -498,141 +545,160 @@ console.log('Datas de vencimento:', emprestimo.datasVencimentos);
     if (btnEditarVencimentos) btnEditarVencimentos.style.display = 'none';
   }
 
-
-    btnEditarVencimentos.addEventListener('click', () => {
-      if (containerEditarVencimentos.style.display === 'none') {
-        containerEditarVencimentos.style.display = 'block';
-        btnEditarVencimentos.textContent = 'Cancelar Edição';
-
-        montarCamposEdicaoVencimentos(emprestimo);
-      } else {
-        containerEditarVencimentos.style.display = 'none';
-        btnEditarVencimentos.textContent = 'Editar Vencimentos';
-        containerEditarVencimentos.innerHTML = '';
-      }
-});
-
-
-
-function montarCamposEdicaoVencimentos(emprestimo) {
-  containerEditarVencimentos.innerHTML = '';
-
-  // Preenche as datas antes de usar
-  const datasPreenchidas = preencherDatasPadraoFrontend(
-    emprestimo.datasVencimentos || [],
-    emprestimo.parcelas
-  );
-
-  for (let i = 0; i < emprestimo.parcelas; i++) {
-    const div = document.createElement('div');
-    div.style.marginBottom = '10px';
-
-    const label = document.createElement('label');
-    label.textContent = `Parcela ${i + 1}: `;
-
-    const inputData = document.createElement('input');
-    inputData.type = 'date';
-    inputData.value = datasPreenchidas[i];
-    inputData.dataset.index = i;
-
-    div.appendChild(label);
-    div.appendChild(inputData);
-    containerEditarVencimentos.appendChild(div);
-  }
-
-      // Botão para salvar as datas novas
-      const btnSalvarVencimentos = document.createElement('button');
-      btnSalvarVencimentos.textContent = 'Salvar Vencimentos';
-          btnSalvarVencimentos.style.marginTop = '10px';
-
-      btnSalvarVencimentos.addEventListener('click', async () => {
-        const inputs = containerEditarVencimentos.querySelectorAll('input[type="date"]');
-        const novasDatas = [];
-
-        for (const input of inputs) {
-          if (!input.value) {
-            alert(`Informe a data de vencimento da parcela ${parseInt(input.dataset.index) + 1}`);
-            return;
-          }
-          novasDatas.push(input.value);
-        }
-
-        // Chama função para enviar as novas datas ao backend
-        await salvarNovasDatasVencimento(emprestimo.id, novasDatas);
-
-        // Atualiza visualização no modal
-        emprestimo.datasVencimentos = novasDatas;
-        containerEditarVencimentos.style.display = 'none';
-        btnEditarVencimentos.textContent = 'Editar Vencimentos';
-        abrirModal(emprestimo); // Reabre modal para atualizar dados
-      });
-
-      containerEditarVencimentos.appendChild(btnSalvarVencimentos);
+  btnEditarVencimentos.addEventListener('click', () => {
+    if (containerEditarVencimentos.style.display === 'none') {
+      containerEditarVencimentos.style.display = 'block';
+      btnEditarVencimentos.textContent = 'Cancelar Edição';
+      montarCamposEdicaoVencimentos(emprestimo);
+    } else {
+      containerEditarVencimentos.style.display = 'none';
+      btnEditarVencimentos.textContent = 'Editar Vencimentos';
+      containerEditarVencimentos.innerHTML = '';
     }
+  });
 
-    async function salvarNovasDatasVencimento(emprestimoId, novasDatas) {
-      try {
-        const res = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/datas-vencimento`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ datasVencimentos: novasDatas })
-        });
+  function montarCamposEdicaoVencimentos(emprestimo) {
+    containerEditarVencimentos.innerHTML = '';
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText);
-        }
+    const datasPreenchidas = preencherDatasPadraoFrontend(
+      emprestimo.datasVencimentos || [],
+      emprestimo.parcelas
+    );
 
-        mostrarAlerta('Datas de vencimento atualizadas com sucesso!');
-      } catch (err) {
-        mostrarAlertaError(`Erro ao atualizar datas: ${err.message}`);
-      }
-    }
-
-      // >>>>> NOVO CÓDIGO
-  function atualizarCardsEmprestimo(emprestimoAtualizado) {
-    const parcelasContainer = document.getElementById('parcelasContainer');
-    if (!parcelasContainer) {
-      console.error('Container de parcelas não encontrado.');
-      return;
-    }
-    
-    // Limpa os cards existentes
-    parcelasContainer.innerHTML = '';
-
-    // E então re-renderiza os cards com os novos dados
-    const parcelas = emprestimoAtualizado.statusParcelas || Array(emprestimoAtualizado.parcelas).fill(false);
-    const datasPagamentos = emprestimoAtualizado.datasPagamentos || Array(emprestimoAtualizado.parcelas).fill(null);
-    const recebidoPor = emprestimoAtualizado.recebidoPor || Array(emprestimoAtualizado.parcelas).fill(null);
-    const datasVencimentos = emprestimoAtualizado.datasVencimentos || [];
-
-    parcelas.forEach((paga, i) => {
-      const item = document.createElement('div');
-      item.className = 'parcela-box';
-      item.style = 'margin-bottom: 16px; display: flex; align-items: flex-start;';
-
-      const chk = document.createElement('input');
-      chk.type = 'checkbox';
-      chk.checked = paga;
-      chk.disabled = paga;
-      chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
+    for (let i = 0; i < emprestimo.parcelas; i++) {
+      const div = document.createElement('div');
+      div.style.marginBottom = '10px';
 
       const label = document.createElement('label');
-      label.style.lineHeight = '1.4';
+      label.textContent = `Parcela ${i + 1}: `;
 
-      const valorParcela = formatarMoeda(
-        emprestimoAtualizado.valorParcelasPendentes?.[i] ?? emprestimoAtualizado.valorParcela
-      );
+      const inputData = document.createElement('input');
+      inputData.type = 'date';
+      inputData.value = datasPreenchidas[i];
+      inputData.dataset.index = i;
 
-      const vencimento = datasVencimentos[i];
-      const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
+      div.appendChild(label);
+      div.appendChild(inputData);
+      containerEditarVencimentos.appendChild(div);
+    }
 
-      let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
-      if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
+    const btnSalvarVencimentos = document.createElement('button');
+    btnSalvarVencimentos.textContent = 'Salvar Vencimentos';
+    btnSalvarVencimentos.style.marginTop = '10px';
 
-      let statusClass = 'parcela-em-dia';
+    btnSalvarVencimentos.addEventListener('click', async () => {
+      const inputs = containerEditarVencimentos.querySelectorAll('input[type="date"]');
+      const novasDatas = [];
 
-      if (vencimento && !paga) {
+      for (const input of inputs) {
+        if (!input.value) {
+          alert(`Informe a data de vencimento da parcela ${parseInt(input.dataset.index) + 1}`);
+          return;
+        }
+        novasDatas.push(input.value);
+      }
+
+      await salvarNovasDatasVencimento(emprestimo.id, novasDatas);
+      emprestimo.datasVencimentos = novasDatas;
+      containerEditarVencimentos.style.display = 'none';
+      btnEditarVencimentos.textContent = 'Editar Vencimentos';
+      abrirModal(emprestimo);
+    });
+
+    containerEditarVencimentos.appendChild(btnSalvarVencimentos);
+  }
+
+  async function salvarNovasDatasVencimento(emprestimoId, novasDatas) {
+    try {
+      const res = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/datas-vencimento`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datasVencimentos: novasDatas })
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText);
+      }
+
+      mostrarAlerta('Datas de vencimento atualizadas com sucesso!');
+    } catch (err) {
+      mostrarAlertaError(`Erro ao atualizar datas: ${err.message}`);
+    }
+  }
+
+  atualizarVisualParcelas(emprestimo);
+}
+
+export function mostrarModalRecebedor() {
+  modalRecebedor.style.display = 'flex';
+}
+
+function atualizarVisualParcelas(emprestimo) {
+  const parcelasContainer = document.getElementById('parcelasContainer');
+  if (!parcelasContainer) return;
+
+  // Salva os elementos que queremos preservar
+  const elementosPreservar = [];
+  const tituloParcelas = parcelasContainer.querySelector('h3');
+  const btnEditar = parcelasContainer.querySelector('#btnEditarVencimentos');
+  const containerEditar = parcelasContainer.querySelector('#containerEditarVencimentos');
+  const valorRestante = parcelasContainer.querySelector('#valorRestanteContainer');
+  
+  if (tituloParcelas) elementosPreservar.push(tituloParcelas);
+  if (btnEditar) elementosPreservar.push(btnEditar);
+  if (containerEditar) elementosPreservar.push(containerEditar);
+  if (valorRestante) elementosPreservar.push(valorRestante);
+
+  parcelasContainer.innerHTML = '';
+
+    // Reinsere os elementos preservados
+  elementosPreservar.forEach(el => {
+    if (el.id === 'containerEditarVencimentos') {
+      el.style.display = 'none'; // Mantém escondido
+    }
+    parcelasContainer.appendChild(el);
+  });
+
+  const parcelas = emprestimo.statusParcelas || Array(emprestimo.parcelas).fill(false);
+  const datasPagamentos = emprestimo.datasPagamentos || Array(emprestimo.parcelas).fill(null);
+  const recebidoPor = emprestimo.recebidoPor || Array(emprestimo.parcelas).fill(null);
+  const datasVencimentos = emprestimo.datasVencimentos || [];
+
+  parcelas.forEach((paga, i) => {
+    const item = document.createElement('div');
+    item.className = 'parcela-box';
+    item.style = 'margin-bottom: 16px; display: flex; align-items: flex-start;';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.checked = paga;
+    chk.disabled = paga;
+    chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
+
+    const label = document.createElement('label');
+    label.style.lineHeight = '1.4';
+
+    const valorParcela = formatarMoeda(
+      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
+    );
+
+    const vencimento = datasVencimentos[i];
+    const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
+
+    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
+    if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
+
+    let statusClass = 'parcela-em-dia';
+
+    if (vencimento && !paga) {
+      const diasAtraso = calcularDiasAtraso(vencimento);
+      if (diasAtraso > 0) {
+        const multa = diasAtraso * 20;
+        html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
+        html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
+        statusClass = 'parcela-atrasada';
+      } else {
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
         const [yyyy, mm, dd] = vencimento.split('-');
@@ -642,307 +708,45 @@ function montarCamposEdicaoVencimentos(emprestimo) {
         if (hoje.getTime() === vencData.getTime()) {
           html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
           statusClass = 'parcela-hoje';
-        } else if (hoje > vencData) {
-          const diasAtraso = Math.floor((hoje - vencData) / (1000 * 60 * 60 * 24));
-          const multa = diasAtraso * 20;
-          html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-          html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
-          statusClass = 'parcela-atrasada';
         }
-      }
-
-      if (paga && datasPagamentos[i]) {
-        const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-        const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        const valorRecebido = emprestimoAtualizado.valoresRecebidos?.[i];
-        const recebedor = recebidoPor[i] || 'N/A';
-        html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-        html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}`;
-        statusClass = 'parcela-paga';
-          if (valorRecebido != null) {
-          const valorOriginal = emprestimoAtualizado.valorParcela;
-          const diferenca = valorRecebido - valorOriginal;
-
-          html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-
-        }
-
-      }
-
-      label.innerHTML = html;
-
-      const isOperador = localStorage.getItem('isOperador') === 'true';
-      const operadorNome = localStorage.getItem('operadorNome') || '';
-
-      chk.addEventListener('change', () => {
-        if (chk.checked) {
-          if (i > 0 && !parcelas[i - 1]) {
-            mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes da ${i + 1}.`);
-            chk.checked = false;
-            return;
-          }
-
-          chk.checked = false;
-          parcelaSelecionada = { emprestimo: emprestimoAtualizado, indice: i, checkbox: chk };
-          modalRecebedor.style.display = 'flex';
-
-          if (isOperador) {
-            const options = inputRecebedor.options;
-            let valorParaSetar = '';
-            for (let k = 0; k < options.length; k++) {
-              if (options[k].text === operadorNome || options[k].value === operadorNome) {
-                valorParaSetar = options[k].value;
-                break;
-              }
-            }
-
-            inputRecebedor.value = valorParaSetar || '';
-            inputRecebedor.disabled = true;
-          } else {
-            inputRecebedor.value = '';
-            inputRecebedor.disabled = false;
-            inputRecebedor.focus();
-          }
-
-          const valorAtual = emprestimoAtualizado.valorParcelasPendentes?.[i] ?? emprestimoAtualizado.valorParcela;
-          document.getElementById('valorRecebido').value = valorAtual.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          });
-        }
-      });
-
-      item.appendChild(chk);
-      item.appendChild(label);
-      item.classList.add(statusClass);
-      parcelasContainer.appendChild(item);
-
-      if (i < parcelas.length - 1) {
-        const hr = document.createElement('hr');
-        hr.style = 'border: none; border-top: 1px solid #ccc; margin: 8px 0 16px;';
-        parcelasContainer.appendChild(hr);
-      }
-    });
-  }
-  // <<<<<
-  
-
-  const parcelasContainer = document.getElementById('parcelasContainer');
-  const parcelas = emprestimo.statusParcelas || Array(emprestimo.parcelas).fill(false);
-  const datasPagamentos = emprestimo.datasPagamentos || Array(emprestimo.parcelas).fill(null);
-  const recebidoPor = emprestimo.recebidoPor || Array(emprestimo.parcelas).fill(null);
-  const datasVencimentos = emprestimo.datasVencimentos || [];
-
-  parcelas.forEach((paga, i) => {
-    const item = document.createElement('div');
-    item.className = 'parcela-box';
-    item.style = 'margin-bottom: 16px; display: flex; align-items: flex-start;';
-
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = paga;
-    chk.disabled = paga;
-    chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
-
-    const label = document.createElement('label');
-    label.style.lineHeight = '1.4';
-
-    const valorParcela = formatarMoeda(
-      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
-    );
-
-    const vencimento = datasVencimentos[i];
-    const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
-
-    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
-    if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
-
-    let statusClass = 'parcela-em-dia';
-
-    if (vencimento && !paga) {
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
-      const [yyyy, mm, dd] = vencimento.split('-');
-      const vencData = new Date(yyyy, mm - 1, dd);
-      vencData.setHours(0, 0, 0, 0);
-
-      if (hoje.getTime() === vencData.getTime()) {
-        html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
-        statusClass = 'parcela-hoje';
-      } else if (hoje > vencData) {
-        const diasAtraso = Math.floor((hoje - vencData) / (1000 * 60 * 60 * 24));
-        const multa = diasAtraso * 20;
-        html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-        html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
-        statusClass = 'parcela-atrasada';
       }
     }
 
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
       const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const recebedor = recebidoPor[i] || 'N/A';
       const valorRecebido = emprestimo.valoresRecebidos?.[i];
-      const recebedor = recebidoPor[i] || 'N/A';
-      html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-      html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}`;
-      statusClass = 'parcela-paga';
-        if (valorRecebido != null) {
-        const valorOriginal = emprestimo.valorParcela;
-        const diferenca = valorRecebido - valorOriginal;
-
-        html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-
-      }
-
-    }
-
-    label.innerHTML = html;
-
-    const isOperador = localStorage.getItem('isOperador') === 'true';
-    const operadorNome = localStorage.getItem('operadorNome') || '';
-
-    chk.addEventListener('change', () => {
-      if (chk.checked) {
-        if (i > 0 && !parcelas[i - 1]) {
-          mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes da ${i + 1}.`);
-          chk.checked = false;
-          return;
-        }
-
-        chk.checked = false;
-        parcelaSelecionada = { emprestimo, indice: i, checkbox: chk };
-        modalRecebedor.style.display = 'flex';
-
-        if (isOperador) {
-          const options = inputRecebedor.options;
-          let valorParaSetar = '';
-          for (let k = 0; k < options.length; k++) {
-            if (options[k].text === operadorNome || options[k].value === operadorNome) {
-              valorParaSetar = options[k].value;
-              break;
-            }
-          }
-
-          inputRecebedor.value = valorParaSetar || '';
-          inputRecebedor.disabled = true;
-        } else {
-          inputRecebedor.value = '';
-          inputRecebedor.disabled = false;
-          inputRecebedor.focus();
-        }
-
-        const valorAtual = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
-
-        document.getElementById('valorRecebido').value = 
-          (typeof valorAtual === 'number' && !isNaN(valorAtual))
-            ? valorAtual.toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL'
-              })
-            : ''; // Se não tiver valor, deixa em branco
-      }
-    });
-
-    
-    item.appendChild(chk);
-    item.appendChild(label);
-    item.classList.add(statusClass);
-    parcelasContainer.appendChild(item);
-
-    if (i < parcelas.length - 1) {
-      const hr = document.createElement('hr');
-      hr.style = 'border: none; border-top: 1px solid #ccc; margin: 8px 0 16px;';
-      parcelasContainer.appendChild(hr);
-    }
-  });
-}
-
-// Exporta função se precisar abrir modal do recebedor diretamente
-export function mostrarModalRecebedor() {
-  modalRecebedor.style.display = 'flex';
-}
-
-
-function atualizarVisualParcelas(emprestimo) {
-  const parcelasContainer = document.getElementById('parcelasContainer');
-  if (!parcelasContainer) return;
-
-  parcelasContainer.innerHTML = '';
-
-  const parcelas = emprestimo.statusParcelas || Array(emprestimo.parcelas).fill(false);
-  const datasPagamentos = emprestimo.datasPagamentos || Array(emprestimo.parcelas).fill(null);
-  const recebidoPor = emprestimo.recebidoPor || Array(emprestimo.parcelas).fill(null);
-  const datasVencimentos = emprestimo.datasVencimentos || [];
-
-  parcelas.forEach((paga, i) => {
-    const item = document.createElement('div');
-    item.className = 'parcela-box';
-    item.style = 'margin-bottom: 16px; display: flex; align-items: flex-start;';
-
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = paga;
-    chk.disabled = paga;
-    chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
-
-    const label = document.createElement('label');
-    label.style.lineHeight = '1.4';
-
-    const valorParcela = formatarMoeda(
-      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
-    );
-
-    const vencimento = datasVencimentos[i];
-    const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
-
-    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
-    if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
-
-    let statusClass = 'parcela-em-dia';
-
-    if (vencimento && !paga) {
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
-      const [yyyy, mm, dd] = vencimento.split('-');
-      const vencData = new Date(yyyy, mm - 1, dd);
-      vencData.setHours(0, 0, 0, 0);
-
-      if (hoje.getTime() === vencData.getTime()) {
-        html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
-        statusClass = 'parcela-hoje';
-      } else if (hoje > vencData) {
-        const diasAtraso = Math.floor((hoje - vencData) / (1000 * 60 * 60 * 24));
-        const multa = diasAtraso * 20;
-        html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-        html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
-        statusClass = 'parcela-atrasada';
-      }
-    }
-
-    if (paga && datasPagamentos[i]) {
-      const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-      const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const recebedor = recebidoPor[i] || 'N/A';
+      
       html += `<strong>✅ Paga em:</strong> ${data}<br>`;
       html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
-
-      const valorRecebido = emprestimo.valoresRecebidos?.[i];
-      const valorOriginal = emprestimo.valorParcela;
-
-      if (valorRecebido != null) {
-        const diferenca = valorRecebido - valorOriginal;
-        html += `<br><strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-
+      
+      if (vencimento) {
+        const dataPag = new Date(datasPagamentos[i]);
+        const dataVenc = new Date(vencimento);
+        
+        if (dataPag > dataVenc) {
+          const diasAtraso = Math.floor((dataPag - dataVenc) / (1000 * 60 * 60 * 24));
+          const multa = diasAtraso * 20;
+          
+          html += `<strong>⚠️ Parcela paga com atraso</strong><br>`;
+          html += `<hr>`;
+          html += `<strong>⚠️ Dias de atraso:</strong> ${diasAtraso}<br>`;
+          html += `<strong>💰 Multa:</strong> ${formatarMoeda(multa)}<br>`;
+          statusClass = 'parcela-paga-com-atraso';
+        } else {
+          statusClass = 'parcela-paga';
+        }
       }
 
-      statusClass = 'parcela-paga';
-
+      if (valorRecebido != null) {
+        html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+      }
     }
 
     label.innerHTML = html;
     const isOperador = localStorage.getItem('isOperador') === 'true';
     const operadorNome = localStorage.getItem('operadorNome') || '';
-
 
     chk.addEventListener('change', () => {
       if (chk.checked) {
@@ -956,6 +760,7 @@ function atualizarVisualParcelas(emprestimo) {
         parcelaSelecionada = { emprestimo, indice: i, checkbox: chk };
         modalRecebedor.style.display = 'flex';
 
+        // Configurações do operador (mantidas)
         if (isOperador) {
           const options = inputRecebedor.options;
           let valorParaSetar = '';
@@ -965,7 +770,6 @@ function atualizarVisualParcelas(emprestimo) {
               break;
             }
           }
-
           inputRecebedor.value = valorParaSetar || '';
           inputRecebedor.disabled = true;
         } else {
@@ -974,15 +778,52 @@ function atualizarVisualParcelas(emprestimo) {
           inputRecebedor.focus();
         }
 
-        const valorAtual = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
-        document.getElementById('valorRecebido').value = valorAtual.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        });
+        // Calcular valor mínimo com possível multa
+        const valorParcela = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
+        let valorMinimo = valorParcela;
+        let mensagemInfo = '';
+
+        // Verificar atraso
+        if (emprestimo.datasVencimentos?.[i]) {
+          const vencimento = new Date(emprestimo.datasVencimentos[i]);
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+          vencimento.setHours(0, 0, 0, 0);
+
+          if (hoje > vencimento) {
+            const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
+            const multa = diasAtraso * 20;
+            valorMinimo = valorParcela + multa;
+            mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). Multa: ${formatarMoeda(multa)}<br>Valor mínimo a receber: ${formatarMoeda(valorMinimo)}`;
+          }
+        }
+
+        // Adicionar mensagem informativa no modal
+        const infoDiv = document.getElementById('infoMulta') || document.createElement('div');
+        infoDiv.id = 'infoMulta';
+        infoDiv.style.margin = '10px 0';
+        infoDiv.style.padding = '10px';
+        infoDiv.style.backgroundColor = '#fff3e0';
+        infoDiv.style.borderRadius = '4px';
+        infoDiv.style.borderLeft = '4px solid #ffb74d';
+        
+        if (mensagemInfo) {
+          infoDiv.innerHTML = mensagemInfo;
+          modalRecebedor.insertBefore(infoDiv, btnConfirmarRecebedor);
+        } else if (infoDiv.parentNode) {
+          infoDiv.parentNode.removeChild(infoDiv);
+        }
+
+        // REMOVA esta parte que pré-preenche o valor
+        // document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
+        //   style: 'currency',
+        //   currency: 'BRL'
+        // });
+
+        // Em vez disso, deixe o campo vazio
+        document.getElementById('valorRecebido').value = '';
       }
     });
-
-
     item.appendChild(chk);
     item.appendChild(label);
     item.classList.add(statusClass);

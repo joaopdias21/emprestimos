@@ -1729,3 +1729,32 @@ input[type="date"] {
 
 
 
+/* Adicione ao seu arquivo CSS */
+.parcela-paga-com-atraso {
+  background-color: #fff3f3;
+  border-left: 4px solid #ff6b6b;
+  padding-left: 8px;
+}
+
+.parcela-paga-com-atraso label {
+  color: #d32f2f;
+}
+
+.parcela-paga-com-atraso input[type="checkbox"] {
+  accent-color: #ff6b6b;
+}
+
+
+/* Adicione ao seu arquivo CSS */
+#infoMulta {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #fff3e0;
+  border-radius: 4px;
+  border-left: 4px solid #ffb74d;
+  font-size: 0.9em;
+}
+
+#infoMulta strong {
+  color: #e65100;
+}

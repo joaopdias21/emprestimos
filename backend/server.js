@@ -229,14 +229,50 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
       });
 
     const recebido = parseFloat(req.body.valorRecebido);
+    const dataPagamento = req.body.dataPagamento || new Date().toISOString();
+    
+    // --- Lógica de validação ajustada para a regra de negócio do valor mínimo ---
+    let diasAtraso = 0;
+    let multa = 0;
+    const valorParcelaOriginal = emp.valorParcelasPendentes?.[indice] ?? emp.valorParcela;
+    let valorMinimoNecessario = valorParcelaOriginal;
+
+    if (emp.datasVencimentos[indice]) {
+      const dataVencimento = new Date(emp.datasVencimentos[indice]);
+      const dataPag = new Date(dataPagamento);
+      
+      if (dataPag > dataVencimento) {
+        diasAtraso = Math.floor((dataPag - dataVencimento) / (1000 * 60 * 60 * 24));
+        multa = diasAtraso * 20; // R$20 por dia de atraso
+        
+        // **AJUSTE AQUI:** O valor mínimo é apenas a multa em caso de atraso
+        valorMinimoNecessario = multa;
+      }
+    }
+
+    // Validar se o valor recebido é suficiente
+    if (recebido < valorMinimoNecessario) {
+      if (diasAtraso > 0) {
+        return res.status(400).json({ 
+          erro: `Valor recebido insuficiente. Mínimo necessário: ${multa.toFixed(2)} (valor da multa)`
+        });
+      } else {
+        return res.status(400).json({ 
+          erro: `Valor recebido menor que o valor da parcela. Mínimo: ${valorParcelaOriginal.toFixed(2)}`
+        });
+      }
+    }
+
+    // --- Fim da lógica de validação ajustada ---
+
     emp.statusParcelas[indice] = true;
-    emp.datasPagamentos[indice] = req.body.dataPagamento || new Date().toISOString();
+    emp.datasPagamentos[indice] = dataPagamento;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
     emp.valoresRecebidos[indice] = recebido;
 
     // Define o valor pendente dessa parcela
     emp.valorParcelasPendentes[indice] = recebido;
-
+    
     // Calcula saldo total restante
     const totalPago = emp.valoresRecebidos.reduce((acc, v) => acc + (v || 0), 0);
     const saldoRestante = parseFloat((emp.valorComJuros - totalPago).toFixed(2));
@@ -262,15 +298,15 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
 
     res.json({
       ...emp.toObject(),
-      saldoRestante
+      saldoRestante,
+      diasAtraso, 
+      multa 
     });
   } catch (err) {
     console.error('PATCH /parcela:', err);
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
-
-
 
 // Atualizar datas de vencimento das parcelas de um empréstimo
 app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
@@ -421,71 +457,6 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar empréstimo' });
   }
 });
-
-
-// Marcar parcela como paga
-app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
-  try {
-    const idNum = Number(req.params.id);
-    const indice = Number(req.params.indice);
-
-    const emp = await Emprestimo.findOne({ id: idNum });
-    if (!emp) return res.status(404).json({ erro: 'Empréstimo não encontrado' });
-
-    if (indice < 0 || indice >= emp.parcelas)
-      return res.status(400).json({ erro: 'Parcela inválida' });
-
-    // Garantir arrays
-    ['statusParcelas', 'datasPagamentos', 'recebidoPor', 'valorParcelasPendentes', 'valoresRecebidos']
-      .forEach(campo => {
-        if (!Array.isArray(emp[campo])) emp[campo] = Array.from(
-          { length: emp.parcelas },
-          () => campo === 'statusParcelas' ? false : null
-        );
-      });
-
-    const recebido = parseFloat(req.body.valorRecebido);
-    emp.statusParcelas[indice] = true;
-    emp.datasPagamentos[indice] = req.body.dataPagamento || new Date().toISOString();
-    emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
-    emp.valoresRecebidos[indice] = recebido;
-
-    // Define o valor pendente dessa parcela
-    emp.valorParcelasPendentes[indice] = recebido;
-
-    // Calcula saldo total restante
-    const totalPago = emp.valoresRecebidos.reduce((acc, v) => acc + (v || 0), 0);
-    const saldoRestante = parseFloat((emp.valorComJuros - totalPago).toFixed(2));
-
-    if (saldoRestante > 0 && indice === emp.parcelas - 1) {
-      // Criar nova parcela sem valor, para ser preenchida no pagamento
-      emp.parcelas += 1;
-      emp.statusParcelas.push(false);
-      emp.datasPagamentos.push(null);
-      emp.recebidoPor.push(null);
-      emp.valoresRecebidos.push(null);
-      emp.valorParcelasPendentes.push(null);
-
-      // Gerar data da nova parcela
-      const ultimaData = new Date(emp.datasVencimentos[indice]);
-      ultimaData.setMonth(ultimaData.getMonth() + 1);
-      emp.datasVencimentos.push(ultimaData.toISOString().slice(0, 10));
-    }
-
-    emp.quitado = saldoRestante <= 0;
-
-    await emp.save();
-
-    res.json({
-      ...emp.toObject(),
-      saldoRestante
-    });
-  } catch (err) {
-    console.error('PATCH /parcela:', err);
-    res.status(500).json({ erro: 'Erro ao atualizar parcela' });
-  }
-});
-
 
 
 /* ⇢ Quitados */
