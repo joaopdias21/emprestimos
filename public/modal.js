@@ -216,6 +216,57 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   atualizarVisualParcelas(emprestimoSelecionado);
 });
 
+function atualizarValorRestante(emprestimoAtualizado) {
+  if (!emprestimoAtualizado) return;
+
+  const totalRecebido = (emprestimoAtualizado.valoresRecebidos ?? [])
+    .reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
+
+  const valorTotalComJuros = emprestimoAtualizado.valorComJuros ?? 0;
+
+  let totalMultas = 0;
+  const datasVencimentos = emprestimoAtualizado.datasVencimentos ?? [];
+  const statusParcelas = emprestimoAtualizado.statusParcelas ?? [];
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  datasVencimentos.forEach((venc, i) => {
+    if (!statusParcelas[i] && venc) {
+      const [yyyy, mm, dd] = venc.split('-');
+      const vencData = new Date(yyyy, mm - 1, dd);
+      vencData.setHours(0, 0, 0, 0);
+
+      if (hoje > vencData) {
+        const diasAtraso = Math.floor((hoje - vencData) / (1000 * 60 * 60 * 24));
+        totalMultas += diasAtraso * 20;
+      }
+    }
+  });
+
+  let restanteSemMulta = valorTotalComJuros - totalRecebido;
+  if (restanteSemMulta < 0) restanteSemMulta = 0;
+
+  let restanteComMulta = restanteSemMulta + totalMultas;
+
+  const container = document.getElementById('valorRestanteContainer');
+  if (!container) return;
+
+  if (totalMultas > 0) {
+    container.innerHTML = `
+      <div style="color: #d9534f; font-weight: bold; font-size: 1.1em;">
+        Valor restante para quitar com atraso (inclui multa): ${formatarMoeda(restanteComMulta)}
+      </div>
+    `;
+  } else {
+    container.innerHTML = `
+      <div style="font-weight: bold; font-size: 1.1em;">
+        Valor restante para quitar: ${formatarMoeda(restanteSemMulta)}
+      </div>
+    `;
+  }
+}
+
 
 // ====== Abrir modal principal ======
 export async function abrirModal(emprestimo) {
@@ -303,13 +354,18 @@ export async function abrirModal(emprestimo) {
       </div>
 
       </div>
-      <div id="parcelasContainer" style="flex: 1;">
-        <h3>📆 Parcelas</h3>
-        <button id="btnEditarVencimentos" style="margin-bottom: 15px;">Editar Vencimentos</button>
-        <div id="containerEditarVencimentos" style="display:none; margin-bottom: 15px;"></div>
-      </div>
-    </div>
+        <div id="parcelasContainer" style="flex: 1;">
+          <h3>📆 Parcelas</h3>
+          <button id="btnEditarVencimentos" style="margin-bottom: 15px;">Editar Vencimentos</button>
+          <div id="containerEditarVencimentos" style="display:none; margin-bottom: 15px;"></div>
+          <br>
+          <!-- Valor restante para quitar -->
+        <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;">
+          <!-- Conteúdo será atualizado pelo JS -->
+        </div>
+        </div>
   `;
+  atualizarValorRestante(emprestimo);
 console.log('Datas de vencimento:', emprestimo.datasVencimentos);
 
   // Se tiver arquivos
@@ -571,7 +627,7 @@ function montarCamposEdicaoVencimentos(emprestimo) {
       const vencimento = datasVencimentos[i];
       const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-      let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcela}<br>`;
+      let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
       if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
       let statusClass = 'parcela-em-dia';
@@ -698,7 +754,7 @@ function montarCamposEdicaoVencimentos(emprestimo) {
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcela}<br>`;
+    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
     if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
     let statusClass = 'parcela-em-dia';
@@ -776,13 +832,18 @@ function montarCamposEdicaoVencimentos(emprestimo) {
         }
 
         const valorAtual = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
-        document.getElementById('valorRecebido').value = valorAtual.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        });
+
+        document.getElementById('valorRecebido').value = 
+          (typeof valorAtual === 'number' && !isNaN(valorAtual))
+            ? valorAtual.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              })
+            : ''; // Se não tiver valor, deixa em branco
       }
     });
 
+    
     item.appendChild(chk);
     item.appendChild(label);
     item.classList.add(statusClass);
@@ -834,7 +895,7 @@ function atualizarVisualParcelas(emprestimo) {
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorParcela}<br>`;
+    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
     if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
     let statusClass = 'parcela-em-dia';
