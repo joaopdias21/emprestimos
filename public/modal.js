@@ -140,38 +140,78 @@ btnCancelarRecebedor.addEventListener('click', () => {
 
 // Função para verificar se há atraso e calcular multa
 function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
-  const infoDiv = document.getElementById('infoMulta') || document.createElement('div');
+  // Remove a div anterior se existir
+  const infoDivExistente = document.getElementById('infoMulta');
+  if (infoDivExistente) {
+    infoDivExistente.remove();
+  }
+
+  // Cria a div para a mensagem
+  const infoDiv = document.createElement('div');
   infoDiv.id = 'infoMulta';
-  infoDiv.style.margin = '10px 0';
-  infoDiv.style.padding = '10px';
-  infoDiv.style.backgroundColor = '#fff3e0';
-  infoDiv.style.borderRadius = '4px';
-  infoDiv.style.borderLeft = '4px solid #ffb74d';
+  infoDiv.style.margin = '15px 0';
+  infoDiv.style.padding = '12px';
+  infoDiv.style.backgroundColor = '#fff8e1'; // Fundo amarelo claro
+  infoDiv.style.borderRadius = '6px';
+  infoDiv.style.borderLeft = '4px solid #ffa000'; // Borda laranja
+  infoDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+
+  // Calcula os valores
+  const valorJuros = (emprestimo.valorComJuros - emprestimo.valorOriginal);
+  const valorParcela = emprestimo.valorParcelasPendentes?.[indiceParcela] ?? valorJuros;
   
-  const valorParcela = emprestimo.valorParcelasPendentes?.[indiceParcela] ?? emprestimo.valorParcela;
-  let valorMinimo = valorParcela;
-  let mensagemInfo = '';
+  let valorMinimo = valorJuros;
+  let multa = 0;
+  let mensagemInfo = `<div style="margin-bottom: 8px;"><strong>Valor mínimo (juros):</strong> ${formatarMoeda(valorMinimo)}</div>`;
 
   if (emprestimo.datasVencimentos?.[indiceParcela]) {
     const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indiceParcela]);
     if (diasAtraso > 0) {
-      const multa = diasAtraso * 20;
-      valorMinimo = valorParcela + multa;
-      mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). Multa: ${formatarMoeda(multa)}<br>Valor mínimo a receber: ${formatarMoeda(valorMinimo)}`;
+      multa = diasAtraso * 20;
+      valorMinimo += multa;
+      mensagemInfo = `
+        <div style="color: #d32f2f; margin-bottom: 8px; font-weight: bold;">
+          ⚠️ Parcela atrasada: ${diasAtraso} dia(s)
+        </div>
+        <div style="margin-bottom: 5px;">
+          <strong>Valor do juros:</strong> ${formatarMoeda(valorJuros)}
+        </div>
+        <div style="margin-bottom: 5px;">
+          <strong>Multa por atraso:</strong> ${formatarMoeda(multa)}
+        </div>
+        <div style="font-weight: bold; color: #d32f2f;">
+          ▶ Valor mínimo a receber: ${formatarMoeda(valorMinimo)}
+        </div>`;
     }
   }
 
-  if (mensagemInfo) {
-    infoDiv.innerHTML = mensagemInfo;
-    modalRecebedor.insertBefore(infoDiv, btnConfirmarRecebedor);
-  } else if (infoDiv.parentNode) {
-    infoDiv.parentNode.removeChild(infoDiv);
+  infoDiv.innerHTML = mensagemInfo;
+
+  // Insere a mensagem antes dos botões
+  const botoesContainer = document.querySelector('.modal-botoes');
+  if (botoesContainer) {
+    botoesContainer.parentNode.insertBefore(infoDiv, botoesContainer);
+  } else {
+    // Fallback: adiciona no final do modal-conteudo
+    const modalConteudo = document.querySelector('.modal-conteudo');
+    if (modalConteudo) {
+      modalConteudo.appendChild(infoDiv);
+    }
   }
 
-  return valorMinimo;
+  return { valorMinimo, multa };
 }
 
+
+
+
+
 btnConfirmarRecebedor.addEventListener('click', async () => {
+  if (!modalRecebedor || !btnConfirmarRecebedor) {
+    console.error('Elementos do modal não encontrados no DOM');
+    return;
+  }
+
   const nome = inputRecebedor.value.trim();
   if (!nome) {
     mostrarAlertaWarning('Selecione o nome de quem recebeu.');
@@ -189,23 +229,15 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     return;
   }
 
-  // Verificar atraso e calcular valor mínimo
-  let valorMinimo = 0;
-  let mensagemErro = 'Informe um valor válido para o pagamento.';
-
-  if (emprestimo.datasVencimentos?.[indice]) {
-    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indice]);
-    if (diasAtraso > 0) {
-      const multa = diasAtraso * 20;
-      valorMinimo = multa;
-      mensagemErro = `Esta parcela está atrasada ${diasAtraso} dia(s). O valor mínimo a receber é a multa: ${formatarMoeda(multa)}`;
-    }
-  }
-
+  // Obter os valores calculados
+  const { valorMinimo, multa } = verificarAtrasoEPreencherValor(emprestimo, indice);
+  
+  // Verificar se o valor recebido é suficiente
   if (valorRecebido < valorMinimo) {
-    mostrarAlertaWarning(mensagemErro);
+    mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)} (Juros: ${formatarMoeda(valorMinimo - multa)} + Multa: ${formatarMoeda(multa)})`);
     return;
   }
+      
 
   if (valorRecebido <= 0) {
     mostrarAlertaWarning('Informe um valor válido para o pagamento.');
@@ -231,16 +263,19 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     const emprestimoAtualizado = await response.json();
     Object.assign(emprestimo, emprestimoAtualizado);
 
+    // Atualiza os arrays se não existirem
     if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
     if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
     if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
+    // Atualiza os dados da parcela
     emprestimo.statusParcelas[indice] = true;
     emprestimo.datasPagamentos[indice] = dataPagamento;
     emprestimo.recebidoPor[indice] = nome;
     emprestimo.valoresRecebidos[indice] = valorRecebido;
 
+    // Atualiza a UI
     checkbox.checked = true;
     checkbox.disabled = true;
 
@@ -281,6 +316,9 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     }
 
     mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
+        atualizarVisualParcelas(emprestimo);
+    atualizarValorRestante(emprestimo)
+
   } catch (err) {
     mostrarAlertaError(`Erro ao marcar parcela como paga: ${err.message}`);
     console.error('Erro ao marcar parcela como paga:', err);
@@ -290,60 +328,71 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   modalRecebedor.style.display = 'none';
   inputValorRecebido.value = '';
   parcelaSelecionada = null;
-  atualizarVisualParcelas(emprestimoSelecionado);
 });
 
 function atualizarValorRestante(emprestimoAtualizado) {
+  console.log('Atualizando valor restante com:', emprestimoAtualizado);
   if (!emprestimoAtualizado) return;
 
-  const totalRecebido = (emprestimoAtualizado.valoresRecebidos ?? [])
-    .reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
+  // 1. Calcula o total já recebido (considerando apenas valores numéricos)
+  const valoresRecebidos = (emprestimoAtualizado.valoresRecebidos || [])
+    .filter(val => typeof val === 'number');
+  
+  const totalRecebido = valoresRecebidos.reduce((acc, val) => acc + val, 0);
+  const parcelasPagas = valoresRecebidos.length;
 
-  const valorTotalComJuros = emprestimoAtualizado.valorComJuros ?? 0;
+  // 2. Obtém o valor total com juros
+  const valorTotalComJuros = emprestimoAtualizado.valorComJuros || 0;
+  const valorOriginal = emprestimoAtualizado.valorOriginal || 0;
+  const totalJuros = valorTotalComJuros - valorOriginal;
 
+  // 3. Calcula multas apenas das parcelas não pagas e vencidas
   let totalMultas = 0;
-  const datasVencimentos = emprestimoAtualizado.datasVencimentos ?? [];
-  const statusParcelas = emprestimoAtualizado.statusParcelas ?? [];
-
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  datasVencimentos.forEach((venc, i) => {
-    if (!statusParcelas[i] && venc) {
-      const [yyyy, mm, dd] = venc.split('-');
-      const vencData = new Date(yyyy, mm - 1, dd);
-      vencData.setHours(0, 0, 0, 0);
-
-      if (hoje > vencData) {
-        const diasAtraso = Math.floor((hoje - vencData) / (1000 * 60 * 60 * 24));
+  (emprestimoAtualizado.datasVencimentos || []).forEach((vencimento, i) => {
+    if (!emprestimoAtualizado.statusParcelas?.[i] && vencimento) {
+      const dataVenc = new Date(vencimento);
+      dataVenc.setHours(0, 0, 0, 0);
+      
+      if (hoje > dataVenc) {
+        const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
         totalMultas += diasAtraso * 20;
       }
     }
   });
 
-  let restanteSemMulta = valorTotalComJuros - totalRecebido;
-  if (restanteSemMulta < 0) restanteSemMulta = 0;
+  // 4. Calcula os valores restantes
+  const restanteSemMulta = Math.max(0, valorTotalComJuros - totalRecebido);
+  const restanteComMulta = restanteSemMulta + totalMultas;
 
-  let restanteComMulta = restanteSemMulta + totalMultas;
-
+  // 5. Atualiza a exibição
   const container = document.getElementById('valorRestanteContainer');
   if (!container) return;
 
-  if (totalMultas > 0) {
-    container.innerHTML = `
-      <div style="color: #d9534f; font-weight: bold; font-size: 1.1em;">
-        Valor restante para quitar com atraso (inclui multa): ${formatarMoeda(restanteComMulta)}
-      </div>
-    `;
-  } else {
-    container.innerHTML = `
-      <div style="font-weight: bold; font-size: 1.1em;">
-        Valor restante para quitar: ${formatarMoeda(restanteSemMulta)}
-      </div>
-    `;
-  }
-}
+  // Formata a exibição
+  container.innerHTML = `
+    <div style="margin-bottom: 10px;">
+      <strong>Total pago:</strong> ${formatarMoeda(totalRecebido)} (${parcelasPagas} parcela${parcelasPagas !== 1 ? 's' : ''})
+    </div>
 
+    ${
+      totalMultas > 0 
+        ? `
+          <div style="color: #d9534f; margin-bottom: 10px;">
+            <strong>Multa por atraso:</strong> +${formatarMoeda(totalMultas)}
+          </div>
+          <div style="font-weight: bold; font-size: 1.1em; color: #d9534f;">
+            Total a pagar: ${formatarMoeda(restanteComMulta)}
+          </div>`
+        : `
+          <div style="font-weight: bold; font-size: 1.1em;">
+            Valor restante: ${formatarMoeda(restanteSemMulta)}
+          </div>`
+    }
+  `;
+}
 export async function abrirModal(emprestimo) {
   scrollPos = window.scrollY || document.documentElement.scrollTop;
   document.body.classList.add('modal-aberto');
@@ -664,6 +713,7 @@ function atualizarVisualParcelas(emprestimo) {
   const datasPagamentos = emprestimo.datasPagamentos || Array(emprestimo.parcelas).fill(null);
   const recebidoPor = emprestimo.recebidoPor || Array(emprestimo.parcelas).fill(null);
   const datasVencimentos = emprestimo.datasVencimentos || [];
+  const valorJuros = (emprestimo.valorComJuros - emprestimo.valorOriginal);
 
   parcelas.forEach((paga, i) => {
     const item = document.createElement('div');
@@ -686,7 +736,8 @@ function atualizarVisualParcelas(emprestimo) {
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-    let html = `<strong>📦 Parcela ${i + 1}</strong><br>`;
+
+    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorJuros)}<br>`;
     if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
     let statusClass = 'parcela-em-dia';
@@ -794,7 +845,7 @@ function atualizarVisualParcelas(emprestimo) {
             const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
             const multa = diasAtraso * 20;
             valorMinimo = valorParcela + multa;
-            mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). Multa: ${formatarMoeda(multa)}<br>Valor mínimo a receber: ${formatarMoeda(valorMinimo)}`;
+            mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). Multa: ${formatarMoeda(multa)}`;
           }
         }
 

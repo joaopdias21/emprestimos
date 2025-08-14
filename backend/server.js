@@ -230,63 +230,63 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
 
     const recebido = parseFloat(req.body.valorRecebido);
     const dataPagamento = req.body.dataPagamento || new Date().toISOString();
-    
-    // --- Lógica de validação ajustada para a regra de negócio do valor mínimo ---
+
+    // --- Lógica de validação ajustada ---
     let diasAtraso = 0;
     let multa = 0;
-    const valorParcelaOriginal = emp.valorParcelasPendentes?.[indice] ?? emp.valorParcela;
-    let valorMinimoNecessario = valorParcelaOriginal;
 
+    // Aqui pegamos o valor base mínimo como o valor do juros
+    const valorJuros = emp.valorJuros || (emp.valorComJuros - emp.valorOriginal) / emp.parcelas;
+    const valorParcelaOriginal = emp.valorParcelasPendentes?.[indice] ?? valorJuros;
+
+    let valorMinimoNecessario = valorJuros; // SEMPRE começa com o valor do juros
+
+    // Adiciona multa se houver atraso
     if (emp.datasVencimentos[indice]) {
       const dataVencimento = new Date(emp.datasVencimentos[indice]);
       const dataPag = new Date(dataPagamento);
-      
+
       if (dataPag > dataVencimento) {
         diasAtraso = Math.floor((dataPag - dataVencimento) / (1000 * 60 * 60 * 24));
-        multa = diasAtraso * 20; // R$20 por dia de atraso
-        
-        // **AJUSTE AQUI:** O valor mínimo é apenas a multa em caso de atraso
-        valorMinimoNecessario = multa;
+        multa = diasAtraso * 20;
+        valorMinimoNecessario += multa; // Já inclui o juros + multa
       }
     }
+    
 
-    // Validar se o valor recebido é suficiente
-    if (recebido < valorMinimoNecessario) {
-      if (diasAtraso > 0) {
-        return res.status(400).json({ 
-          erro: `Valor recebido insuficiente. Mínimo necessário: ${multa.toFixed(2)} (valor da multa)`
-        });
-      } else {
-        return res.status(400).json({ 
-          erro: `Valor recebido menor que o valor da parcela. Mínimo: ${valorParcelaOriginal.toFixed(2)}`
+    // Bloquear pagamento abaixo do mínimo
+      if (recebido < valorMinimoNecessario) {
+        return res.status(400).json({
+          erro: `Valor recebido insuficiente. Mínimo necessário: ${valorMinimoNecessario.toFixed(2)} (Juros: ${valorJuros.toFixed(2)}${multa > 0 ? ` + Multa: ${multa.toFixed(2)}` : ''})`
         });
       }
-    }
 
-    // --- Fim da lógica de validação ajustada ---
-
+    // Atualizar dados da parcela paga
     emp.statusParcelas[indice] = true;
     emp.datasPagamentos[indice] = dataPagamento;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
     emp.valoresRecebidos[indice] = recebido;
 
-    // Define o valor pendente dessa parcela
+    // Atualizar valor pendente dessa parcela para o que foi recebido
     emp.valorParcelasPendentes[indice] = recebido;
-    
-    // Calcula saldo total restante
+
+    // Calcular saldo restante
     const totalPago = emp.valoresRecebidos.reduce((acc, v) => acc + (v || 0), 0);
     const saldoRestante = parseFloat((emp.valorComJuros - totalPago).toFixed(2));
 
+    // Criar nova parcela, mas já com valor igual ao juros
     if (saldoRestante > 0 && indice === emp.parcelas - 1) {
-      // Criar nova parcela sem valor, para ser preenchida no pagamento
       emp.parcelas += 1;
       emp.statusParcelas.push(false);
       emp.datasPagamentos.push(null);
       emp.recebidoPor.push(null);
       emp.valoresRecebidos.push(null);
-      emp.valorParcelasPendentes.push(null);
 
-      // Gerar data da nova parcela
+      // Calcula o valor do juros por parcela
+      const valorJurosParcela = emp.valorJuros || (emp.valorComJuros - emp.valorOriginal) / emp.parcelas;
+      emp.valorParcelasPendentes.push(valorJurosParcela);
+
+      // Nova data de vencimento
       const ultimaData = new Date(emp.datasVencimentos[indice]);
       ultimaData.setMonth(ultimaData.getMonth() + 1);
       emp.datasVencimentos.push(ultimaData.toISOString().slice(0, 10));
@@ -299,14 +299,16 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     res.json({
       ...emp.toObject(),
       saldoRestante,
-      diasAtraso, 
-      multa 
+      diasAtraso,
+      multa
     });
+
   } catch (err) {
     console.error('PATCH /parcela:', err);
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
+
 
 // Atualizar datas de vencimento das parcelas de um empréstimo
 app.patch('/emprestimos/:id/datas-vencimento', async (req, res) => {
