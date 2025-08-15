@@ -357,7 +357,7 @@ function atualizarValorRestante(emprestimoAtualizado) {
 
     const valorParcela = valorJurosTotal;
     let totalPagoValido = 0;
-    const parcelasComExcedente = []; // Alterei o nome para ficar mais claro
+    const parcelasComExcedente = [];
 
     (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
         if (typeof val !== 'number') return;
@@ -366,7 +366,6 @@ function atualizarValorRestante(emprestimoAtualizado) {
         const multaParcela = diasAtraso * 20;
         const valorMinimoParcela = valorParcela + multaParcela;
 
-        // Verifica se o pagamento foi acima do mínimo
         if (val > valorMinimoParcela) {
             const excedente = val - valorMinimoParcela;
             totalPagoValido += excedente;
@@ -391,6 +390,15 @@ function atualizarValorRestante(emprestimoAtualizado) {
 
     const container = document.getElementById('valorRestanteContainer');
     if (!container) return;
+
+    // Calcula o número de parcelas pagas
+    let parcelasPagas = 0;
+    (emprestimoAtualizado.statusParcelas || []).forEach(status => {
+        if (status) parcelasPagas++;
+    });
+
+    // Calcula juros recebidos (juros TOTAL * parcelas pagas)
+    const jurosRecebidos = valorJurosTotal * parcelasPagas;
 
     // Mostrar apenas parcelas com excedente
     const parcelasHTML = parcelasComExcedente.map(p => {
@@ -437,9 +445,12 @@ function atualizarValorRestante(emprestimoAtualizado) {
                 Valor restante: ${formatarMoeda(valorRestante)}
             </div>`
         }
+
+        <div style="margin-top: 5px; color: #007bff; font-weight: bold;">
+            💹 Juros recebidos: ${formatarMoeda(jurosRecebidos)}
+        </div>
     `;
 }
-
 
 
 
