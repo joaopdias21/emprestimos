@@ -185,28 +185,40 @@
         <br>
         <br>
 
-      <div class="form-column" id="painelUnificado">
-        <h2>Empréstimos por Vencimento - Cidades </h2>
+<div class="cards-cidades-container">
+  <div class="card-cidade" data-cidade="Cotia">
+    <h3>Cotia</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+  
+  <div class="card-cidade" data-cidade="Sorocaba">
+    <h3>Sorocaba</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+  
+  <div class="card-cidade" data-cidade="São Roque">
+    <h3>São Roque</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+</div>
 
-        <div class="campo-busca" id="responsividadetresbotoes">
-          <label for="seletorCidade"><strong>Cidade:</strong></label>
-          <select id="seletorCidade">
-            <option value="" disabled selected>Selecione a cidade</option>
-            <option value="São Roque">São Roque</option>
-            <option value="Cotia">Cotia</option>
-            <option value="Sorocaba">Sorocaba</option>
-          </select>
-          <br><br>
-          <p><strong>Selecione uma data:</strong></p>
-          
-          <input type="date" id="inputDataUnica" />
-          <button type="button" id="btnBuscarUnico">Consultar</button>
-          <button type="button" id="btnHojeUnico">Hoje</button>
-          <button type="button" id="btnLimparUnico">Limpar Resultados</button>
-        </div>
-
-        <ul id="resultadoUnico"></ul>
-      </div>
+<div id="listaEmprestimosCidade" style="display: none;">
+  <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
+  <div class="campo-busca">
+    <p><strong>Selecione uma data:</strong></p>
+    <input type="date" id="inputDataFiltro" />
+    <button type="button" id="btnFiltrarData">Filtrar</button>
+    <button type="button" id="btnHojeFiltro">Hoje</button>
+    <button type="button" id="btnLimparFiltro">Limpar Filtros</button>
+  </div>
+  <ul id="resultadoFiltrado"></ul>
+</div>
 
       <div class="separador separadorGraficos">
         <span id="dashboardLinha">Grafícos</span>

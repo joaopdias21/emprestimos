@@ -20,6 +20,7 @@ let emprestimoSelecionado = null;
 let parcelaSelecionada = null;
 let termoAtual = '';
 let scrollPos = 0;
+let cidadeSelecionada = null;
 
 function criarDataLocal(dataStr) {
   if (!dataStr) return null;
@@ -230,27 +231,29 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
   const { emprestimo, indice, checkbox } = parcelaSelecionada;
   const dataPagamento = new Date().toISOString();
-  const valorRecebidoRaw = document.getElementById('valorRecebido').value;
-  const valorLimpoString = valorRecebidoRaw.replace(/\D/g, '');
-  const valorRecebido = parseFloat(valorLimpoString) / 100;
+  
+  // Obtém o valor do input ou usa o valor calculado da lista
+  let valorRecebido;
+  if (parcelaSelecionada.valor) {
+    // Usa o valor calculado (juros + multa) da lista
+    valorRecebido = parcelaSelecionada.valor;
+  } else {
+    // Pega do input e formata
+    const valorRecebidoRaw = document.getElementById('valorRecebido').value;
+    const valorLimpoString = valorRecebidoRaw.replace(/\D/g, '');
+    valorRecebido = parseFloat(valorLimpoString) / 100;
+  }
 
   if (isNaN(valorRecebido)) {
     mostrarAlertaWarning('Informe um valor válido para o pagamento.');
     return;
   }
 
-  // Obter os valores calculados
+  // Verifica atraso e valor mínimo (mesmo para a lista)
   const { valorMinimo, multa } = verificarAtrasoEPreencherValor(emprestimo, indice);
   
-  // Verificar se o valor recebido é suficiente
   if (valorRecebido < valorMinimo) {
     mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)} (Juros: ${formatarMoeda(valorMinimo - multa)} + Multa: ${formatarMoeda(multa)})`);
-    return;
-  }
-      
-
-  if (valorRecebido <= 0) {
-    mostrarAlertaWarning('Informe um valor válido para o pagamento.');
     return;
   }
 
@@ -286,20 +289,19 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     emprestimo.valoresRecebidos[indice] = valorRecebido;
 
     // Atualiza a UI
-    checkbox.checked = true;
-    checkbox.disabled = true;
+    if (checkbox) {
+      checkbox.checked = true;
+      checkbox.disabled = true;
 
-    const label = checkbox.nextElementSibling;
-    if (label) {
-      const data = new Date(dataPagamento).toLocaleDateString('pt-BR');
-      const horario = new Date(dataPagamento).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const valorOriginal = emprestimo.valorParcela;
-      const diferenca = valorRecebido - valorOriginal;
-
-      let info = `
-        <br><strong>✅ Paga em:</strong> ${data}<br>
-        <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
-        <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+      const label = checkbox.nextElementSibling;
+      if (label) {
+        const data = new Date(dataPagamento).toLocaleDateString('pt-BR');
+        const horario = new Date(dataPagamento).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        
+        let info = `
+          <br><strong>✅ Paga em:</strong> ${data}<br>
+          <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
+          <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
 
         if (emprestimoAtualizado.diasAtraso && emprestimoAtualizado.diasAtraso > 0) {
           info += `
@@ -308,30 +310,47 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
             <strong>⚠️ Dias de atraso:</strong> ${emprestimoAtualizado.diasAtraso}<br>
             <strong>💰 Multa:</strong> ${formatarMoeda(emprestimoAtualizado.multa)}<br>`;
 
-        if (valorRecebido === emprestimoAtualizado.multa) {
-          info += `<em>Foi realizado apenas o pagamento da multa.</em>`;
-        } else if (valorRecebido > emprestimoAtualizado.multa) {
-          const extra = valorRecebido - emprestimoAtualizado.multa;
-          info += `<em>Valor pago além da multa: ${formatarMoeda(extra)}</em>`;
+          if (valorRecebido === emprestimoAtualizado.multa) {
+            info += `<em>Foi realizado apenas o pagamento da multa.</em>`;
+          } else if (valorRecebido > emprestimoAtualizado.multa) {
+            const extra = valorRecebido - emprestimoAtualizado.multa;
+            info += `<em>Valor pago além da multa: ${formatarMoeda(extra)}</em>`;
+          }
         }
-      }
 
-      label.innerHTML += info;
-      checkbox.parentElement.classList.add('parcela-paga');
-      
-      if (emprestimoAtualizado.diasAtraso > 0) {
-        checkbox.parentElement.classList.add('parcela-paga-com-atraso');
+        label.innerHTML += info;
+        checkbox.parentElement.classList.add('parcela-paga');
+        
+        if (emprestimoAtualizado.diasAtraso > 0) {
+          checkbox.parentElement.classList.add('parcela-paga-com-atraso');
+        }
       }
     }
 
+    // Atualiza a lista se estiver visível
+    if (document.getElementById('listaEmprestimosCidade').style.display !== 'none') {
+      // Recarrega os dados da cidade atual
+      const cidadeAtual = cidadeSelecionada;
+      if (cidadeAtual) {
+        await carregarEmprestimosPorCidade();
+        mostrarEmprestimosCidade(cidadeAtual);
+      }
+    }
+
+    // Atualiza o modal se estiver aberto
+    if (modal.style.display === 'flex') {
+      atualizarVisualParcelas(emprestimo);
+      atualizarValorRestante(emprestimo);
+    }
+
     mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
-        atualizarVisualParcelas(emprestimo);
-    atualizarValorRestante(emprestimo)
 
   } catch (err) {
-    mostrarAlertaError(`Erro ao marcar parcela como paga: ${err.message}`);
     console.error('Erro ao marcar parcela como paga:', err);
-    checkbox.checked = false;
+    if (checkbox) {
+      checkbox.checked = false;
+    }
+    mostrarAlertaError(`Erro ao marcar parcela: ${err.message}`);
   }
 
   modalRecebedor.style.display = 'none';
@@ -966,3 +985,276 @@ function atualizarVisualParcelas(emprestimo) {
     }
   });
 }
+
+
+// Adicione isso ao seu modal.js ou em um arquivo separado
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Elementos do DOM
+  const cardsCidades = document.querySelectorAll('.card-cidade');
+  const listaEmprestimosDiv = document.getElementById('listaEmprestimosCidade');
+  const nomeCidadeSpan = document.getElementById('nomeCidadeSelecionada');
+  const resultadoFiltrado = document.getElementById('resultadoFiltrado');
+  const inputDataFiltro = document.getElementById('inputDataFiltro');
+  const btnFiltrarData = document.getElementById('btnFiltrarData');
+  const btnHojeFiltro = document.getElementById('btnHojeFiltro');
+  const btnLimparFiltro = document.getElementById('btnLimparFiltro');
+  
+  let emprestimosPorCidade = {
+    'Cotia': [],
+    'Sorocaba': [],
+    'São Roque': []
+  };
+  let cidadeSelecionada = null;
+
+  // Carrega os empréstimos por cidade
+  async function carregarEmprestimosPorCidade() {
+    try {
+      console.log('Carregando empréstimos...');
+      const response = await fetch(`${URL_SERVICO}/emprestimos`);
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
+      const todosEmprestimos = await response.json();
+      console.log('Dados recebidos:', todosEmprestimos);
+      
+      // Reinicia os arrays
+      emprestimosPorCidade = {
+        'Cotia': [],
+        'Sorocaba': [],
+        'São Roque': []
+      };
+      
+      // Organiza por cidade
+      todosEmprestimos.forEach(emp => {
+        if (emp.cidade && emprestimosPorCidade[emp.cidade]) {
+          emprestimosPorCidade[emp.cidade].push(emp);
+        }
+      });
+      
+      console.log('Empréstimos por cidade:', emprestimosPorCidade);
+      atualizarContadoresCards();
+      
+    } catch (error) {
+      console.error('Erro ao carregar empréstimos:', error);
+      mostrarAlertaError('Erro ao carregar empréstimos. Tente recarregar a página.');
+    }
+  }
+  
+  // Atualiza os contadores nos cards
+  function atualizarContadoresCards() {
+    cardsCidades.forEach(card => {
+      const cidade = card.dataset.cidade;
+      const qtdSpan = card.querySelector('.qtd-emprestimos');
+      qtdSpan.textContent = emprestimosPorCidade[cidade]?.length || 0;
+    });
+  }
+  
+  // Mostra a lista de empréstimos para uma cidade
+  function mostrarEmprestimosCidade(cidade) {
+    console.log(`Mostrando empréstimos para ${cidade}`);
+    cidadeSelecionada = cidade;
+    nomeCidadeSpan.textContent = cidade;
+    listaEmprestimosDiv.style.display = 'block';
+    
+    // Filtra por data se houver
+    const dataFiltro = inputDataFiltro.value;
+    filtrarEmprestimos(dataFiltro);
+  }
+
+async function marcarParcelaComoPaga(emprestimoId, indiceParcela, valorRecebido, nomeRecebedor) {
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/parcela/${indiceParcela}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dataPagamento: new Date().toISOString(),
+        nomeRecebedor,
+        valorRecebido
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ao marcar parcela: ${await response.text()}`);
+    }
+
+    // Atualiza localmente
+    const emprestimo = Object.values(emprestimosPorCidade)
+      .flat()
+      .find(e => e.id === emprestimoId);
+    
+    if (emprestimo) {
+      if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
+      if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
+      if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
+      if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
+      
+      emprestimo.statusParcelas[indiceParcela] = true;
+      emprestimo.recebidoPor[indiceParcela] = nomeRecebedor;
+      emprestimo.valoresRecebidos[indiceParcela] = valorRecebido;
+      emprestimo.datasPagamentos[indiceParcela] = new Date().toISOString();
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao marcar parcela como paga:', error);
+    return false;
+  }
+}
+  // Filtra empréstimos por data de vencimento
+function filtrarEmprestimos(dataFiltro) {
+  const resultadoFiltrado = document.getElementById('resultadoFiltrado');
+  resultadoFiltrado.innerHTML = '';
+
+  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
+
+  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
+    if (!emp.datasVencimentos) return false;
+    return dataFiltro ? emp.datasVencimentos.includes(dataFiltro) : true;
+  });
+
+  if (emprestimosFiltrados.length === 0) {
+    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
+    return;
+  }
+
+  emprestimosFiltrados.forEach(emp => {
+    const li = document.createElement('li');
+    li.className = 'emprestimo-item';
+
+    const parcelas = emp.datasVencimentos
+      .map((data, i) => {
+        const diasAtraso = calcularDiasAtraso(data);
+        const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
+        const valorJuros = emp.valorComJuros - emp.valorOriginal; // Juros TOTAL (sem divisão)
+        const valorMinimo = valorJuros + multa; // Valor mínimo = juros TOTAL + multa
+            
+        return {
+          data,
+          pago: emp.statusParcelas?.[i] || false,
+          indice: i,
+          valorJuros,
+          multa,
+          valorMinimo
+        };
+      })
+      .filter(p => !dataFiltro || p.data === dataFiltro);
+
+    let htmlParcelas = '';
+    parcelas.forEach(p => {
+      const dataFormatada = new Date(p.data).toLocaleDateString('pt-BR');
+      
+      htmlParcelas += `
+        <div class="parcela-linha ${p.pago ? 'paga' : ''}">
+          <div class="parcela-info">
+            <span class="parcela-data">Parcela ${p.indice + 1} - ${dataFormatada}</span>
+            <span class="parcela-valor">${formatarMoeda(p.valorMinimo)}</span>
+            ${p.multa > 0 ? `<span class="parcela-atraso">(${p.multa/20} dias atraso)</span>` : ''}
+          </div>
+          <label class="parcela-checkbox">
+            <input 
+              type="checkbox" 
+              ${p.pago ? 'checked disabled' : ''}
+              data-id="${emp.id}" 
+              data-indice="${p.indice}"
+              data-valor="${p.valorMinimo}"
+              class="${p.pago ? 'parcela-paga' : 'parcela-pendente'}"
+            />
+            <span class="checkmark"></span>
+            ${p.pago ? '<span class="pago-label">PAGO</span>' : '<span class="pagar-label">MARCAR</span>'}
+          </label>
+        </div>`;
+    });
+
+    li.innerHTML = `
+      <div class="emprestimo-header" data-id="${emp.id}">
+        <h3>${emp.nome}</h3>
+        <div class="emprestimo-total">
+          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
+        </div>
+      </div>
+      <div class="parcelas-container">
+        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+      </div>
+    `;
+
+    li.querySelector('.emprestimo-header').addEventListener('click', () => {
+      abrirModal(emp);
+    });
+
+    li.querySelectorAll('input.parcela-pendente').forEach(chk => {
+      chk.addEventListener('change', function() {
+        if (this.checked) {
+          const id = this.dataset.id;
+          const indice = parseInt(this.dataset.indice);
+          const valorMinimo = calcularValorMinimoParcela(emp, indice);
+          
+          parcelaSelecionada = {
+            emprestimo: emp,
+            indice,
+            checkbox: chk,
+            valorMinimo
+          };
+          
+          // Preenche o modal com o valor mínimo
+          document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          });
+          
+          mostrarModalRecebedor();
+        }
+      });
+    });
+
+    resultadoFiltrado.appendChild(li);
+  });
+}
+
+
+
+
+
+function calcularValorMinimoParcela(emprestimo, indiceParcela) {
+  // O valor da parcela SEMPRE será o valor total dos juros (não divide pelo número de parcelas)
+  const valorJurosTotal = emprestimo.valorComJuros - emprestimo.valorOriginal;
+  
+  let multa = 0;
+
+  // Verifica se há atraso e calcula a multa (R$ 20/dia)
+  if (emprestimo.datasVencimentos?.[indiceParcela]) {
+    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indiceParcela]);
+    multa = diasAtraso > 0 ? diasAtraso * 20 : 0;
+  }
+
+  // Retorna o valor mínimo da parcela: JUROS TOTAL + MULTA (se houver)
+  return valorJurosTotal + multa;
+}
+  // Event listeners
+  cardsCidades.forEach(card => {
+    card.addEventListener('click', () => {
+      const cidade = card.dataset.cidade;
+      mostrarEmprestimosCidade(cidade);
+    });
+  });
+  
+  btnFiltrarData.addEventListener('click', () => {
+    filtrarEmprestimos(inputDataFiltro.value);
+  });
+  
+  btnHojeFiltro.addEventListener('click', () => {
+    const hoje = new Date().toISOString().split('T')[0];
+    inputDataFiltro.value = hoje;
+    filtrarEmprestimos(hoje);
+  });
+  
+  btnLimparFiltro.addEventListener('click', () => {
+    inputDataFiltro.value = '';
+    filtrarEmprestimos('');
+  });
+  
+  // Carrega os dados inicialmente
+  carregarEmprestimosPorCidade();
+});

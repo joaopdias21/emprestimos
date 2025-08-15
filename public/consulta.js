@@ -363,63 +363,46 @@ function exibirResultados(lista, resultadoId, index) {
 }
 
 
-async function filtrarPorDataECidade(dataSelecionada, cidadeFiltro, resultadoId) {
-  const todosEmprestimos = await lerEmprestimos(); // <- await aqui
-  const filtrados = todosEmprestimos.filter(emp => {
-    const cidade = emp.cidade?.toLowerCase().trim();
-    const datas = emp.datasVencimentos || [];
-
-    return cidade === cidadeFiltro.toLowerCase().trim() &&
-      datas.some(data => new Date(data).toISOString().split('T')[0] === dataSelecionada);
+// // No seu novo arquivo (substitua a função filtrarEmprestimos)
+function filtrarEmprestimos(dataFiltro) {
+  resultadoFiltrado.innerHTML = '';
+  
+  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
+  
+  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
+    if (!dataFiltro) return true;
+    
+    // Verifica se alguma parcela vence na data selecionada
+    return emp.datasVencimentos?.some(data => data === dataFiltro) || false;
   });
-
-  exibirResultados(filtrados, resultadoId);
+  
+  if (emprestimosFiltrados.length === 0) {
+    resultadoFiltrado.innerHTML = '<li>Nenhum empréstimo encontrado</li>';
+    return;
+  }
+  
+  emprestimosFiltrados.forEach(emp => {
+    const li = document.createElement('li');
+    li.classList.add('card-vencimento');
+    
+    const temAtraso = emp.datasVencimentos?.some((data, i) => {
+      return !emp.statusParcelas?.[i] && calcularDiasAtraso(data) > 0;
+    });
+    
+    li.innerHTML = `
+      <h3>${emp.nome} ${temAtraso ? '⚠️' : ''}</h3>
+      <p><strong>Valor:</strong> ${formatarMoeda(emp.valorOriginal)} | <strong>Parcelas:</strong> ${emp.parcelas}</p>
+      <p><strong>Endereço:</strong> ${emp.endereco}, ${emp.numero}${emp.complemento ? ' - ' + emp.complemento : ''}</p>
+      <p><strong>Telefone:</strong> ${emp.telefone}</p>
+    `;
+    
+    li.addEventListener('click', () => {
+      abrirModal(emp);
+    });
+    
+    resultadoFiltrado.appendChild(li);
+  });
 }
-
-
-// Consulta única por cidade e data
-document.getElementById('btnBuscarUnico').addEventListener('click', () => {
-  const cidade = document.getElementById('seletorCidade').value;
-  const data = document.getElementById('inputDataUnica').value;
-
-  if (!cidade || !data) {
-    mostrarAlertaWarning('Por favor, selecione uma cidade e uma data.');
-    return;
-  }
-
-  filtrarPorDataECidade(data, cidade, 'resultadoUnico');
-});
-
-// Preenche com a data de hoje e dispara busca se cidade estiver selecionada
-document.getElementById('btnHojeUnico').addEventListener('click', () => {
-  const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('inputDataUnica').value = hoje;
-
-  const cidade = document.getElementById('seletorCidade').value;
-  if (cidade) {
-    filtrarPorDataECidade(hoje, cidade, 'resultadoUnico');
-  }
-});
-
-// Limpa resultados e inputs
-document.getElementById('btnLimparUnico').addEventListener('click', () => {
-  document.getElementById('resultadoUnico').innerHTML = '';
-  document.getElementById('inputDataUnica').value = '';
-  document.getElementById('seletorCidade').selectedIndex = 0;
-});
-
-document.getElementById('btnHojeUnico').addEventListener('click', () => {
-  const cidade = document.getElementById('seletorCidade').value;
-
-  if (!cidade) {
-    mostrarAlertaError('Por favor, selecione uma cidade antes de usar o botão "Hoje"');
-    return;
-  }
-
-  const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('inputDataUnica').value = hoje;
-  filtrarPorDataECidade(hoje, cidade, 'resultadoUnico');
-});
 
 
 document.addEventListener("DOMContentLoaded", () => {
