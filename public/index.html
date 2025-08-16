@@ -185,40 +185,68 @@
         <br>
         <br>
 
-<div class="cards-cidades-container">
-  <div class="card-cidade" data-cidade="Cotia">
-    <h3>Cotia</h3>
-    <div class="info-card">
-      <span class="qtd-emprestimos">0</span> empréstimos
-    </div>
-  </div>
-  
-  <div class="card-cidade" data-cidade="Sorocaba">
-    <h3>Sorocaba</h3>
-    <div class="info-card">
-      <span class="qtd-emprestimos">0</span> empréstimos
-    </div>
-  </div>
-  
-  <div class="card-cidade" data-cidade="São Roque">
-    <h3>São Roque</h3>
-    <div class="info-card">
-      <span class="qtd-emprestimos">0</span> empréstimos
-    </div>
-  </div>
-</div>
+        <div class="cards-cidades-container">
+          <div class="card-cidade" data-cidade="Cotia">
+            <h3>Cotia</h3>
+            <div class="info-card">
+              <span class="qtd-emprestimos">0</span> empréstimos
+            </div>
+          </div>
+          
+          <div class="card-cidade" data-cidade="Sorocaba">
+            <h3>Sorocaba</h3>
+            <div class="info-card">
+              <span class="qtd-emprestimos">0</span> empréstimos
+            </div>
+          </div>
+          
+          <div class="card-cidade" data-cidade="São Roque">
+            <h3>São Roque</h3>
+            <div class="info-card">
+              <span class="qtd-emprestimos">0</span> empréstimos
+            </div>
+          </div>
+        </div>
 
-<div id="listaEmprestimosCidade" style="display: none;">
-  <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
-  <div class="campo-busca">
-    <p><strong>Selecione uma data:</strong></p>
-    <input type="date" id="inputDataFiltro" />
-    <button type="button" id="btnFiltrarData">Filtrar</button>
-    <button type="button" id="btnHojeFiltro">Hoje</button>
-    <button type="button" id="btnLimparFiltro">Limpar Filtros</button>
-  </div>
-  <ul id="resultadoFiltrado"></ul>
-</div>
+        <div id="listaEmprestimosCidade" style="display: none;">
+          <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
+          <br>
+            <p><strong>Selecione uma data:</strong></p>
+          <div class="campo-busca">
+            <div class="botoes-filtro-container">
+              <input type="date" id="inputDataFiltro" class="input-filtro" />
+              <button type="button" id="btnFiltrarData" class="botao-filtro">Filtrar</button>
+              <button type="button" id="btnHojeFiltro" class="botao-filtro">Hoje</button>
+              <button type="button" id="btnLimparFiltro" class="botao-filtro">Limpar Filtros</button>
+            </div>
+          </div>
+          <br>
+          <!-- Adicione esta div da legenda -->
+          <div class="legenda-status">
+
+            <div class="item-legenda">
+              <span class="bolinha-legenda verde"></span>
+              <span>Parcela paga</span>
+            </div>
+
+              <div class="item-legenda">
+              <span class="bolinha-legenda azul"></span>
+              <span>Em dia</span>
+            </div>
+            <div class="item-legenda">
+              <span class="bolinha-legenda laranja"></span>
+              <span>Vencendo hoje</span>
+            </div>
+            <div class="item-legenda">
+              <span class="bolinha-legenda vermelho"></span>
+              <span>Atrasado</span>
+            </div>
+          </div>
+          <br>
+
+          <ul id="resultadoFiltrado"></ul>
+        </div>
+
 
       <div class="separador separadorGraficos">
         <span id="dashboardLinha">Grafícos</span>

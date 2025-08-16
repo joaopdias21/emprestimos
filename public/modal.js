@@ -22,6 +22,55 @@ let termoAtual = '';
 let scrollPos = 0;
 let cidadeSelecionada = null;
 
+// pega só o YYYY-MM-DD de qualquer coisa (string ISO com ou sem hora)
+function getDateOnly(s) {
+  if (!s) return '';
+  return typeof s === 'string' ? s.slice(0, 10) : new Date(s).toISOString().slice(0, 10);
+}
+
+  // Filtra empréstimos por data de vencimento
+function normalizarData(data) {
+  if (!data) return "";
+  
+  // Se vier no formato "YYYY-MM-DD"
+  if (typeof data === "string" && data.includes("T")) {
+    return data.split("T")[0];
+  }
+  if (typeof data === "string" && data.length === 10) {
+    return data;
+  }
+
+  // Se for Date mesmo
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+}
+
+// formata YYYY-MM-DD -> DD/MM/YYYY sem criar Date
+function toBR(data) {
+  if (!data) return "";
+  
+  let dataStr = normalizarData(data); // garante YYYY-MM-DD
+  const [y, m, d] = dataStr.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// "hoje" em ISO local (sem UTC/shift)
+function hojeLocalISO() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+}
+
+// dias de atraso usando datas "de calendário" (sem fuso)
+function calcularDiasAtrasoDataOnly(dataStr) {
+  const [y, m, d] = normalizarData(dataStr).split("-").map(Number);
+
+  const hoje = new Date();
+  const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const vencimento = new Date(y, m - 1, d);
+
+  const diff = Math.floor((hojeSemHora - vencimento) / 86400000);
+  return diff > 0 ? diff : 0;
+}
+
 function criarDataLocal(dataStr) {
   if (!dataStr) return null;
   const partes = dataStr.split('-'); // assume formato 'YYYY-MM-DD'
@@ -1103,16 +1152,47 @@ async function marcarParcelaComoPaga(emprestimoId, indiceParcela, valorRecebido,
     return false;
   }
 }
-  // Filtra empréstimos por data de vencimento
+
+
+//   // Se vier em Date ou ISO
+//   const d = new Date(data);
+//   const ano = d.getUTCFullYear();  // <-- usa UTC
+//   const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
+//   const dia = String(d.getUTCDate()).padStart(2, "0");
+//   return `${ano}-${mes}-${dia}`;
+// }
+
+function eVencimentoHoje(dataVencimento) {
+  try {
+    const hoje = hojeLocalISO(); // Formato YYYY-MM-DD
+    const vencimento = normalizarData(dataVencimento); // Formato YYYY-MM-DD
+    return hoje === vencimento;
+  } catch (e) {
+    console.error('Erro ao verificar vencimento:', e);
+    return false;
+  }
+}
+
 function filtrarEmprestimos(dataFiltro) {
   const resultadoFiltrado = document.getElementById('resultadoFiltrado');
   resultadoFiltrado.innerHTML = '';
 
   if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
 
+  // Se não houver data de filtro específica, filtra pelo mês atual
+  const filtrarPorMesAtual = !dataFiltro;
+  const mesAnoAtual = filtrarPorMesAtual ? getMesAnoAtual() : null;
+
   const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
     if (!emp.datasVencimentos) return false;
-    return dataFiltro ? emp.datasVencimentos.includes(dataFiltro) : true;
+    
+    // Se tem data de filtro específica, filtra por ela
+    if (dataFiltro) {
+      return emp.datasVencimentos.some(d => normalizarData(d) === dataFiltro);
+    }
+    
+    // Caso contrário, filtra pelo mês atual
+    return emp.datasVencimentos.some(d => getMesAnoFromDate(d) === mesAnoAtual);
   });
 
   if (emprestimosFiltrados.length === 0) {
@@ -1124,13 +1204,14 @@ function filtrarEmprestimos(dataFiltro) {
     const li = document.createElement('li');
     li.className = 'emprestimo-item';
 
-    const parcelas = emp.datasVencimentos
+    // Filtra as parcelas - se tem dataFiltro específica, usa ela, senão filtra pelo mês atual
+    const parcelas = (emp.datasVencimentos || [])
       .map((data, i) => {
-        const diasAtraso = calcularDiasAtraso(data);
+        const diasAtraso = calcularDiasAtrasoDataOnly(data);
         const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
-        const valorJuros = emp.valorComJuros - emp.valorOriginal; // Juros TOTAL (sem divisão)
-        const valorMinimo = valorJuros + multa; // Valor mínimo = juros TOTAL + multa
-            
+        const valorJuros = emp.valorComJuros - emp.valorOriginal;
+        const valorMinimo = valorJuros + multa;
+
         return {
           data,
           pago: emp.statusParcelas?.[i] || false,
@@ -1140,33 +1221,46 @@ function filtrarEmprestimos(dataFiltro) {
           valorMinimo
         };
       })
-      .filter(p => !dataFiltro || p.data === dataFiltro);
+      .filter(p => {
+        if (dataFiltro) {
+          return normalizarData(p.data) === dataFiltro;
+        } else {
+          return getMesAnoFromDate(p.data) === mesAnoAtual;
+        }
+      });
 
     let htmlParcelas = '';
     parcelas.forEach(p => {
-      const dataFormatada = new Date(p.data).toLocaleDateString('pt-BR');
-      
-      htmlParcelas += `
-        <div class="parcela-linha ${p.pago ? 'paga' : ''}">
-          <div class="parcela-info">
-            <span class="parcela-data">Parcela ${p.indice + 1} - ${dataFormatada}</span>
-            <span class="parcela-valor">${formatarMoeda(p.valorMinimo)}</span>
-            ${p.multa > 0 ? `<span class="parcela-atraso">(${p.multa/20} dias atraso)</span>` : ''}
-          </div>
-          <label class="parcela-checkbox">
-            <input 
-              type="checkbox" 
-              ${p.pago ? 'checked disabled' : ''}
-              data-id="${emp.id}" 
-              data-indice="${p.indice}"
-              data-valor="${p.valorMinimo}"
-              class="${p.pago ? 'parcela-paga' : 'parcela-pendente'}"
-            />
-            <span class="checkmark"></span>
-            ${p.pago ? '<span class="pago-label">PAGO</span>' : '<span class="pagar-label">MARCAR</span>'}
-          </label>
-        </div>`;
-    });
+      const dataFormatada = toBR(p.data);
+
+        htmlParcelas += `
+          <div class="parcela-linha 
+            ${p.pago ? 'paga' : ''} 
+            ${!p.pago && p.multa > 0 ? 'atrasada' : ''}
+            ${!p.pago && p.multa === 0 && eVencimentoHoje(p.data) ? 'vencendo-hoje' : ''}
+            ${!p.pago && p.multa === 0 && !eVencimentoHoje(p.data) ? 'pendente' : ''}">
+            <div class="parcela-info">
+              <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+              <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
+              ${p.multa > 0 ? `
+                <span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
+                <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>
+              ` : ''}
+            </div>
+            <label class="parcela-checkbox">
+              <input 
+                type="checkbox" 
+                ${p.pago ? 'checked disabled' : ''}
+                data-id="${emp.id}" 
+                data-indice="${p.indice}"
+                data-valor="${p.valorMinimo}"
+                class="${p.pago ? 'parcela-paga' : 'parcela-pendente'}"
+              />
+              <span class="checkmark"></span>
+              ${p.pago ? '<span class="pago-label">PAGO</span>' : '<span class="pagar-label">MARCAR</span>'}
+            </label>
+          </div>`;
+      });
 
     li.innerHTML = `
       <div class="emprestimo-header" data-id="${emp.id}">
@@ -1180,30 +1274,21 @@ function filtrarEmprestimos(dataFiltro) {
       </div>
     `;
 
-    li.querySelector('.emprestimo-header').addEventListener('click', () => {
-      abrirModal(emp);
-    });
+    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
 
     li.querySelectorAll('input.parcela-pendente').forEach(chk => {
       chk.addEventListener('change', function() {
         if (this.checked) {
-          const id = this.dataset.id;
-          const indice = parseInt(this.dataset.indice);
+          const indice = parseInt(this.dataset.indice, 10);
           const valorMinimo = calcularValorMinimoParcela(emp, indice);
-          
-          parcelaSelecionada = {
-            emprestimo: emp,
-            indice,
-            checkbox: chk,
-            valorMinimo
-          };
-          
-          // Preenche o modal com o valor mínimo
+
+          parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
+
           document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
             style: 'currency',
             currency: 'BRL'
           });
-          
+
           mostrarModalRecebedor();
         }
       });
@@ -1213,7 +1298,16 @@ function filtrarEmprestimos(dataFiltro) {
   });
 }
 
+// Funções auxiliares adicionais necessárias
+function getMesAnoAtual() {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+}
 
+function getMesAnoFromDate(dateString) {
+  const date = new Date(dateString);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
 
 
 
@@ -1244,11 +1338,12 @@ function calcularValorMinimoParcela(emprestimo, indiceParcela) {
     filtrarEmprestimos(inputDataFiltro.value);
   });
   
-  btnHojeFiltro.addEventListener('click', () => {
-    const hoje = new Date().toISOString().split('T')[0];
-    inputDataFiltro.value = hoje;
-    filtrarEmprestimos(hoje);
-  });
+btnHojeFiltro.addEventListener('click', () => {
+  const hoje = hojeLocalISO();     // <-- usa helper novo
+  inputDataFiltro.value = hoje;
+  filtrarEmprestimos(hoje);
+});
+
   
   btnLimparFiltro.addEventListener('click', () => {
     inputDataFiltro.value = '';
