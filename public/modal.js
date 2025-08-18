@@ -22,6 +22,13 @@ let termoAtual = '';
 let scrollPos = 0;
 let cidadeSelecionada = null;
 
+//let filtroStatus = ''; // vazio = sem filtro
+
+
+
+
+
+
 // pega só o YYYY-MM-DD de qualquer coisa (string ISO com ou sem hora)
 function getDateOnly(s) {
   if (!s) return '';
@@ -1036,6 +1043,7 @@ function atualizarVisualParcelas(emprestimo) {
 }
 
 
+
 // Adicione isso ao seu modal.js ou em um arquivo separado
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1048,6 +1056,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const btnFiltrarData = document.getElementById('btnFiltrarData');
   const btnHojeFiltro = document.getElementById('btnHojeFiltro');
   const btnLimparFiltro = document.getElementById('btnLimparFiltro');
+  const filtroMes = document.getElementById('filtroMes');
   
   let emprestimosPorCidade = {
     'Cotia': [],
@@ -1055,6 +1064,100 @@ document.addEventListener('DOMContentLoaded', function() {
     'São Roque': []
   };
   let cidadeSelecionada = null;
+
+
+
+  filtroMes.addEventListener('change', () => {
+  const mesSelecionado = filtroMes.value; // formato YYYY-MM
+  inputDataFiltro.value = ''; // limpa o filtro por dia
+  filtrarEmprestimosPorMes(mesSelecionado);
+});
+
+
+function filtrarEmprestimosPorMes(mesAno) {
+  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
+
+  resultadoFiltrado.innerHTML = '';
+
+  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
+    if (!emp.datasVencimentos) return false;
+    return emp.datasVencimentos.some(d => getMesAnoFromDate(d) === mesAno);
+  });
+
+  if (emprestimosFiltrados.length === 0) {
+    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
+    atualizarTotaisResumo(); // zera totais
+    return;
+  }
+
+  // Reutiliza a função original de renderizar a lista
+  renderizarListaEmprestimos(emprestimosFiltrados, mesAno);
+}
+
+
+
+function renderizarListaEmprestimos(emprestimosFiltrados, mesAnoFiltro = null) {
+  resultadoFiltrado.innerHTML = '';
+
+  emprestimosFiltrados.forEach(emp => {
+    const li = document.createElement('li');
+    li.className = 'emprestimo-item';
+
+    const parcelas = (emp.datasVencimentos || [])
+      .map((data, i) => {
+        const diasAtraso = calcularDiasAtrasoDataOnly(data);
+        const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
+        const valorJuros = emp.valorComJuros - emp.valorOriginal;
+        const valorMinimo = valorJuros + multa;
+
+        return {
+          data,
+          pago: emp.statusParcelas?.[i] || false,
+          indice: i,
+          valorJuros,
+          multa,
+          valorMinimo
+        };
+      })
+      .filter(p => {
+        if (inputDataFiltro.value) {
+          return normalizarData(p.data) === inputDataFiltro.value;
+        } else if (mesAnoFiltro) {
+          return getMesAnoFromDate(p.data) === mesAnoFiltro;
+        } else {
+          return true;
+        }
+      });
+
+    // Renderiza HTML das parcelas (mesma lógica que você já tem)
+    let htmlParcelas = '';
+    parcelas.forEach(p => {
+      if (p.pago) {
+        htmlParcelas += `<div class="parcela-linha paga"> ... </div>`;
+      } else {
+        htmlParcelas += `<div class="parcela-linha pendente"> ... </div>`;
+      }
+    });
+
+    li.innerHTML = `
+      <div class="emprestimo-header" data-id="${emp.id}">
+        <h3>${emp.nome}</h3>
+        <div class="emprestimo-total">
+          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
+        </div>
+      </div>
+      <div class="parcelas-container">
+        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+      </div>
+    `;
+
+    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
+    resultadoFiltrado.appendChild(li);
+  });
+
+  atualizarTotaisResumo();
+}
+
 
   // Carrega os empréstimos por cidade
   async function carregarEmprestimosPorCidade() {
@@ -1173,136 +1276,37 @@ function eVencimentoHoje(dataVencimento) {
   }
 }
 
-function filtrarEmprestimos(dataFiltro) {
-  const resultadoFiltrado = document.getElementById('resultadoFiltrado');
-  resultadoFiltrado.innerHTML = '';
 
-  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
 
-  // Se não houver data de filtro específica, filtra pelo mês atual
-  const filtrarPorMesAtual = !dataFiltro;
-  const mesAnoAtual = filtrarPorMesAtual ? getMesAnoAtual() : null;
+function atualizarTotaisResumo(parcelasFiltradas = []) {
+  let totalRecebido = 0;
+  let totalPrevisto = 0;
 
-  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
-    if (!emp.datasVencimentos) return false;
-    
-    // Se tem data de filtro específica, filtra por ela
-    if (dataFiltro) {
-      return emp.datasVencimentos.some(d => normalizarData(d) === dataFiltro);
-    }
-    
-    // Caso contrário, filtra pelo mês atual
-    return emp.datasVencimentos.some(d => getMesAnoFromDate(d) === mesAnoAtual);
+  parcelasFiltradas.forEach(p => {
+    totalPrevisto += p.valorMinimo;
+    if (p.pago && p.valorRecebido) totalRecebido += p.valorRecebido;
   });
 
-  if (emprestimosFiltrados.length === 0) {
-    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
-    return;
-  }
-
-  emprestimosFiltrados.forEach(emp => {
-    const li = document.createElement('li');
-    li.className = 'emprestimo-item';
-
-    // Filtra as parcelas - se tem dataFiltro específica, usa ela, senão filtra pelo mês atual
-    const parcelas = (emp.datasVencimentos || [])
-      .map((data, i) => {
-        const diasAtraso = calcularDiasAtrasoDataOnly(data);
-        const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
-        const valorJuros = emp.valorComJuros - emp.valorOriginal;
-        const valorMinimo = valorJuros + multa;
-
-        return {
-          data,
-          pago: emp.statusParcelas?.[i] || false,
-          indice: i,
-          valorJuros,
-          multa,
-          valorMinimo
-        };
-      })
-      .filter(p => {
-        if (dataFiltro) {
-          return normalizarData(p.data) === dataFiltro;
-        } else {
-          return getMesAnoFromDate(p.data) === mesAnoAtual;
-        }
-      });
-
-    let htmlParcelas = '';
-    parcelas.forEach(p => {
-      const dataFormatada = toBR(p.data);
-
-        htmlParcelas += `
-          <div class="parcela-linha 
-            ${p.pago ? 'paga' : ''} 
-            ${!p.pago && p.multa > 0 ? 'atrasada' : ''}
-            ${!p.pago && p.multa === 0 && eVencimentoHoje(p.data) ? 'vencendo-hoje' : ''}
-            ${!p.pago && p.multa === 0 && !eVencimentoHoje(p.data) ? 'pendente' : ''}">
-            <div class="parcela-info">
-              <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-              <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
-              ${p.multa > 0 ? `
-                <span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
-                <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>
-              ` : ''}
-            </div>
-            <label class="parcela-checkbox">
-              <input 
-                type="checkbox" 
-                ${p.pago ? 'checked disabled' : ''}
-                data-id="${emp.id}" 
-                data-indice="${p.indice}"
-                data-valor="${p.valorMinimo}"
-                class="${p.pago ? 'parcela-paga' : 'parcela-pendente'}"
-              />
-              <span class="checkmark"></span>
-              ${p.pago ? '<span class="pago-label">PAGO</span>' : '<span class="pagar-label">MARCAR</span>'}
-            </label>
-          </div>`;
-      });
-
-    li.innerHTML = `
-      <div class="emprestimo-header" data-id="${emp.id}">
-        <h3>${emp.nome}</h3>
-        <div class="emprestimo-total">
-          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
-        </div>
-      </div>
-      <div class="parcelas-container">
-        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
-      </div>
-    `;
-
-    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
-
-    li.querySelectorAll('input.parcela-pendente').forEach(chk => {
-      chk.addEventListener('change', function() {
-        if (this.checked) {
-          const indice = parseInt(this.dataset.indice, 10);
-          const valorMinimo = calcularValorMinimoParcela(emp, indice);
-
-          parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
-
-          document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          });
-
-          mostrarModalRecebedor();
-        }
-      });
-    });
-
-    resultadoFiltrado.appendChild(li);
-  });
+  const totaisContainer = document.getElementById('totaisResumo');
+  totaisContainer.innerHTML = `
+    <div class="totais-card recebido">
+      <span class="titulo">Total Recebido</span>
+      <span class="valor">${formatarMoeda(totalRecebido)}</span>
+    </div>
+    <div class="totais-card previsto">
+      <span class="titulo">Total Previsto</span>
+      <span class="valor">${formatarMoeda(totalPrevisto)}</span>
+    </div>
+  `;
 }
+
 
 // Funções auxiliares adicionais necessárias
 function getMesAnoAtual() {
   const hoje = new Date();
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 }
+
 
 function getMesAnoFromDate(dateString) {
   const date = new Date(dateString);
@@ -1333,23 +1337,369 @@ function calcularValorMinimoParcela(emprestimo, indiceParcela) {
       mostrarEmprestimosCidade(cidade);
     });
   });
-  
-  btnFiltrarData.addEventListener('click', () => {
-    filtrarEmprestimos(inputDataFiltro.value);
+
+function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
+  resultadoFiltrado.innerHTML = '';
+
+  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
+
+  const mesAnoAtual = (!dataFiltro && !mesFiltro) ? getMesAnoAtual() : mesFiltro;
+
+  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
+    if (!emp.datasVencimentos) return false;
+
+    if (dataFiltro) {
+      return emp.datasVencimentos.some(d => normalizarData(d) === dataFiltro);
+    } else {
+      return emp.datasVencimentos.some(d => getMesAnoFromDate(d) === mesAnoAtual);
+    }
   });
+
+  if (emprestimosFiltrados.length === 0) {
+    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
+    atualizarTotaisResumo([]); // passa array vazio para zerar totais
+    return;
+  }
+
+  // Array que vai acumular apenas as parcelas filtradas, para cálculo de totais
+  let parcelasParaTotais = [];
+
+  emprestimosFiltrados.forEach((emp, i) => {
+    const li = document.createElement('li');
+    li.className = 'emprestimo-item';
+
+    // Filtra parcelas conforme dia ou mês e status
+    const parcelas = (emp.datasVencimentos || []).map((data, i) => {
+      const diasAtraso = calcularDiasAtrasoDataOnly(data);
+      const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
+      const valorJuros = emp.valorComJuros - emp.valorOriginal;
+      const valorMinimo = valorJuros + multa;
+
+      return {
+        data,
+        pago: emp.statusParcelas?.[i] || false,
+        indice: i,
+        valorJuros,
+        multa,
+        valorMinimo,
+        valorRecebido: emp.valoresRecebidos?.[i] || 0
+      };
+    }).filter(p => {
+      // Filtro por dia
+      if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
+
+      // Filtro por mês
+      if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
+
+      // Filtro por status (bolinhas)
+      if (filtroStatus) {
+        switch (filtroStatus) {
+          case 'pago':
+            if (!p.pago) return false;
+            break;
+          case 'em-dia':
+            if (p.pago || p.multa > 0 || eVencimentoHoje(p.data)) return false;
+            break;
+          case 'vencendo-hoje':
+            if (p.pago || !eVencimentoHoje(p.data)) return false;
+            break;
+          case 'atrasado':
+            if (p.pago || p.multa === 0) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+
+    // Se não houver nenhuma parcela correspondente, não renderiza o empréstimo
+    if (parcelas.length === 0) return;
+
+    // Acumula para cálculo de totais
+    parcelasParaTotais.push(...parcelas);
+
+    // Renderiza HTML das parcelas (mantendo sua lógica original)
+    let htmlParcelas = '';
+    parcelas.forEach(p => {
+      const dataFormatada = toBR(p.data);
+
+      if (p.pago) {
+        htmlParcelas += `
+          <div class="parcela-linha paga">
+            <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+            <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong> | <span style="color: #074e07; font-weight: bold;">PAGO</span></span>
+          </div>
+        `;
+      } else {
+        htmlParcelas += `
+          <div class="parcela-linha 
+            ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
+            <div class="parcela-info">
+              <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+              <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
+              ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
+              <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>` : ''}
+            </div>
+            <label class="parcela-checkbox">
+              <input 
+                type="checkbox"
+                data-id="${emp.id}" 
+                data-indice="${p.indice}"
+                data-valor="${p.valorMinimo}"
+                class="parcela-pendente"
+              />
+              <span class="checkmark"></span>
+              <span class="pagar-label">MARCAR</span>
+            </label>
+          </div>`;
+      }
+    });
+
+    li.innerHTML = `
+      <div class="emprestimo-header" data-id="${emp.id}">
+        <h3>${emp.nome}</h3>
+        <div class="emprestimo-total">
+          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
+        </div>
+      </div>
+      <div class="parcelas-container">
+        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+      </div>
+    `;
+
+    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
+
+    // Checkbox
+    li.querySelectorAll('input.parcela-pendente').forEach(chk => {
+      chk.addEventListener('change', async function() {
+        if (this.checked) {
+          const indice = parseInt(this.dataset.indice, 10);
+          const valorMinimo = calcularValorMinimoParcela(emp, indice);
+
+          parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
+
+          document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          });
+
+          mostrarModalRecebedor();
+
+          const ok = await marcarParcelaComoPaga(emp.id, indice, valorMinimo, "Recebedor");
+          if (ok) {
+            filtrarEmprestimos({ dataFiltro, mesFiltro }); // re-renderiza a lista e totais
+          }
+        }
+      });
+    });
+
+    resultadoFiltrado.appendChild(li);
+          // Adiciona classe "mostrar" com delay mínimo para disparar a transição
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, i * 25);
+  });
+
+  // Atualiza totais apenas com parcelas filtradas
+  atualizarTotaisResumo(parcelasParaTotais);
+}
+
+
+const bolinhasLegenda = document.querySelectorAll('.bolinha-legenda');
+let filtroStatus = null;
+
+bolinhasLegenda.forEach(bolinha => {
+  bolinha.addEventListener('click', () => {
+    const status = bolinha.dataset.status;
+
+    if (filtroStatus === status) {
+      // Desativa o filtro
+      filtroStatus = null;
+      bolinhasLegenda.forEach(b => b.classList.remove('selecionada'));
+    } else {
+      // Ativa o filtro
+      filtroStatus = status;
+      bolinhasLegenda.forEach(b => b.classList.remove('selecionada'));
+      bolinha.classList.add('selecionada');
+    }
+
+    // Refiltra a lista
+    filtrarEmprestimos({
+      dataFiltro: inputDataFiltro.value,
+      mesFiltro: filtroMes.value
+    });
+  });
+});
+
+
   
+
+
+
+
+
+
+  
+btnFiltrarData.addEventListener('click', () => {
+  filtrarEmprestimos({ dataFiltro: inputDataFiltro.value });
+});
+
+filtroMes.addEventListener('change', () => {
+  filtrarEmprestimos({ mesFiltro: filtroMes.value });
+  inputDataFiltro.value = ''; // limpa o filtro por dia
+});
+
+
 btnHojeFiltro.addEventListener('click', () => {
-  const hoje = hojeLocalISO();     // <-- usa helper novo
+  const hoje = hojeLocalISO();
   inputDataFiltro.value = hoje;
-  filtrarEmprestimos(hoje);
+  filtroMes.value = '';
+  filtrarEmprestimos({ dataFiltro: hoje });
+});
+  
+btnLimparFiltro.addEventListener('click', () => {
+  inputDataFiltro.value = '';
+  filtroMes.value = '';
+  
+  // Limpa filtro das bolinhas
+  filtroStatus = null;
+  document.querySelectorAll('.bolinha-legenda').forEach(b => b.classList.remove('selecionada', 'ativa'));
+  
+  // Refiltra a lista
+  filtrarEmprestimos();
 });
 
   
-  btnLimparFiltro.addEventListener('click', () => {
-    inputDataFiltro.value = '';
-    filtrarEmprestimos('');
-  });
-  
   // Carrega os dados inicialmente
   carregarEmprestimosPorCidade();
+
+
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // --- Cabeçalho ---
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Relatório de Empréstimos - ${cidadeSelecionada}`, 14, 20);
+
+  // Linha separadora mais espessa para o cabeçalho
+  doc.setLineWidth(0.8);
+  doc.line(14, 22, 196, 22);
+
+  // --- Totais ---
+  const totaisTexto = document.getElementById('totaisResumo').innerText.split("\n");
+
+  // Total Recebido
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 128, 0); // verde
+  doc.text(`Total Recebido: ${totaisTexto[1]}`, 14, 32);
+
+  // Total Previsto
+  doc.setTextColor(0, 0, 128); // azul
+  doc.text(`Total Previsto: ${totaisTexto[3]}`, 14, 40);
+
+  // Linha separadora antes da tabela
+  doc.setLineWidth(0.3);
+  doc.line(14, 42, 196, 42);
+  doc.setTextColor(0, 0, 0);
+
+  // Monta os dados da tabela
+  const rows = [];
+  const itens = document.querySelectorAll('#resultadoFiltrado .emprestimo-item');
+
+  itens.forEach(item => {
+    const nome = item.querySelector('.emprestimo-header h3')?.innerText || '';
+    
+    const parcelas = item.querySelectorAll('.parcelas-container .parcela-linha');
+
+      parcelas.forEach(parcela => {
+        const parcelaTexto = parcela.querySelector('.parcela-data')?.innerText || '';
+        const valorCompleto = parcela.querySelector('.parcela-valor')?.innerText || '';
+        const valor = valorCompleto.split('|')[0].trim(); // <-- Aqui está a modificação
+        
+        const parcelaNumMatch = parcelaTexto.match(/Parcela (\d+)/);
+        const parcelaNum = parcelaNumMatch ? parcelaNumMatch[1] : '';
+
+        let dia = '';
+        const dataMatch = parcelaTexto.match(/\d{2}\/\d{2}\/\d{4}/);
+        if (dataMatch) dia = dataMatch[0].split('/')[0];
+
+        let statusFinal = '';
+        if (parcela.classList.contains('paga')) {
+          statusFinal = 'PAGO';
+        } else if (parcela.classList.contains('vencendo-hoje')) {
+          statusFinal = 'VENCE HOJE';
+        } else if (parcela.classList.contains('atrasada')) {
+          const multa = parcela.querySelector('.parcela-multa')?.innerText || '';
+          const dias = parcela.querySelector('.parcela-atraso')?.innerText || '';
+          statusFinal = `ATRASADO (${multa} ${dias})`;
+        } else {
+          statusFinal = 'A RECEBER';
+        }
+
+        rows.push([dia, parcelaNum, nome, valor, statusFinal]);
+      });
+  });
+
+  // Cria a tabela com melhor visualização
+ // Substitua a parte do autoTable por esta versão corrigida:
+doc.autoTable({
+    head: [['Dia', 'Parcela', 'Cliente', 'Valor (R$)', 'Status']],
+    body: rows,
+    startY: 45,
+    styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        overflow: 'linebreak',
+        lineColor: [200, 200, 200],
+        lineWidth: 0.2,
+    },
+    headStyles: {
+        fillColor: [220, 220, 220],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        lineWidth: 0.3
+    },
+    alternateRowStyles: {
+        fillColor: [245, 245, 245]
+    },
+    columnStyles: {
+        0: { cellWidth: 10, halign: 'center' },
+        1: { cellWidth: 15, halign: 'center' },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 60 }
+    },
+    didParseCell: function(data) {
+        // Verifica se não é a primeira linha e se há mudança de cliente
+        if (data.section === 'body' && data.row.index > 0 && 
+            data.previousRow && data.row.cells[2].raw !== data.previousRow.cells[2].raw) {
+            data.row.styles.lineWidth = 0.5;
+        }
+    },
+    willDrawCell: function(data) {
+        // Alternativa que também funciona para destacar mudanças de cliente
+        if (data.section === 'body' && data.column.index === 0) {
+            if (data.row.index > 0 && data.cell.raw !== data.table.body[data.row.index-1][2]) {
+                doc.setLineWidth(0.5);
+                doc.line(data.cell.x, data.cell.y, data.cell.x + data.cell.width, data.cell.y);
+                doc.setLineWidth(0.2);
+            }
+        }
+    }
 });
+  doc.save(`relatorio_${cidadeSelecionada}.pdf`);
+});
+
+
+
+  });
+
+
+
+
+
+
+

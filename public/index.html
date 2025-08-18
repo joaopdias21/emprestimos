@@ -215,36 +215,47 @@
           <div class="campo-busca">
             <div class="botoes-filtro-container">
               <input type="date" id="inputDataFiltro" class="input-filtro" />
+              <label for="filtroMes">Filtrar por mês:</label>
+              <input type="month" id="filtroMes">
               <button type="button" id="btnFiltrarData" class="botao-filtro">Filtrar</button>
               <button type="button" id="btnHojeFiltro" class="botao-filtro">Hoje</button>
               <button type="button" id="btnLimparFiltro" class="botao-filtro">Limpar Filtros</button>
             </div>
           </div>
           <br>
+
+          <div id="totaisResumo" style="margin-top: 15px; font-weight: bold;">
+            Total Recebido: R$ 0,00 | Total Previsto: R$ 0,00
+          </div>
+
+          <br>
+
           <!-- Adicione esta div da legenda -->
           <div class="legenda-status">
-
             <div class="item-legenda">
-              <span class="bolinha-legenda verde"></span>
+              <span class="bolinha-legenda verde" data-status="pago"></span>
               <span>Parcela paga</span>
             </div>
-
-              <div class="item-legenda">
-              <span class="bolinha-legenda azul"></span>
+            <div class="item-legenda">
+              <span class="bolinha-legenda azul" data-status="em-dia"></span>
               <span>Em dia</span>
             </div>
             <div class="item-legenda">
-              <span class="bolinha-legenda laranja"></span>
+              <span class="bolinha-legenda laranja" data-status="vencendo-hoje"></span>
               <span>Vencendo hoje</span>
             </div>
             <div class="item-legenda">
-              <span class="bolinha-legenda vermelho"></span>
+              <span class="bolinha-legenda vermelho" data-status="atrasado"></span>
               <span>Atrasado</span>
             </div>
           </div>
+
           <br>
 
           <ul id="resultadoFiltrado"></ul>
+<div style="margin-top: 20px; text-align: right;">
+  <button id="btnExportarPDF" class="btn-pdf">📄 Gerar Relatório PDF</button>
+</div>
         </div>
 
 
@@ -354,7 +365,11 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script type="module" src="./main.js"></script>
