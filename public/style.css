@@ -1781,45 +1781,71 @@ input[type="date"] {
 
 
 .cards-cidades-container {
-    display: flex;
-    gap: 20px;
-    margin: 20px 0;
-    flex-wrap: wrap;
-  }
-  
+  display: flex;
+  gap: 15px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+  justify-content: flex-start; /* centraliza */
+}
+
+.card-cidade {
+  flex: 1;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid #e0e0e0;
+}
+
+
+
+
+.card-cidade:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  border-color: #4285f4;
+}
+
+.card-cidade h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.info-card {
+  font-size: 14px;
+  color: #666;
+}
+
+.qtd-emprestimos {
+  font-weight: bold;
+  color: #4285f4;
+  font-size: 18px;
+}
+
+/* Tablet */
+@media (max-width: 768px) {
   .card-cidade {
-    flex: 1;
-    min-width: 200px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    padding: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    border: 2px solid #e0e0e0;
+    flex: 0 0 45%;   /* dois por linha */
+    min-width: unset; /* remove limite de 200px */
+    aspect-ratio: 1/1;
+    padding: 15px;
   }
-  
-  .card-cidade:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    border-color: #4285f4;
+}
+
+/* Mobile pequeno (até 430px) */
+@media (max-width: 430px) {
+  .card-cidade {
+    flex: 0 0 48%;   /* ajusta melhor pros 430px */
+    min-width: unset; /* garante que não force quebra */
+    aspect-ratio: 1/1;
+    padding: 12px;
   }
-  
-  .card-cidade h3 {
-    margin-top: 0;
-    color: #333;
-  }
-  
-  .info-card {
-    font-size: 14px;
-    color: #666;
-  }
-  
-  .qtd-emprestimos {
-    font-weight: bold;
-    color: #4285f4;
-    font-size: 18px;
-  }
+}
+
+
 
 
   /* Estilos para a lista de empréstimos */

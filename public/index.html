@@ -64,7 +64,7 @@
 
   <main class="main-container">
 
-  <div class="separador separadorCadastro">
+  <div class="separador ">
     <span>Cadastro</span>
   </div>
 
@@ -109,81 +109,13 @@
 
     <br /><br />
 
-    <div class="separador separadorPesquisas">
-      <span id="pesquisasLinha">Pesquisas</span>
+
+    <div class="separador separadorMensais">
+      <span id="pesquisasLinha">Mensais</span>
     </div>
 
     <br /><br />
-    <div class="admin-panel">
-      <!-- NOVO CONTAINER VERTICAL PARA OS PAINÉIS DE BUSCA -->
-      <div class="painel-de-buscas">
-        <div class="form-column" id="buscarEmprestimos">
-          <h2>Pesquisar Empréstimos Ativos</h2>
-          <div class="campo-busca">
-            <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
-            <button type="button" id="btnConsultarAtivos">Consultar</button>
-          </div>
-          <ul id="resultado"></ul>
-        </div>
 
-        <div class="form-column" id="buscarQuitados">
-          <h2>Pesquisar Empréstimos Quitados</h2>
-          <div class="campo-busca">
-            <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
-            <button type="button" id="btnConsultarQuitados">Consultar</button>
-          </div>
-          <ul id="resultadoQuitados"></ul>
-        </div>
-
-        <!-- NOVA SEÇÃO: EMPRÉSTIMOS ATRASADOS -->
-        <div class="form-column" id="buscarInadimplentes">
-          <h2>Pesquisar Empréstimos Atrasados</h2>
-          <div class="campo-busca">
-            <button type="button" id="btnConsultarAtrasados">Consultar</button>
-          </div>
-          <ul id="resultadoAtrasados"></ul>
-        </div>
-
-        <div class="separador separadorDataDeVencimento">
-          <span>Datas de Vencimento</span>
-        </div>
-
-
-<div class="form-column" id="emprestimosPorDataDia">
-  <h2>Vencimentos do dia</h2>
-  <div class="duas-colunas">
-    <div id="containerAtrasados">
-      <h3>Empréstimos Atrasados</h3>
-      <ul class="lista-vencidos"></ul>
-    </div>
-    <div id="containerVencendoHoje">
-      <h3>Vencendo Hoje</h3>
-      <ul class="lista-vencidos"></ul>
-    </div>
-  </div>
-</div>
-
-
-
-
-        <div class="form-column" id="emprestimosPorData">
-          <h2>Empréstimos por Data de Vencimento</h2>
-          <p><strong>Selecione uma data abaixo</strong></p>
-
-          <br>
-          <div id="resultadoVencimento" class="lista-vencidos"></div>
-          <div class="campo-busca" id="responsividadetresbotoes">
-            
-            <input type="date" id="inputDataVencimento" />
-            <button type="button" id="btnBuscarPorData">Buscar</button>
-            <button id="btnHoje">Buscar pela data de hoje</button>
-            <button type="button" id="btnLimparData">Limpar Resultados</button>
-          </div>
-          <ul id="resultadoPorData"></ul>
-        </div>
-      </div>
-        <br>
-        <br>
 
         <div class="cards-cidades-container">
           <div class="card-cidade" data-cidade="Cotia">
@@ -254,12 +186,105 @@
 
           <ul id="resultadoFiltrado"></ul>
 <div style="margin-top: 20px; text-align: right;">
-  <button id="btnExportarPDF" class="btn-pdf">📄 Gerar Relatório PDF</button>
+  <button id="btnExportarPDFLista" class="btn-pdf">📄 Gerar Relatório PDF</button>
+          <br>
+          <br>
+
+    <button id="btnEnviarCobranca" class="btn-cobranca" style="display:none;">
+    💬 Enviar Mensagem de Cobrança
+  </button>
 </div>
+
+
+
+
+
         </div>
 
 
-      <div class="separador separadorGraficos">
+
+    <br /><br />
+
+
+    <div class="separador ">
+      <span id="pesquisasLinha">Pesquisas</span>
+    </div>
+
+    <br /><br />
+    <div class="admin-panel">
+      <!-- NOVO CONTAINER VERTICAL PARA OS PAINÉIS DE BUSCA -->
+      <div class="painel-de-buscas">
+        <div class="form-column" id="buscarEmprestimos">
+          <h2>Pesquisar Empréstimos Ativos</h2>
+          <div class="campo-busca">
+            <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
+            <button type="button" id="btnConsultarAtivos">Consultar</button>
+          </div>
+          <ul id="resultado"></ul>
+        </div>
+
+        <div class="form-column" id="buscarQuitados">
+          <h2>Pesquisar Empréstimos Quitados</h2>
+          <div class="campo-busca">
+            <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
+            <button type="button" id="btnConsultarQuitados">Consultar</button>
+          </div>
+          <ul id="resultadoQuitados"></ul>
+        </div>
+
+        <!-- NOVA SEÇÃO: EMPRÉSTIMOS ATRASADOS -->
+        <div class="form-column" id="buscarInadimplentes">
+          <h2>Pesquisar Empréstimos Atrasados</h2>
+          <div class="campo-busca">
+            <button type="button" id="btnConsultarAtrasados">Consultar</button>
+          </div>
+          <ul id="resultadoAtrasados"></ul>
+        </div>
+
+        <div class="separador ">
+          <span>Vencimentos</span>
+        </div>
+
+
+<div class="form-column" id="emprestimosPorDataDia">
+  <h2>Vencimentos do dia</h2>
+  <div class="duas-colunas">
+    <div id="containerAtrasados">
+      <h3>Empréstimos Atrasados</h3>
+      <ul class="lista-vencidos"></ul>
+    </div>
+    <div id="containerVencendoHoje">
+      <h3>Vencendo Hoje</h3>
+      <ul class="lista-vencidos"></ul>
+    </div>
+  </div>
+</div>
+
+
+
+
+        <div class="form-column" id="emprestimosPorData">
+          <h2>Empréstimos por Data de Vencimento</h2>
+          <p><strong>Selecione uma data abaixo</strong></p>
+
+          <br>
+          <div id="resultadoVencimento" class="lista-vencidos"></div>
+          <div class="campo-busca" id="responsividadetresbotoes">
+            
+            <input type="date" id="inputDataVencimento" />
+            <button type="button" id="btnBuscarPorData">Buscar</button>
+            <button id="btnHoje">Buscar pela data de hoje</button>
+            <button type="button" id="btnLimparData">Limpar Resultados</button>
+          </div>
+          <ul id="resultadoPorData"></ul>
+        </div>
+      </div>
+        <br>
+        <br>
+
+
+
+      <div class="separador ">
         <span id="dashboardLinha">Grafícos</span>
       </div>
 
