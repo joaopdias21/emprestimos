@@ -1058,11 +1058,23 @@ document.addEventListener('DOMContentLoaded', function() {
   const btnLimparFiltro = document.getElementById('btnLimparFiltro');
   const filtroMes = document.getElementById('filtroMes');
   
-  let emprestimosPorCidade = {
-    'Cotia': [],
-    'Sorocaba': [],
-    'São Roque': []
-  };
+
+  const gruposMensais = {
+  "Mensal 1": ["Cotia", "Itapevi", "Jandira", "São Paulo"],
+  "Mensal 2": ["São Roque", "Alumínio", "Mairinque", "Araçariguama"],
+  "Mensal 3": ["Sorocaba", "Itu", "Tatuí", "Porto Feliz", "Salto de Pirapora", "Boituva"],
+  "Mensal 4": ["Santos", "Guarujá", "São Vicente", "Praia Grande", "Bertioga", "Cubatão", "Mongaguá", "Itanhaém", "Peruíbe"]
+
+};
+
+let emprestimosPorCidade = {};
+let emprestimosPorGrupo = {
+  "Mensal 1": [],
+  "Mensal 2": [],
+  "Mensal 3": [],
+  "Mensal 4": []
+};
+
   let cidadeSelecionada = null;
 
 
@@ -1173,18 +1185,43 @@ function renderizarListaEmprestimos(emprestimosFiltrados, mesAnoFiltro = null) {
       console.log('Dados recebidos:', todosEmprestimos);
       
       // Reinicia os arrays
-      emprestimosPorCidade = {
-        'Cotia': [],
-        'Sorocaba': [],
-        'São Roque': []
+      emprestimosPorCidade = {};
+      emprestimosPorGrupo = {
+        "Mensal 1": [],
+        "Mensal 2": [],
+        "Mensal 3": [],
+        "Mensal 4": []
       };
-      
+
+
       // Organiza por cidade
-      todosEmprestimos.forEach(emp => {
-        if (emp.cidade && emprestimosPorCidade[emp.cidade]) {
-          emprestimosPorCidade[emp.cidade].push(emp);
-        }
-      });
+// Reinicia os arrays
+emprestimosPorCidade = {};
+emprestimosPorGrupo = {
+  "Mensal 1": [],
+  "Mensal 2": [],
+  "Mensal 3": [],
+  "Mensal 4": []
+};
+
+// Organiza por cidade e grupo
+todosEmprestimos.forEach(emp => {
+  if (emp.cidade) {
+    // Guarda por cidade
+    if (!emprestimosPorCidade[emp.cidade]) {
+      emprestimosPorCidade[emp.cidade] = [];
+    }
+    emprestimosPorCidade[emp.cidade].push(emp);
+
+    // Descobre a qual grupo pertence
+    for (let grupo in gruposMensais) {
+      if (gruposMensais[grupo].includes(emp.cidade)) {
+        emprestimosPorGrupo[grupo].push(emp);
+      }
+    }
+  }
+});
+
       
       console.log('Empréstimos por cidade:', emprestimosPorCidade);
       atualizarContadoresCards();
@@ -1196,25 +1233,25 @@ function renderizarListaEmprestimos(emprestimosFiltrados, mesAnoFiltro = null) {
   }
   
   // Atualiza os contadores nos cards
-  function atualizarContadoresCards() {
-    cardsCidades.forEach(card => {
-      const cidade = card.dataset.cidade;
-      const qtdSpan = card.querySelector('.qtd-emprestimos');
-      qtdSpan.textContent = emprestimosPorCidade[cidade]?.length || 0;
-    });
-  }
+function atualizarContadoresCards() {
+  cardsCidades.forEach(card => {
+    const grupo = card.dataset.grupo;
+    const qtdSpan = card.querySelector('.qtd-emprestimos');
+    qtdSpan.textContent = emprestimosPorGrupo[grupo]?.length || 0;
+  });
+}
+
   
   // Mostra a lista de empréstimos para uma cidade
-  function mostrarEmprestimosCidade(cidade) {
-    console.log(`Mostrando empréstimos para ${cidade}`);
-    cidadeSelecionada = cidade;
-    nomeCidadeSpan.textContent = cidade;
-    listaEmprestimosDiv.style.display = 'block';
-    
-    // Filtra por data se houver
-    const dataFiltro = inputDataFiltro.value;
-    filtrarEmprestimos(dataFiltro);
-  }
+function mostrarEmprestimosGrupo(grupo) {
+  console.log(`Mostrando empréstimos para ${grupo}`);
+  cidadeSelecionada = grupo; // agora usamos o nome do grupo
+  nomeCidadeSpan.textContent = grupo;
+  listaEmprestimosDiv.style.display = 'block';
+
+  const dataFiltro = inputDataFiltro.value;
+  filtrarEmprestimos({ dataFiltro, mesFiltro: filtroMes.value });
+}
 
 async function marcarParcelaComoPaga(emprestimoId, indiceParcela, valorRecebido, nomeRecebedor) {
   try {
@@ -1331,23 +1368,48 @@ function calcularValorMinimoParcela(emprestimo, indiceParcela) {
   return valorJurosTotal + multa;
 }
   // Event listeners
-  cardsCidades.forEach(card => {
-    card.addEventListener('click', () => {
-      const cidade = card.dataset.cidade;
-      mostrarEmprestimosCidade(cidade);
-    });
+cardsCidades.forEach(card => {
+  card.addEventListener('click', () => {
+    const grupo = card.dataset.grupo;
+    mostrarEmprestimosGrupo(grupo);
   });
+});
+
 
 let parcelasFiltradas = []; // variável global para usar no PDF
 
 function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
   resultadoFiltrado.innerHTML = '';
 
-  if (!cidadeSelecionada || !emprestimosPorCidade[cidadeSelecionada]) return;
+  if (!cidadeSelecionada) return;
+
+  let emprestimosBase = [];
+
+  // 🔹 Elemento para exibir as cidades do grupo
+  const cidadesDoGrupoEl = document.getElementById('cidadesDoGrupo');
+  if (cidadesDoGrupoEl) cidadesDoGrupoEl.textContent = "";
+
+  // 🔹 Verifica se é grupo ou cidade
+  if (emprestimosPorGrupo[cidadeSelecionada]) {
+    emprestimosBase = emprestimosPorGrupo[cidadeSelecionada];
+
+    // 👉 Monta a lista de cidades do grupo
+    if (cidadesDoGrupoEl) {
+      const cidadesDoGrupo = emprestimosBase.map(emp => emp.cidade);
+      const cidadesUnicas = [...new Set(cidadesDoGrupo)];
+      cidadesDoGrupoEl.textContent = "Cidades: " + cidadesUnicas.join(", ");
+    }
+  } else if (emprestimosPorCidade[cidadeSelecionada]) {
+    emprestimosBase = emprestimosPorCidade[cidadeSelecionada];
+    if (cidadesDoGrupoEl) cidadesDoGrupoEl.textContent = ""; // limpa se não for grupo
+  } else {
+    return;
+  }
 
   const mesAnoAtual = (!dataFiltro && !mesFiltro) ? getMesAnoAtual() : mesFiltro;
 
-  const emprestimosFiltrados = emprestimosPorCidade[cidadeSelecionada].filter(emp => {
+  // 🔹 Filtra empréstimos que tenham parcelas dentro do filtro de data
+  const emprestimosFiltrados = emprestimosBase.filter(emp => {
     if (!emp.datasVencimentos) return false;
     if (dataFiltro) {
       return emp.datasVencimentos.some(d => normalizarData(d) === dataFiltro);
@@ -1358,42 +1420,38 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
   if (emprestimosFiltrados.length === 0) {
     resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
-    atualizarTotaisResumo([]); // passa array vazio para zerar totais
-    parcelasFiltradas = []; // limpa a lista global
+    atualizarTotaisResumo([]); 
+    parcelasFiltradas = [];
     return;
   }
 
-  // Limpa a lista global antes de acumular
-  parcelasFiltradas = [];
+  parcelasFiltradas = []; // limpa a lista global
 
   emprestimosFiltrados.forEach((emp, i) => {
     const li = document.createElement('li');
     li.className = 'emprestimo-item';
 
-    const parcelas = (emp.datasVencimentos || []).map((data, i) => {
+    // 🔹 Monta as parcelas desse empréstimo
+    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
       const diasAtraso = calcularDiasAtrasoDataOnly(data);
-      const multa = diasAtraso > 0 && !emp.statusParcelas?.[i] ? diasAtraso * 20 : 0;
+      const pago = emp.statusParcelas?.[idx] || false;
+      const multa = diasAtraso > 0 && !pago ? diasAtraso * 20 : 0;
       const valorJuros = emp.valorComJuros - emp.valorOriginal;
       const valorMinimo = valorJuros + multa;
 
       return {
         data,
-        pago: emp.statusParcelas?.[i] || false,
-        indice: i,
+        pago,
+        indice: idx,
         valorJuros,
         multa,
         valorMinimo,
-        valorRecebido: emp.valoresRecebidos?.[i] || 0,
-        emprestimoNome: emp.nome, // adiciona o nome do cliente para o PDF
+        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
+        emprestimoNome: emp.nome,
         telefone: emp.telefone
       };
     }).filter(p => {
-        const btnCobranca = document.getElementById('btnEnviarCobranca');
-  if (filtroStatus === 'vencendo-hoje' || filtroStatus === 'atrasado') {
-    btnCobranca.style.display = 'inline-block';
-  } else {
-    btnCobranca.style.display = 'none';
-  }
+      // 🔹 Aplica filtros adicionais
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
       if (filtroStatus) {
@@ -1409,70 +1467,66 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
     if (parcelas.length === 0) return;
 
-    // Acumula parcelas visíveis na variável global
     parcelasFiltradas.push(...parcelas);
 
-    // Renderiza HTML das parcelas
-  let htmlParcelas = '';
-  parcelas.forEach(p => {
-    const dataFormatada = toBR(p.data);
-    const telefoneHTML = (filtroStatus === 'vencendo-hoje' || filtroStatus === 'atrasado') 
-      ? `<div class="parcela-telefone">Telefone: ${p.telefone}</div>` 
-      : '';
+    // 🔹 Renderiza HTML
+    let htmlParcelas = '';
+    parcelas.forEach(p => {
+      const dataFormatada = toBR(p.data);
+      const telefoneHTML = (filtroStatus === 'vencendo-hoje' || filtroStatus === 'atrasado') 
+        ? `<div class="parcela-telefone">Telefone: ${p.telefone}</div>` 
+        : '';
 
-    if (p.pago) {
-      htmlParcelas += `
-        <div class="parcela-linha paga">
-          <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-          <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong> | <span style="color: #074e07; font-weight: bold;">PAGO</span></span>
-          ${telefoneHTML}
-        </div>
-      `;
-    } else {
-      htmlParcelas += `
-        <div class="parcela-linha ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
-          <div class="parcela-info">
+      if (p.pago) {
+        htmlParcelas += `
+          <div class="parcela-linha paga">
             <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-            <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
-            ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
-            <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>` : ''}
+            <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong> | <span style="color: #074e07; font-weight: bold;">PAGO</span></span>
             ${telefoneHTML}
           </div>
-          <label class="parcela-checkbox">
-            <input 
-              type="checkbox"
-              data-id="${emp.id}" 
-              data-indice="${p.indice}"
-              data-valor="${p.valorMinimo}"
-              class="parcela-pendente"
-            />
-            <span class="checkmark"></span>
-            <span class="pagar-label">MARCAR</span>
-          </label>
+        `;
+      } else {
+        htmlParcelas += `
+          <div class="parcela-linha ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
+            <div class="parcela-info">
+              <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+              <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
+              ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
+              <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>` : ''}
+              ${telefoneHTML}
+            </div>
+            <label class="parcela-checkbox">
+              <input 
+                type="checkbox"
+                data-id="${emp.id}" 
+                data-indice="${p.indice}"
+                data-valor="${p.valorMinimo}"
+                class="parcela-pendente"
+              />
+              <span class="checkmark"></span>
+              <span class="pagar-label">MARCAR</span>
+            </label>
+          </div>
+        `;
+      }
+    });
+
+    li.innerHTML = `
+      <div class="emprestimo-header" data-id="${emp.id}">
+        <h3>${emp.nome}</h3>
+        <div class="emprestimo-total">
+          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
         </div>
-      `;
-    }
-  });
-
-  li.innerHTML = `
-    <div class="emprestimo-header" data-id="${emp.id}">
-      <h3>${emp.nome}</h3>
-      <div class="emprestimo-total">
-        Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
       </div>
-    </div>
-    <div class="parcelas-container">
-      ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
-    </div>
-  `;
+      <div class="parcelas-container">
+        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+      </div>
+    `;
 
-  li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
-  resultadoFiltrado.appendChild(li);
+    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
+    resultadoFiltrado.appendChild(li);
 
-
-
-  
-    // Checkbox
+    // 🔹 Checkbox de marcar parcela
     li.querySelectorAll('input.parcela-pendente').forEach(chk => {
       chk.addEventListener('change', async function() {
         if (this.checked) {
@@ -1490,12 +1544,12 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       });
     });
 
-    resultadoFiltrado.appendChild(li);
     setTimeout(() => li.classList.add('mostrar'), i * 25);
   });
 
-  atualizarTotaisResumo(parcelasFiltradas); // atualiza totais com parcelas filtradas
+  atualizarTotaisResumo(parcelasFiltradas);
 }
+
 
 
 

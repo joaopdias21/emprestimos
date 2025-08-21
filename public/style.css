@@ -2272,3 +2272,11 @@ input[type="date"] {
   color: #222;
 }
 
+.emprestimo-header{
+  /* background-color: #dbe1e7; */
+  background: linear-gradient(90deg, #dbe1e7, #abc8e6);
+
+  border-radius: 10px;
+  
+}
+

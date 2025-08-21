@@ -64,7 +64,7 @@
 
   <main class="main-container">
 
-  <div class="separador ">
+  <div class="separador separadorCadastro">
     <span>Cadastro</span>
   </div>
 
@@ -117,31 +117,41 @@
     <br /><br />
 
 
-        <div class="cards-cidades-container">
-          <div class="card-cidade" data-cidade="Cotia">
-            <h3>Cotia</h3>
-            <div class="info-card">
-              <span class="qtd-emprestimos">0</span> empréstimos
-            </div>
-          </div>
-          
-          <div class="card-cidade" data-cidade="Sorocaba">
-            <h3>Sorocaba</h3>
-            <div class="info-card">
-              <span class="qtd-emprestimos">0</span> empréstimos
-            </div>
-          </div>
-          
-          <div class="card-cidade" data-cidade="São Roque">
-            <h3>São Roque</h3>
-            <div class="info-card">
-              <span class="qtd-emprestimos">0</span> empréstimos
-            </div>
-          </div>
-        </div>
+<div class="cards-cidades-container">
+  <div class="card-cidade" data-grupo="Mensal 1">
+    <h3>Mensal 1</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
 
-        <div id="listaEmprestimosCidade" style="display: none;">
-          <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
+  <div class="card-cidade" data-grupo="Mensal 2">
+    <h3>Mensal 2</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+
+  <div class="card-cidade" data-grupo="Mensal 3">
+    <h3>Mensal 3</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+
+  <div class="card-cidade" data-grupo="Mensal 4">
+    <h3>Mensal 4</h3>
+    <div class="info-card">
+      <span class="qtd-emprestimos">0</span> empréstimos
+    </div>
+  </div>
+</div>
+
+
+          <div id="listaEmprestimosCidade" style="display: none;">
+            <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
+            <p id="cidadesDoGrupo" style="font-style: italic; color: #666;"></p>
+          </div>
           <br>
             <p><strong>Selecione uma data:</strong></p>
           <div class="campo-busca">
@@ -206,7 +216,7 @@
     <br /><br />
 
 
-    <div class="separador ">
+    <div class="separador separadorPesquisas">
       <span id="pesquisasLinha">Pesquisas</span>
     </div>
 
@@ -284,7 +294,7 @@
 
 
 
-      <div class="separador ">
+      <div class="separador separadorGraficos">
         <span id="dashboardLinha">Grafícos</span>
       </div>
 
