@@ -1,203 +1,271 @@
 import { URL_SERVICO } from './config.js';
 import { mostrarAlerta, mostrarAlertaError, formatarMoeda } from './utils.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('emprestimoForm');
+  const tipoParcelamentoRadios = document.querySelectorAll('input[name="tipoParcelamento"]');
+  const campoParcelas = document.getElementById('campo-parcelas');
+  const inputParcelas = document.getElementById('parcelas');
+  const inputValor = document.getElementById('valor');
   const infoValores = document.getElementById('infoValores');
-
-
-  if (!form) {
-    console.error('Formulário não encontrado no DOM');
-    return;
-  }
-
-
-  function formatarInputMoeda(input) {
-  input.addEventListener('input', () => {
-    let valor = input.value.replace(/\D/g, '');
-
-    if (valor.length === 0) {
-      input.value = 'R$ 0,00';
-      return;
-    }
-
-    valor = (parseInt(valor, 10) / 100).toFixed(2) + '';
-    valor = valor.replace('.', ',');
-    valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-
-    input.value = 'R$ ' + valor;
-  });
-
-  input.addEventListener('focus', () => {
-    if (input.value.trim() === '') {
-      input.value = 'R$ 0,00';
-    }
-  });
-
-  input.addEventListener('blur', () => {
-    if (input.value === 'R$ 0,00') {
-      input.value = '';
-    }
-  });
-}
-
-
+  const tabelaParcelas = document.getElementById('tabelaParcelas');
+  
+  // ✅ Cria o input de taxa de juros dinamicamente
   const jurosInput = document.createElement('input');
   jurosInput.type = 'number';
-  jurosInput.id = 'taxaJuros'; // usar mesmo id que você usa para pegar o valor depois
+  jurosInput.id = 'taxaJuros';
   jurosInput.placeholder = 'Porcentagem de juros';
   jurosInput.min = 0;
   jurosInput.max = 100;
   jurosInput.step = 1;
-  jurosInput.value = 20; // valor default 20%
-  form.insertBefore(jurosInput, infoValores);
+  jurosInput.value = 20;
+  jurosInput.style.margin = '10px 0';
+  jurosInput.style.padding = '8px';
+  jurosInput.style.width = '100%';
+  jurosInput.style.boxSizing = 'border-box';
+  
+  // ✅ Insere o input de juros antes do infoValores
+  infoValores.parentNode.insertBefore(jurosInput, infoValores);
 
-  jurosInput.addEventListener('input', atualizarResumoValores);
-  const valorInput = document.getElementById('valor');
-  formatarInputMoeda(valorInput);
-  const parcelasInput = document.getElementById('parcelas');
+  // Função para formatar input de moeda
+  function formatarInputMoeda(input) {
+    input.addEventListener('input', () => {
+      let valor = input.value.replace(/\D/g, '');
 
- // Função para atualizar o resumo e tabela
-  function atualizarResumoValores() {
-    const valorNumerico = parseFloat(valorInput.value.replace(/[^\d]/g, '')) / 100;
-    const qtdParcelas = parseInt(parcelasInput.value);
+      if (valor.length === 0) {
+        input.value = 'R$ 0,00';
+        return;
+      }
 
+      valor = (parseInt(valor, 10) / 100).toFixed(2) + '';
+      valor = valor.replace('.', ',');
+      valor = valor.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+
+      input.value = 'R$ ' + valor;
+    });
+
+    input.addEventListener('focus', () => {
+      if (input.value.trim() === '') {
+        input.value = 'R$ 0,00';
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      if (input.value === 'R$ 0,00') {
+        input.value = '';
+      }
+    });
+  }
+
+  // Formata o input de valor
+  formatarInputMoeda(inputValor);
+
+  // Função para formatar valor monetário
+  function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(valor);
+  }
+
+  // ✅ FUNÇÃO ÚNICA para calcular e exibir as parcelas
+  function calcularParcelas() {
+    // Converte o valor para número
+    const valorEmprestimo = parseFloat(inputValor.value.replace(/[^\d,]/g, '').replace(',', '.'));
+    const tipoSelecionado = document.querySelector('input[name="tipoParcelamento"]:checked').value;
+    const numParcelas = tipoSelecionado === 'parcelado' ? parseInt(inputParcelas.value) : 1;
+    
+    // Pega a taxa de juros do input dinâmico
     let taxaJuros = parseFloat(jurosInput.value);
     if (isNaN(taxaJuros) || taxaJuros === '') {
       taxaJuros = 20; // default
     }
-    taxaJuros = taxaJuros / 100;
 
-    const tabelaParcelas = document.getElementById('tabelaParcelas');
-    tabelaParcelas.innerHTML = '';
-
-    if (isNaN(valorNumerico) || isNaN(qtdParcelas) || qtdParcelas <= 0) {
+    // Limpa a tabela se não houver valor válido
+    if (!valorEmprestimo || isNaN(valorEmprestimo) || valorEmprestimo <= 0) {
       infoValores.innerHTML = '';
+      tabelaParcelas.innerHTML = '';
       return;
     }
 
-    const valorComJuros = valorNumerico * (1 + taxaJuros);
-    const valorParcela = valorComJuros / qtdParcelas;
+    const valorTotalComJuros = valorEmprestimo * (1 + taxaJuros / 100);
+    const valorJuros = valorTotalComJuros - valorEmprestimo;
 
-    // Exibe o resumo
-    infoValores.innerHTML = `
-      <p>Valor original: <strong>${formatarMoeda(valorNumerico)}</strong></p>
-      <p>Valor com juros (${(taxaJuros * 100).toFixed(0)}%): <strong>${formatarMoeda(valorComJuros)}</strong></p>
-      <p>${qtdParcelas}x de <strong>${formatarMoeda(valorParcela)}</strong></p>
-    `;
+    if (tipoSelecionado === 'mes-a-mes') {
+      // Mês a mês: cada parcela é apenas o valor dos juros
+      const valorParcela = valorJuros;
+      
+      infoValores.innerHTML = `
+        <div class="info-valor">
+          <strong>Valor do empréstimo:</strong> ${formatarMoeda(valorEmprestimo)}<br>
+          <strong>Juros (${taxaJuros}%):</strong> ${formatarMoeda(valorJuros)}<br>
+          <strong>Valor total:</strong> ${formatarMoeda(valorTotalComJuros)}<br>
+          <strong>Parcelas:</strong> 1x de ${formatarMoeda(valorParcela)} (apenas juros)
+        </div>
+      `;
 
-    // Cria a tabela com datas
-    const hoje = new Date();
-
-    let tabelaHTML = `
-      <table class="tabela-parcelas">
-        <thead>
+      tabelaParcelas.innerHTML = `
+        <table class="tabela-parcelas">
           <tr>
             <th>Parcela</th>
             <th>Valor</th>
             <th>Vencimento</th>
           </tr>
-        </thead>
-        <tbody>
-    `;
-    for (let i = 0; i < qtdParcelas; i++) {
-      const vencimento = new Date(hoje);
-      vencimento.setMonth(vencimento.getMonth() + i + 1); // começa um mês à frente
+          <tr>
+            <td>1ª</td>
+            <td>${formatarMoeda(valorParcela)}</td>
+            <td><input type="date" class="input-data-parcela" data-index="0"></td>
+          </tr>
+        </table>
+      `;
 
-      const dataFormatada = vencimento.toISOString().split('T')[0];
+    } else {
+      // Parcelado: divide o valor total com juros igualmente
+      const valorParcela = valorTotalComJuros / numParcelas;
+      
+      infoValores.innerHTML = `
+        <div class="info-valor">
+          <strong>Valor do empréstimo:</strong> ${formatarMoeda(valorEmprestimo)}<br>
+          <strong>Juros (${taxaJuros}%):</strong> ${formatarMoeda(valorJuros)}<br>
+          <strong>Valor total:</strong> ${formatarMoeda(valorTotalComJuros)}<br>
+          <strong>Parcelas:</strong> ${numParcelas}x de ${formatarMoeda(valorParcela)}
+        </div>
+      `;
+
+      // Cria a tabela com datas
+      const hoje = new Date();
+      let tabelaHTML = `
+        <table class="tabela-parcelas">
+          <thead>
+            <tr>
+              <th>Parcela</th>
+              <th>Valor</th>
+              <th>Vencimento</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      for (let i = 0; i < numParcelas; i++) {
+        const vencimento = new Date(hoje);
+        vencimento.setMonth(vencimento.getMonth() + i + 1);
+        const dataFormatada = vencimento.toISOString().split('T')[0];
+
+        tabelaHTML += `
+          <tr>
+            <td>${i + 1}ª</td>
+            <td>${formatarMoeda(valorParcela)}</td>
+            <td><input type="date" value="${dataFormatada}" class="input-data-parcela" data-index="${i}"></td>
+          </tr>
+        `;
+      }
 
       tabelaHTML += `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${formatarMoeda(valorParcela)}</td>
-          <td><input type="date" value="${dataFormatada}" class="input-data-parcela" data-index="${i}"></td>
-        </tr>
+          </tbody>
+        </table>
       `;
+      tabelaParcelas.innerHTML = tabelaHTML;
     }
-
-    tabelaHTML += `
-        </tbody>
-      </table>
-    `;
-    tabelaParcelas.innerHTML = tabelaHTML;
   }
 
-  // Eventos para atualizar resumo ao mudar valor, parcelas ou juros
-  valorInput.addEventListener('input', atualizarResumoValores);
-  parcelasInput.addEventListener('input', atualizarResumoValores);
-  jurosInput.addEventListener('input', atualizarResumoValores);
+  // Função para atualizar a visibilidade do campo de parcelas
+  function atualizarCampoParcelas() {
+    const tipoSelecionado = document.querySelector('input[name="tipoParcelamento"]:checked').value;
+    
+    if (tipoSelecionado === 'parcelado') {
+      campoParcelas.style.display = 'block';
+      inputParcelas.setAttribute('required', 'true');
+      inputParcelas.value = inputParcelas.value || '12';
+    } else {
+      campoParcelas.style.display = 'none';
+      inputParcelas.removeAttribute('required');
+      inputParcelas.value = '1';
+    }
+    
+    calcularParcelas();
+  }
 
-  // Chama ao carregar para mostrar valores default
-  atualizarResumoValores();
+  // ✅ ADICIONA EVENT LISTENERS PARA TODOS OS INPUTS RELEVANTES
+  tipoParcelamentoRadios.forEach(radio => {
+    radio.addEventListener('change', atualizarCampoParcelas);
+  });
 
-form.addEventListener('submit', async (e) => {
+  inputValor.addEventListener('input', calcularParcelas);
+  inputParcelas.addEventListener('input', calcularParcelas);
+  jurosInput.addEventListener('input', calcularParcelas); // ✅ Adiciona listener para o juros
+
+  // ✅ LISTENER para arquivos
+  document.getElementById('anexos').addEventListener('change', function () {
+    const files = Array.from(this.files).map(file => file.name);
+    document.getElementById('nomeArquivos').textContent = files.length
+      ? files.join(', ')
+      : 'Nenhum arquivo selecionado';
+  });
+
+  // Inicializa o campo
+  atualizarCampoParcelas();
+
+  // ✅ SUBMIT do formulário
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
-
+    
+    const tipoParcelamento = document.querySelector('input[name="tipoParcelamento"]:checked').value;
+    const parcelas = tipoParcelamento === 'parcelado' ? parseInt(inputParcelas.value) : 1;
+    
+    // Define a URL correta
+    const url = tipoParcelamento === 'parcelado' ? `${URL_SERVICO}/emprestimos/parcelado` : `${URL_SERVICO}/emprestimos`;
+    
+    // Coleta os dados do formulário
     const formData = new FormData();
-
     formData.append('nome', document.getElementById('nome').value);
     formData.append('email', document.getElementById('email').value);
     formData.append('telefone', document.getElementById('telefone').value);
     formData.append('cpf', document.getElementById('cpf').value);
-    formData.append('endereco', document.getElementById('endereco').value);
-    formData.append('cidade', document.getElementById('cidade').value);
-    formData.append('estado', document.getElementById('estado').value);
     formData.append('cep', document.getElementById('cep').value);
+    formData.append('endereco', document.getElementById('endereco').value);
     formData.append('numero', document.getElementById('numero').value);
     formData.append('complemento', document.getElementById('complemento').value);
-
-    // Corrigir valor
-    const valor = +document.getElementById('valor').value.replace(/\D/g, '') / 100;
-    formData.append('valor', valor);
-
-    // Parcelas
-    const parcelas = parseInt(document.getElementById('parcelas').value);
+    formData.append('cidade', document.getElementById('cidade').value);
+    formData.append('estado', document.getElementById('estado').value);
+    
+    // ✅ Formata o valor corretamente
+    const valorNumerico = parseFloat(inputValor.value.replace(/[^\d,]/g, '').replace(',', '.'));
+    formData.append('valor', valorNumerico);
+    
     formData.append('parcelas', parcelas);
-
-    // Taxa de juros
-  let taxa = parseFloat(jurosInput.value);
-  if (isNaN(taxa)) taxa = 20;
-  formData.append('taxaJuros', taxa);
-
-    // Datas de vencimento (múltiplas)
+    formData.append('taxaJuros', jurosInput.value || 20);
+    
+    // ✅ Adiciona datas de vencimento
     const vencimentos = Array.from(document.querySelectorAll('.input-data-parcela'))
       .map(input => input.value)
       .filter(data => data !== '');
     vencimentos.forEach(data => formData.append('datasVencimentos', data));
-
-    // Arquivos (múltiplos)
-    const arquivos = document.getElementById('anexos').files;
-    for (let i = 0; i < arquivos.length; i++) {
-      formData.append('anexos', arquivos[i]);
+    
+    // Adiciona arquivos
+    const anexos = document.getElementById('anexos').files;
+    for (let i = 0; i < anexos.length; i++) {
+      formData.append('anexos', anexos[i]);
     }
-
-    try {
-      const res = await fetch(`${URL_SERVICO}/emprestimos`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const erroTexto = await res.text();
-        throw new Error(erroTexto);
+    
+    // Envia para a rota correta
+    fetch(url, {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Erro ao cadastrar empréstimo');
       }
-
-
+      return response.json();
+    })
+    .then(data => {
       mostrarAlerta('Empréstimo cadastrado com sucesso!');
       form.reset();
-      infoValores.textContent = '';
-      atualizarResumoValores();
-
-    } catch (err) {
-      console.error('Erro ao salvar:', err);
-      mostrarAlertaError(`Erro ao cadastrar empréstimo: ${err.message}`);
-    }
+      atualizarCampoParcelas();
+    })
+    .catch(error => {
+      console.error('Erro:', error);
+      mostrarAlertaError('Erro ao cadastrar empréstimo: ' + error.message);
+    });
   });
-});
-
-      document.getElementById('anexos').addEventListener('change', function () {
-  const files = Array.from(this.files).map(file => file.name);
-  document.getElementById('nomeArquivos').textContent = files.length
-    ? files.join(', ')
-    : 'Nenhum arquivo selecionado';
 });

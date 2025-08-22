@@ -86,7 +86,27 @@
         <input type="text" placeholder="Cidade" id="cidade" required />
         <input type="text" placeholder="Estado" id="estado" required maxlength="2" />
         <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
-        <input type="number" placeholder="Número de parcelas" id="parcelas" min="1" max="100" step="1" required />
+
+        <!-- Nova seção de opções de parcelamento -->
+        <div class="campo-parcelamento">
+          <label class="titulo-parcelamento">Tipo de Parcelamento:</label>
+          <div class="opcoes-parcelamento">
+            <label class="opcao-radio">
+              <input type="radio" name="tipoParcelamento" value="mes-a-mes" checked />
+              <span>Pagamento do juros mês a mês</span>
+            </label>
+            <label class="opcao-radio">
+              <input type="radio" name="tipoParcelamento" value="parcelado" />
+              <span>Parcelado</span>
+            </label>
+          </div>
+        </div>
+
+          
+          <!-- Campo de número de parcelas (inicialmente escondido) -->
+          <div id="campo-parcelas" style="display: none;">
+            <input type="number" placeholder="Número de parcelas" id="parcelas" min="1" max="100" step="1" required />
+          </div>
         <div id="infoValores"></div>
         <div id="tabelaParcelas"></div>
 

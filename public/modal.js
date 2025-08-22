@@ -22,20 +22,13 @@ let termoAtual = '';
 let scrollPos = 0;
 let cidadeSelecionada = null;
 
-//let filtroStatus = ''; // vazio = sem filtro
-
-
-
-
-
-
 // pega só o YYYY-MM-DD de qualquer coisa (string ISO com ou sem hora)
 function getDateOnly(s) {
   if (!s) return '';
   return typeof s === 'string' ? s.slice(0, 10) : new Date(s).toISOString().slice(0, 10);
 }
 
-  // Filtra empréstimos por data de vencimento
+// Filtra empréstimos por data de vencimento
 function normalizarData(data) {
   if (!data) return "";
   
@@ -100,7 +93,6 @@ function calcularDiasAtraso(dataVencimentoStr) {
   const diffTime = hoje.getTime() - vencimento.getTime();
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
-
 
 function preencherDatasPadraoFrontend(datasVencimentos, parcelas) {
   if (!Array.isArray(datasVencimentos)) {
@@ -207,6 +199,8 @@ btnCancelarRecebedor.addEventListener('click', () => {
 
 // Função para verificar se há atraso e calcular multa
 function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
+  const isParcelado = emprestimo.tipoParcelamento === 'parcelado';
+  
   // Remove a div anterior se existir
   const infoDivExistente = document.getElementById('infoMulta');
   if (infoDivExistente) {
@@ -218,18 +212,24 @@ function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
   infoDiv.id = 'infoMulta';
   infoDiv.style.margin = '15px 0';
   infoDiv.style.padding = '12px';
-  infoDiv.style.backgroundColor = '#fff8e1'; // Fundo amarelo claro
+  infoDiv.style.backgroundColor = '#fff8e1';
   infoDiv.style.borderRadius = '6px';
-  infoDiv.style.borderLeft = '4px solid #ffa000'; // Borda laranja
+  infoDiv.style.borderLeft = '4px solid #ffa000';
   infoDiv.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
 
-  // Calcula os valores
-  const valorJuros = (emprestimo.valorComJuros - emprestimo.valorOriginal);
-  const valorParcela = emprestimo.valorParcelasPendentes?.[indiceParcela] ?? valorJuros;
+  // ✅ CORREÇÃO: Calcula os valores baseado no tipo de empréstimo
+  let valorBase;
+  if (isParcelado) {
+    // Para parcelado: valor da parcela (valorComJuros / parcelas)
+    valorBase = emprestimo.valorParcela;
+  } else {
+    // Para não parcelado: apenas juros (valorComJuros - valorOriginal)
+    valorBase = emprestimo.valorComJuros - emprestimo.valorOriginal;
+  }
   
-  let valorMinimo = valorJuros;
+  let valorMinimo = valorBase;
   let multa = 0;
-  let mensagemInfo = `<div style="margin-bottom: 8px;"><strong>Valor mínimo (juros):</strong> ${formatarMoeda(valorMinimo)}</div>`;
+  let mensagemInfo = `<div style="margin-bottom: 8px;"><strong>Valor ${isParcelado ? 'da parcela' : 'mínimo (juros)'}:</strong> ${formatarMoeda(valorMinimo)}</div>`;
 
   if (emprestimo.datasVencimentos?.[indiceParcela]) {
     const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indiceParcela]);
@@ -241,7 +241,7 @@ function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
           ⚠️ Parcela atrasada: ${diasAtraso} dia(s)
         </div>
         <div style="margin-bottom: 5px;">
-          <strong>Valor do juros:</strong> ${formatarMoeda(valorJuros)}
+          <strong>Valor ${isParcelado ? 'da parcela' : 'do juros'}:</strong> ${formatarMoeda(valorBase)}
         </div>
         <div style="margin-bottom: 5px;">
           <strong>Multa por atraso:</strong> ${formatarMoeda(multa)}
@@ -259,7 +259,6 @@ function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
   if (botoesContainer) {
     botoesContainer.parentNode.insertBefore(infoDiv, botoesContainer);
   } else {
-    // Fallback: adiciona no final do modal-conteudo
     const modalConteudo = document.querySelector('.modal-conteudo');
     if (modalConteudo) {
       modalConteudo.appendChild(infoDiv);
@@ -268,10 +267,6 @@ function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
 
   return { valorMinimo, multa };
 }
-
-
-
-
 
 btnConfirmarRecebedor.addEventListener('click', async () => {
   if (!modalRecebedor || !btnConfirmarRecebedor) {
@@ -291,10 +286,8 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   // Obtém o valor do input ou usa o valor calculado da lista
   let valorRecebido;
   if (parcelaSelecionada.valor) {
-    // Usa o valor calculado (juros + multa) da lista
     valorRecebido = parcelaSelecionada.valor;
   } else {
-    // Pega do input e formata
     const valorRecebidoRaw = document.getElementById('valorRecebido').value;
     const valorLimpoString = valorRecebidoRaw.replace(/\D/g, '');
     valorRecebido = parseFloat(valorLimpoString) / 100;
@@ -305,11 +298,11 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     return;
   }
 
-  // Verifica atraso e valor mínimo (mesmo para a lista)
+  // Verifica atraso e valor mínimo
   const { valorMinimo, multa } = verificarAtrasoEPreencherValor(emprestimo, indice);
   
   if (valorRecebido < valorMinimo) {
-    mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)} (Juros: ${formatarMoeda(valorMinimo - multa)} + Multa: ${formatarMoeda(multa)})`);
+    mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)}`);
     return;
   }
 
@@ -332,13 +325,11 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     const emprestimoAtualizado = await response.json();
     Object.assign(emprestimo, emprestimoAtualizado);
 
-    // Atualiza os arrays se não existirem
     if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
     if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
     if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
-    // Atualiza os dados da parcela
     emprestimo.statusParcelas[indice] = true;
     emprestimo.datasPagamentos[indice] = dataPagamento;
     emprestimo.recebidoPor[indice] = nome;
@@ -385,7 +376,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
     // Atualiza a lista se estiver visível
     if (document.getElementById('listaEmprestimosCidade').style.display !== 'none') {
-      // Recarrega os dados da cidade atual
       const cidadeAtual = cidadeSelecionada;
       if (cidadeAtual) {
         await carregarEmprestimosPorCidade();
@@ -415,19 +405,47 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 });
 
 function atualizarValorRestante(emprestimoAtualizado) {
-    if (!emprestimoAtualizado) return;
+  if (!emprestimoAtualizado) return;
 
+  const isParcelado = emprestimoAtualizado.tipoParcelamento === 'parcelado';
+
+  if (isParcelado) {
+    // CÁLCULO PARA EMPRÉSTIMO PARCELADO
+    const valorTotal = emprestimoAtualizado.valorComJuros || 0;
+    let totalPago = 0;
+    
+    (emprestimoAtualizado.valoresRecebidos || []).forEach(val => {
+      if (typeof val === 'number') {
+        totalPago += val;
+      }
+    });
+    
+    const valorRestante = Math.max(0, valorTotal - totalPago);
+    
+    const container = document.getElementById('valorRestanteContainer');
+    if (!container) return;
+
+    container.innerHTML = `
+      <hr>
+      <br>
+      <h3 style="margin-bottom: 10px;"><strong>🏦 Situação do Empréstimo Parcelado</strong></h3>
+      <div style="margin-top: 10px; font-size: 1.05em;">
+        <strong>Total pago:</strong> ${formatarMoeda(totalPago)}<br>
+        <strong>Valor restante:</strong> ${formatarMoeda(valorRestante)}
+      </div>
+    `;
+  } else {
+    // CÁLCULO ORIGINAL PARA EMPRÉSTIMO NÃO PARCELADO
     const valorJurosTotal = (emprestimoAtualizado.valorComJuros || 0) - (emprestimoAtualizado.valorOriginal || 0);
     
-    // Calcula multas das parcelas vencidas e não pagas
     let totalMultas = 0;
     (emprestimoAtualizado.datasVencimentos || []).forEach((vencimento, i) => {
-        if (!emprestimoAtualizado.statusParcelas?.[i] && vencimento) {
-            const diasAtraso = calcularDiasAtraso(vencimento);
-            if (diasAtraso > 0) {
-                totalMultas += diasAtraso * 20; // valor da multa por dia
-            }
+      if (!emprestimoAtualizado.statusParcelas?.[i] && vencimento) {
+        const diasAtraso = calcularDiasAtraso(vencimento);
+        if (diasAtraso > 0) {
+          totalMultas += diasAtraso * 20;
         }
+      }
     });
 
     const valorParcela = valorJurosTotal;
@@ -435,99 +453,95 @@ function atualizarValorRestante(emprestimoAtualizado) {
     const parcelasComExcedente = [];
 
     (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
-        if (typeof val !== 'number') return;
+      if (typeof val !== 'number') return;
 
-        const diasAtraso = calcularDiasAtraso(emprestimoAtualizado.datasVencimentos[i]);
-        const multaParcela = diasAtraso * 20;
-        const valorMinimoParcela = valorParcela + multaParcela;
+      const diasAtraso = calcularDiasAtraso(emprestimoAtualizado.datasVencimentos[i]);
+      const multaParcela = diasAtraso * 20;
+      const valorMinimoParcela = valorParcela + multaParcela;
 
-        if (val > valorMinimoParcela) {
-            const excedente = val - valorMinimoParcela;
-            totalPagoValido += excedente;
+      if (val > valorMinimoParcela) {
+        const excedente = val - valorMinimoParcela;
+        totalPagoValido += excedente;
 
-            parcelasComExcedente.push({
-                indice: i + 1,
-                valorParcela,
-                valorPago: val,
-                multa: multaParcela,
-                excedente: excedente,
-                valorMinimo: valorMinimoParcela
-            });
-        }
+        parcelasComExcedente.push({
+          indice: i + 1,
+          valorParcela,
+          valorPago: val,
+          multa: multaParcela,
+          excedente: excedente,
+          valorMinimo: valorMinimoParcela
+        });
+      }
     });
 
     const valorTotalComJuros = emprestimoAtualizado.valorComJuros || 0;
     let valorRestante = valorTotalComJuros;
     
     if (totalPagoValido > 0) {
-        valorRestante = Math.max(0, valorTotalComJuros - totalPagoValido);
+      valorRestante = Math.max(0, valorTotalComJuros - totalPagoValido);
     }
 
     const container = document.getElementById('valorRestanteContainer');
     if (!container) return;
 
-    // Calcula o número de parcelas pagas
     let parcelasPagas = 0;
     (emprestimoAtualizado.statusParcelas || []).forEach(status => {
-        if (status) parcelasPagas++;
+      if (status) parcelasPagas++;
     });
 
-    // Calcula juros recebidos (juros TOTAL * parcelas pagas)
     const jurosRecebidos = valorJurosTotal * parcelasPagas;
 
-    // Mostrar apenas parcelas com excedente
     const parcelasHTML = parcelasComExcedente.map(p => {
-        return `
-        <div style="
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 8px;
-            background-color: #f9f9f9;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        ">
-            <div>
-                <strong>Parcela ${p.indice}</strong><br>
-                Valor mínimo: ${formatarMoeda(p.valorMinimo)}<br>
-                ${p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
-                Pago: ${formatarMoeda(p.valorPago)}
-            </div>
-            <div style="font-weight: bold; color: #28a745">
-                💰 Excedente: ${formatarMoeda(p.excedente)}
-            </div>
-        </div>
-        `;
+      return `
+      <div style="
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          padding: 10px;
+          margin-bottom: 8px;
+          background-color: #f9f9f9;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      ">
+          <div>
+              <strong>Parcela ${p.indice}</strong><br>
+              Valor mínimo: ${formatarMoeda(p.valorMinimo)}<br>
+              ${p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
+              Pago: ${formatarMoeda(p.valorPago)}
+          </div>
+          <div style="font-weight: bold; color: #28a745">
+              💰 Excedente: ${formatarMoeda(p.excedente)}
+          </div>
+      </div>
+      `;
     }).join('');
 
     container.innerHTML = `
-        <hr>
-        <br>
-        <h3 style="margin-bottom: 10px;"><strong>🏦 Informações da quitação do empréstimo</strong></h3>
-        ${parcelasHTML || '<p>Nenhuma parcela com pagamento acima do mínimo encontrada</p>'}
-        <hr>
-        <div style="margin-top: 10px; font-size: 1.05em;">
-            <strong>Total excedente que abate do saldo:</strong> ${formatarMoeda(totalPagoValido)}
-        </div>
-        ${
-            totalMultas > 0 ?
-            `<div style="margin-top: 5px; color: #c52e28ff; font-weight: bold;">
-                Multa total por atraso: +${formatarMoeda(totalMultas)}<br>
-                Total a pagar: ${formatarMoeda(valorRestante + totalMultas)}
-            </div>` :
-            `<div style="margin-top: 5px; font-weight: bold;">
-                Valor restante: ${formatarMoeda(valorRestante)}
-            </div>`
-        }
+      <hr>
+      <br>
+      <h3 style="margin-bottom: 10px;"><strong>🏦 Informações da quitação do empréstimo</strong></h3>
+      ${parcelasHTML || '<p>Nenhuma parcela com pagamento acima do mínimo encontrada</p>'}
+      <hr>
+      <div style="margin-top: 10px; font-size: 1.05em;">
+        <strong>Total excedente que abate do saldo:</strong> ${formatarMoeda(totalPagoValido)}
+      </div>
+      ${
+        totalMultas > 0 ?
+        `<div style="margin-top: 5px; color: #c52e28ff; font-weight: bold;">
+          Multa total por atraso: +${formatarMoeda(totalMultas)}<br>
+          Total a pagar: ${formatarMoeda(valorRestante + totalMultas)}
+        </div>` :
+        `<div style="margin-top: 5px; font-weight: bold;">
+          Valor restante: ${formatarMoeda(valorRestante)}
+        </div>`
+      }
 
-        <div style="margin-top: 5px; color: #007bff; font-weight: bold;">
-            💹 Juros recebidos: ${formatarMoeda(jurosRecebidos)}
-        </div>
+      <div style="margin-top: 5px; color: #007bff; font-weight: bold;">
+        💹 Juros recebidos: ${formatarMoeda(jurosRecebidos)}
+      </div>
     `;
+  }
 }
-
-
 
 export async function abrirModal(emprestimo) {
   scrollPos = window.scrollY || document.documentElement.scrollTop;
@@ -539,11 +553,16 @@ export async function abrirModal(emprestimo) {
 
   const taxa = typeof emprestimo.taxaJuros === 'number' ? emprestimo.taxaJuros : 0;
   const taxaFormatada = taxa.toFixed(0);
+  
+  const isParcelado = emprestimo.tipoParcelamento === 'parcelado';
 
   modalCorpo.innerHTML = `
     <div class="modal-layout">
       <div id="detalhesEmprestimo" class="detalhes-emprestimo" style="flex: 1;">
         <h3>📄 Dados do Empréstimo</h3>
+        <div style="margin-bottom: 15px; padding: 8px; background-color: ${isParcelado ? '#e3f2fd' : '#f3e5f5'}; border-radius: 4px;">
+          <strong>${isParcelado ? '📋 Empréstimo Parcelado' : '💰 Empréstimo com Juros'}</strong>
+        </div>
         <div class="grid-detalhes">
           <div><strong>Nome:</strong> ${emprestimo.nome}</div>
           <div><strong>Email:</strong> ${emprestimo.email}</div>
@@ -605,8 +624,11 @@ export async function abrirModal(emprestimo) {
       <div id="infoFinanceira" class="grid-detalhes">
         <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
         <div><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</div>
-        <div><strong>Parcelas:</strong> ${emprestimo.parcelas}x de ${formatarMoeda(emprestimo.valorParcela)}</div>
-        <div><strong>Valor do juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros - emprestimo.valorOriginal)}</div>
+        <div><strong>Parcelas:</strong> ${emprestimo.parcelas}x</div>
+        ${isParcelado 
+          ? `<div><strong>Valor da parcela:</strong> ${formatarMoeda(emprestimo.valorParcela)}</div>`
+          : `<div><strong>Valor do juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros - emprestimo.valorOriginal)}</div>`
+        }
 
         ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
       </div>
@@ -620,10 +642,6 @@ export async function abrirModal(emprestimo) {
           <br>
 
         </div>
-
-
-
-
   `;
   atualizarValorRestante(emprestimo);
 
@@ -720,7 +738,7 @@ export async function abrirModal(emprestimo) {
       abrirModal(emprestimoAtualizado);
       realizarBusca(termoAtual);
     } catch (err) {
-      mostrarAlertaError(`Erro ao salvar: ${err.message}`);
+          mostrarAlertaError(`Erro ao salvar: ${err.message}`);
       console.error(err);
     }
   });
@@ -820,10 +838,6 @@ export async function abrirModal(emprestimo) {
   atualizarVisualParcelas(emprestimo);
 }
 
-export function mostrarModalRecebedor() {
-  modalRecebedor.style.display = 'flex';
-}
-
 function atualizarVisualParcelas(emprestimo) {
   const parcelasContainer = document.getElementById('parcelasContainer');
   if (!parcelasContainer) return;
@@ -842,7 +856,7 @@ function atualizarVisualParcelas(emprestimo) {
 
   parcelasContainer.innerHTML = '';
 
-    // Reinsere os elementos preservados
+  // Reinsere os elementos preservados
   elementosPreservar.forEach(el => {
     if (el.id === 'containerEditarVencimentos') {
       el.style.display = 'none'; // Mantém escondido
@@ -850,11 +864,21 @@ function atualizarVisualParcelas(emprestimo) {
     parcelasContainer.appendChild(el);
   });
 
+  const isParcelado = emprestimo.tipoParcelamento === 'parcelado';
   const parcelas = emprestimo.statusParcelas || Array(emprestimo.parcelas).fill(false);
   const datasPagamentos = emprestimo.datasPagamentos || Array(emprestimo.parcelas).fill(null);
   const recebidoPor = emprestimo.recebidoPor || Array(emprestimo.parcelas).fill(null);
   const datasVencimentos = emprestimo.datasVencimentos || [];
-  const valorJuros = (emprestimo.valorComJuros - emprestimo.valorOriginal);
+
+  // ✅ CORREÇÃO: CALCULA O VALOR BASE CORRETAMENTE
+  let valorBase;
+  if (isParcelado) {
+    // Para parcelado: usa o valor da parcela (valorComJuros / parcelas)
+    valorBase = emprestimo.valorParcela;
+  } else {
+    // Para não parcelado: usa apenas os juros (valorComJuros - valorOriginal)
+    valorBase = emprestimo.valorComJuros - emprestimo.valorOriginal;
+  }
 
   parcelas.forEach((paga, i) => {
     const item = document.createElement('div');
@@ -870,15 +894,11 @@ function atualizarVisualParcelas(emprestimo) {
     const label = document.createElement('label');
     label.style.lineHeight = '1.4';
 
-    const valorParcela = formatarMoeda(
-      emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela
-    );
-
+    const valorFormatado = formatarMoeda(valorBase);
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-
-    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorJuros)}<br>`;
+    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorFormatado}<br>`;
     if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
     let statusClass = 'parcela-em-dia';
@@ -912,24 +932,16 @@ function atualizarVisualParcelas(emprestimo) {
       
       html += `<strong>✅ Paga em:</strong> ${data}<br>`;
       html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
-
-
       
+      if (valorRecebido != null) {
+        html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+      }
       
-      if (vencimento) {
+      if (vencimento && datasPagamentos[i]) {
         const dataPag = new Date(datasPagamentos[i]);
-        const dataVenc = new Date(vencimento);
+        const dataVenc = criarDataLocal(vencimento);
 
-        // Zera horas, minutos, segundos e milissegundos
         dataPag.setHours(0, 0, 0, 0);
-        dataVenc.setHours(0, 0, 0, 0);
-
-        if (vencimento && datasPagamentos[i]) {
-        const dataPag = new Date(datasPagamentos[i]);
-        const dataVenc = criarDataLocal(vencimento); // usa a função para criar data local
-
-        dataPag.setHours(0, 0, 0, 0); // garante só a data
-        // dataVenc já está zerada
         if (dataPag > dataVenc) {
           const diasAtraso = Math.floor((dataPag - dataVenc) / (1000 * 60 * 60 * 24));
           const multa = diasAtraso * 20;
@@ -943,12 +955,8 @@ function atualizarVisualParcelas(emprestimo) {
           statusClass = 'parcela-paga';
         }
       }
-
-      if (valorRecebido != null) {
-        html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-      }
     }
-  }
+
     label.innerHTML = html;
     const isOperador = localStorage.getItem('isOperador') === 'true';
     const operadorNome = localStorage.getItem('operadorNome') || '';
@@ -965,7 +973,7 @@ function atualizarVisualParcelas(emprestimo) {
         parcelaSelecionada = { emprestimo, indice: i, checkbox: chk };
         modalRecebedor.style.display = 'flex';
 
-        // Configurações do operador (mantidas)
+        // Configurações do operador
         if (isOperador) {
           const options = inputRecebedor.options;
           let valorParaSetar = '';
@@ -983,9 +991,8 @@ function atualizarVisualParcelas(emprestimo) {
           inputRecebedor.focus();
         }
 
-        // Calcular valor mínimo com possível multa
-        const valorParcela = emprestimo.valorParcelasPendentes?.[i] ?? emprestimo.valorParcela;
-        let valorMinimo = valorParcela;
+        // ✅ CORREÇÃO: Calcular valor mínimo baseado no tipo de empréstimo
+        let valorMinimo = valorBase;
         let mensagemInfo = '';
 
         // Verificar atraso
@@ -998,8 +1005,8 @@ function atualizarVisualParcelas(emprestimo) {
           if (hoje > vencimento) {
             const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
             const multa = diasAtraso * 20;
-            valorMinimo = valorParcela + multa;
-            mensagemInfo = `⚠️ Esta parcela está atrasada o valor minimo a ser pago deve ser o valor do juros + o valor da multa`;
+            valorMinimo = valorBase + multa;
+            mensagemInfo = `⚠️ Esta parcela está atrasada. O valor mínimo a ser pago deve ser ${formatarMoeda(valorBase)} + ${formatarMoeda(multa)} de multa`;
           }
         }
 
@@ -1019,13 +1026,7 @@ function atualizarVisualParcelas(emprestimo) {
           infoDiv.parentNode.removeChild(infoDiv);
         }
 
-        // REMOVA esta parte que pré-preenche o valor
-        // document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
-        //   style: 'currency',
-        //   currency: 'BRL'
-        // });
-
-        // Em vez disso, deixe o campo vazio
+        // Deixa o campo vazio
         document.getElementById('valorRecebido').value = '';
       }
     });
@@ -1151,17 +1152,24 @@ function renderizarListaEmprestimos(emprestimosFiltrados, mesAnoFiltro = null) {
       }
     });
 
-    li.innerHTML = `
-      <div class="emprestimo-header" data-id="${emp.id}">
-        <h3>${emp.nome}</h3>
-        <div class="emprestimo-total">
-          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
-        </div>
-      </div>
-      <div class="parcelas-container">
-        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
-      </div>
-    `;
+// calcula taxa de juros (caso não exista em emp)
+const taxaPercentual = emp.taxaJuros !== undefined 
+  ? emp.taxaJuros 
+  : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+
+li.innerHTML = `
+  <div class="emprestimo-header" data-id="${emp.id}">
+    <h3>${emp.nome}</h3>
+    <div class="emprestimo-total">
+      Total: ${formatarMoeda(emp.valorComJuros)} | 
+      Parcelas: ${emp.parcelas} | 
+      Juros: ${taxaPercentual}%
+    </div>
+  </div>
+  <div class="parcelas-container">
+    ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+  </div>
+`;
 
     li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
     resultadoFiltrado.appendChild(li);
@@ -1353,8 +1361,15 @@ function getMesAnoFromDate(dateString) {
 
 
 function calcularValorMinimoParcela(emprestimo, indiceParcela) {
-  // O valor da parcela SEMPRE será o valor total dos juros (não divide pelo número de parcelas)
-  const valorJurosTotal = emprestimo.valorComJuros - emprestimo.valorOriginal;
+  const isParcelado = emprestimo.tipoParcelamento === 'parcelado';
+  
+  // ✅ CORREÇÃO: Define o valor base conforme o tipo de empréstimo
+  let valorBase;
+  if (isParcelado) {
+    valorBase = emprestimo.valorParcela; // Valor da parcela (valorComJuros / parcelas)
+  } else {
+    valorBase = emprestimo.valorComJuros - emprestimo.valorOriginal; // Apenas juros
+  }
   
   let multa = 0;
 
@@ -1364,8 +1379,8 @@ function calcularValorMinimoParcela(emprestimo, indiceParcela) {
     multa = diasAtraso > 0 ? diasAtraso * 20 : 0;
   }
 
-  // Retorna o valor mínimo da parcela: JUROS TOTAL + MULTA (se houver)
-  return valorJurosTotal + multa;
+  // Retorna o valor mínimo da parcela
+  return valorBase + multa;
 }
   // Event listeners
 cardsCidades.forEach(card => {
@@ -1439,6 +1454,10 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       const valorJuros = emp.valorComJuros - emp.valorOriginal;
       const valorMinimo = valorJuros + multa;
 
+      const taxaPercentual = emp.taxaJuros !== undefined 
+        ? emp.taxaJuros 
+        : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+
       return {
         data,
         pago,
@@ -1448,8 +1467,10 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
         valorMinimo,
         valorRecebido: emp.valoresRecebidos?.[idx] || 0,
         emprestimoNome: emp.nome,
-        telefone: emp.telefone
+        telefone: emp.telefone,
+        juros: taxaPercentual // 🔹 aqui
       };
+
     }).filter(p => {
       // 🔹 Aplica filtros adicionais
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
@@ -1511,17 +1532,25 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       }
     });
 
-    li.innerHTML = `
-      <div class="emprestimo-header" data-id="${emp.id}">
-        <h3>${emp.nome}</h3>
-        <div class="emprestimo-total">
-          Total: ${formatarMoeda(emp.valorComJuros)} | Parcelas: ${emp.parcelas}
-        </div>
-      </div>
-      <div class="parcelas-container">
-        ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
-      </div>
-    `;
+// calcula taxa de juros (caso não exista em emp)
+const taxaPercentual = emp.taxaJuros !== undefined 
+  ? emp.taxaJuros 
+  : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+
+li.innerHTML = `
+  <div class="emprestimo-header" data-id="${emp.id}">
+    <h3>${emp.nome}</h3>
+    <div class="emprestimo-total">
+      Total: ${formatarMoeda(emp.valorComJuros)} | 
+      Parcelas: ${emp.parcelas} | 
+      Juros: ${taxaPercentual}%
+    </div>
+  </div>
+  <div class="parcelas-container">
+    ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
+  </div>
+`;
+
 
     li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
     resultadoFiltrado.appendChild(li);
@@ -1681,42 +1710,47 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
   doc.setTextColor(0, 0, 0);
 
   // --- Monta dados da tabela diretamente de parcelasFiltradas ---
-  const rows = parcelasFiltradas.map(p => {
-    const dataObj = new Date(p.data);
-    const dia = String(dataObj.getDate()).padStart(2, '0');
-    const parcelaNum = p.indice + 1;
-    const nome = p.emprestimoNome || '';
-    const valor = formatarMoeda(p.valorJuros);
+          const rows = parcelasFiltradas.map(p => {
+        const dataObj = new Date(p.data);
+        const dia = String(dataObj.getDate()).padStart(2, '0');
+        const parcelaNum = p.indice + 1;
+        const nome = p.emprestimoNome || '';
+        const valor = formatarMoeda(p.valorJuros);
 
-    let statusFinal = '';
-    if (p.pago) {
-      statusFinal = 'PAGO';
-    } else if (p.multa > 0) {
-      statusFinal = `ATRASADO (Multa: ${formatarMoeda(p.multa)}, ${p.multa/20} dias atraso)`;
-    } else if (eVencimentoHoje(p.data)) {
-      statusFinal = 'VENCE HOJE';
-    } else {
-      statusFinal = 'A RECEBER';
-    }
+        // 🔹 Agora pega direto
+        const taxaPercentual = p.juros ? p.juros + '%' : '-';
 
-    return [dia, parcelaNum, nome, valor, statusFinal];
-  });
+        let statusFinal = '';
+        if (p.pago) {
+          statusFinal = 'PAGO';
+        } else if (p.multa > 0) {
+          statusFinal = `ATRASADO (Multa: ${formatarMoeda(p.multa)}, ${p.multa/20} dias atraso)`;
+        } else if (eVencimentoHoje(p.data)) {
+          statusFinal = 'VENCE HOJE';
+        } else {
+          statusFinal = 'A RECEBER';
+        }
 
-  doc.autoTable({
-    head: [['Dia', 'Parcela', 'Cliente', 'Valor (R$)', 'Status']],
-    body: rows,
-    startY: 45,
-    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak', lineColor: [200,200,200], lineWidth: 0.2 },
-    headStyles: { fillColor: [220,220,220], textColor: [0,0,0], fontStyle: 'bold', lineWidth: 0.3 },
-    alternateRowStyles: { fillColor: [245,245,245] },
-    columnStyles: {
-      0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 15, halign: 'center' },
-      2: { cellWidth: 50 },
-      3: { cellWidth: 25, halign: 'right' },
-      4: { cellWidth: 60 }
-    }
-  });
+        return [dia, parcelaNum, nome, valor, taxaPercentual, statusFinal];
+      });
+
+      doc.autoTable({
+        head: [['Dia', 'Parcela', 'Cliente', 'Valor (R$)', 'Juros (%)', 'Status']],
+        body: rows,
+        startY: 45,
+        styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak', lineColor: [200,200,200], lineWidth: 0.2 },
+        headStyles: { fillColor: [220,220,220], textColor: [0,0,0], fontStyle: 'bold', lineWidth: 0.3 },
+        alternateRowStyles: { fillColor: [245,245,245] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },   // Dia
+          1: { cellWidth: 15, halign: 'center' },   // Parcela
+          2: { cellWidth: 45 },                     // Cliente
+          3: { cellWidth: 25, halign: 'right' },    // Valor
+          4: { cellWidth: 20, halign: 'center' },   // Juros %
+          5: { cellWidth: 55 }                      // Status
+        }
+      });
+
 
   doc.save(`relatorio_${cidadeSelecionada}.pdf`);
 });

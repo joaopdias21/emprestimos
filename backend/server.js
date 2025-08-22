@@ -131,7 +131,8 @@ const EmprestimoSchema = new mongoose.Schema({
     nomeOriginal: String,
     caminho:      String
   }],
-  quitado: { type: Boolean, default: false }
+  quitado: { type: Boolean, default: false },
+  tipoParcelamento: { type: String, default: 'juros' }
 }, { timestamps: true });
 
 const Emprestimo = mongoose.model('Emprestimo', EmprestimoSchema);
@@ -163,10 +164,20 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
       valor, parcelas, datasVencimentos = []
     } = req.body;
 
+    // ✅ CORREÇÃO: Usar a mesma lógica de limpeza
+    const valorLimpo = valor.replace(/[^\d,.]/g, '');
+    let valorNum;
+    
+    if (valorLimpo.includes(',')) {
+      valorNum = parseFloat(valorLimpo.replace('.', '').replace(',', '.'));
+    } else {
+      valorNum = parseFloat(valorLimpo);
+    }
+    
     const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
+    const parcelasNum = Number(parcelas) || 1;
 
-    const valorNum = Number(valor);
-    const parcelasNum = Number(parcelas);
+    // Resto do código...
 
     // Garante que datasVencimentos seja array
     const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
@@ -196,7 +207,8 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
       valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
       recebidoPor: Array.from({ length: parcelasNum }, () => null),
       arquivos,
-      quitado: false
+      quitado: false,
+      tipoParcelamento: 'juros' // ✅ ADICIONE ESTA LINHA
     });
 
     res.status(201).json(novo);
@@ -205,6 +217,111 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar empréstimo' });
   }
 });
+
+
+
+// Rota para empréstimos parcelados (divide o valor total pelas parcelas)
+app.post('/emprestimos/parcelado', upload.array('anexos'), async (req, res) => {
+  try {
+    console.log('Dados recebidos:', req.body);
+    console.log('Valor:', req.body.valor, 'Tipo:', typeof req.body.valor);
+    console.log('Parcelas:', req.body.parcelas, 'Tipo:', typeof req.body.parcelas);
+    console.log('Taxa Juros:', req.body.taxaJuros, 'Tipo:', typeof req.body.taxaJuros);
+    
+    const {
+      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+      valor, parcelas, datasVencimentos = []
+    } = req.body;
+
+    // ✅ CORREÇÃO: Limpar o valor monetário formatado CORRETAMENTE
+    const valorLimpo = valor.replace(/[^\d,.]/g, ''); // Mantém dígitos, vírgula e ponto
+    let valorNum;
+    
+    // Verifica se tem vírgula (formato brasileiro) ou ponto (formato internacional)
+    if (valorLimpo.includes(',')) {
+      // Formato brasileiro: 1.000,50 → 1000.50
+      valorNum = parseFloat(valorLimpo.replace('.', '').replace(',', '.'));
+    } else {
+      // Formato internacional: 100.00 → 100.00
+      valorNum = parseFloat(valorLimpo);
+    }
+    
+    const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
+    const parcelasNum = Number(parcelas) || 1;
+
+    console.log('Valor limpo:', valorLimpo);
+    console.log('Valor numérico:', valorNum);
+    console.log('Parcelas numérico:', parcelasNum);
+    console.log('Taxa Juros numérico:', taxaJuros);
+
+    // ✅ VALIDAÇÃO: Verificar se os valores são números válidos
+    if (isNaN(valorNum) || isNaN(parcelasNum) || isNaN(taxaJuros)) {
+      return res.status(400).json({ erro: 'Valores numéricos inválidos' });
+    }
+
+    // Garante que datasVencimentos seja array
+    const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+
+    // Preenche datas faltantes com padrão mensal
+    const datasCalc = preencherDatasPadrao(vencimentos, parcelasNum);
+
+    const valorComJuros = valorNum * (1 + taxaJuros / 100);
+    const valorParcela = valorComJuros / parcelasNum;
+
+    const arquivos = (req.files || []).map(f => ({
+      nomeOriginal: f.originalname,
+      caminho: `/uploads/${f.filename}`
+    }));
+
+    const valorParcelasPendentes = Array.from({ length: parcelasNum }, () => valorParcela);
+
+    const novo = await Emprestimo.create({
+      id: Date.now(),
+      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+      valorOriginal: valorNum,
+      valorComJuros: valorComJuros,
+      parcelas: parcelasNum,
+      valorParcela: valorParcela,
+      valorParcelasPendentes: valorParcelasPendentes,
+      taxaJuros,
+      statusParcelas: Array.from({ length: parcelasNum }, () => false),
+      datasPagamentos: Array.from({ length: parcelasNum }, () => null),
+      datasVencimentos: datasCalc,
+      valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
+      recebidoPor: Array.from({ length: parcelasNum }, () => null),
+      arquivos,
+      quitado: false,
+      tipoParcelamento: 'parcelado'
+    });
+
+    res.status(201).json(novo);
+  } catch (err) {
+    console.error('POST /emprestimos/parcelado:', err);
+    res.status(500).json({ erro: 'Erro ao criar empréstimo parcelado' });
+  }
+});
+
+
+
+// Rota temporária para atualizar empréstimos existentes
+app.patch('/atualizar-tipo-parcelamento', async (req, res) => {
+  try {
+    // Atualiza todos os empréstimos sem tipoParcelamento para 'juros'
+    const result = await Emprestimo.updateMany(
+      { tipoParcelamento: { $exists: false } },
+      { $set: { tipoParcelamento: 'juros' } }
+    );
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: `Atualizados ${result.modifiedCount} empréstimos` 
+    });
+  } catch (err) {
+    console.error('Erro ao atualizar tipoParcelamento:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar empréstimos' });
+  }
+});
+
 
 
 // Helpers
@@ -312,7 +429,7 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     const dataPagamento = req.body.dataPagamento || new Date().toISOString();
 
     // ======= Validação baseado no FRONT: mínimo = juros fixo + multa da parcela =======
-    const jurosFixo = getJurosFixo(emp); // NÃO divide por número de parcelas
+    const jurosFixo = getJurosFixo(emp);
     let diasAtraso = 0;
     let multa = 0;
     const vencimentoAtual = emp.datasVencimentos?.[indice];
@@ -338,16 +455,21 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     emp.datasPagamentos[indice] = dataPagamento;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
     emp.valoresRecebidos[indice] = recebido;
-    // mantemos esse campo como "o que foi recebido", se você usar em outro lugar
     emp.valorParcelasPendentes[indice] = recebido;
 
     // ======= Recalcula resumo no mesmo padrão do front =======
     const resumo = calcularResumoParcelas(emp);
 
-    // Quitação somente por excedente (amortização) >= principal
-    const quitado = resumo.totalPagoValido >= (emp.valorComJuros || 0);
+    // ✅ CORREÇÃO: Verifica se TODAS as parcelas estão pagas E se o valor total foi atingido
+    const todasParcelasPagas = emp.statusParcelas.every(status => status === true);
+    const valorTotalPago = emp.valoresRecebidos.reduce((total, valor) => total + (valor || 0), 0);
+    const valorTotalDevido = emp.valorComJuros;
+    
+    // Quitação somente se todas as parcelas estão pagas E o valor total foi atingido OU excedido
+    const quitado = todasParcelasPagas && valorTotalPago >= valorTotalDevido;
     emp.quitado = quitado;
-    // Se ainda não quitou e essa era a última parcela, gera uma NOVA parcela
+
+    // ✅ CORREÇÃO: Só gera nova parcela se NÃO estiver quitado E for a última parcela
     if (!quitado && indice === emp.parcelas - 1) {
       emp.parcelas += 1;
       emp.statusParcelas.push(false);
@@ -367,18 +489,21 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
 
     await emp.save();
 
-    // Recalcula para refletir possíveis mudanças pós-save (opcional)
+    // Recalcula para refletir possíveis mudanças pós-save
     const resumoFinal = calcularResumoParcelas(emp);
     const saldoRestantePrincipal = Math.max(0, (emp.valorOriginal || 0) - resumoFinal.totalPagoValido);
 
     res.json({
       ...emp.toObject(),
-      ...resumoFinal,                 // parcelasInfo, totalMultas, totalPagoValido, valorRestante (estilo front)
-      saldoRestantePrincipal,        // útil p/ você exibir principal em aberto
+      ...resumoFinal,
+      saldoRestantePrincipal,
       jurosFixoPorParcela: jurosFixo,
-      diasAtraso,                    // da parcela paga nesta requisição
+      diasAtraso,
       multa,
-      quitado
+      quitado,
+      todasParcelasPagas, // ✅ Adiciona informação se todas as parcelas estão pagas
+      valorTotalPago, // ✅ Adiciona valor total pago
+      valorTotalDevido // ✅ Adiciona valor total devido
     });
 
   } catch (err) {
