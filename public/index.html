@@ -399,25 +399,28 @@
   <!-- ALERTA -->
   <div id="alertaCustom" class="alerta-custom"></div>
 
-  <!-- MODAL DE CONFIRMAÇÃO DE RECEBEDOR -->
-  <div id="modalRecebedor" class="modal">
-    <div class="modal-conteudo">
-      <h3>Confirmação de pagamento</h3>
-      <p>Informe o nome de quem recebeu a parcela:</p>
-      <select id="inputRecebedor">
-        <option value="" disabled selected>Selecione o nome</option>
-        <option value="Gugu">Gugu</option>
-        <option value="Bigu">Bigu</option>
-      </select>
-      <label for="valorRecebido">Valor Recebido:</label>
-      <input type="text" id="valorRecebido" step="0.01" />
+<!-- MODAL DE CONFIRMAÇÃO DE RECEBEDOR -->
+<div id="modalRecebedor" class="modal">
+  <div class="modal-conteudo">
+    <h3>💳 Confirmação de pagamento</h3>
+    <p>Informe o nome de quem recebeu a parcela:</p>
 
-      <div class="modal-botoes">
-        <button id="btnCancelarRecebedor">Cancelar</button>
-        <button id="btnConfirmarRecebedor">Confirmar</button>
-      </div>
+    <select id="inputRecebedor">
+      <option value="" disabled selected>Selecione o nome</option>
+      <option value="Gugu">Gugu</option>
+      <option value="Bigu">Bigu</option>
+    </select>
+
+    <label for="valorRecebido">Valor Recebido:</label>
+    <input type="text" id="valorRecebido" step="0.01" placeholder="Digite o valor..." />
+
+    <div class="modal-botoes">
+      <button id="btnCancelarRecebedor" class="btn-cancelar">Cancelar</button>
+      <button id="btnConfirmarRecebedor" class="btn-confirmar">Confirmar</button>
     </div>
   </div>
+</div>
+
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>

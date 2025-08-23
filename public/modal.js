@@ -61,15 +61,17 @@ function hojeLocalISO() {
 
 // dias de atraso usando datas "de calendário" (sem fuso)
 function calcularDiasAtrasoDataOnly(dataStr) {
-  const [y, m, d] = normalizarData(dataStr).split("-").map(Number);
-
+  const vencimento = new Date(dataStr);
   const hoje = new Date();
-  const hojeSemHora = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const vencimento = new Date(y, m - 1, d);
+  
+  // Zera horas, minutos, segundos
+  hoje.setHours(0,0,0,0);
+  vencimento.setHours(0,0,0,0);
 
-  const diff = Math.floor((hojeSemHora - vencimento) / 86400000);
+  const diff = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
   return diff > 0 ? diff : 0;
 }
+
 
 function criarDataLocal(dataStr) {
   if (!dataStr) return null;
@@ -191,11 +193,10 @@ modalFechar.addEventListener('click', (e) => {
 });
 
 btnCancelarRecebedor.addEventListener('click', () => {
-  modalRecebedor.style.display = 'none';
-  inputValorRecebido.value = '';
-  parcelaSelecionada = null;
-  atualizarVisualParcelas(emprestimoSelecionado);
+  fecharModalRecebedor(); // <-- Fecha e desmarca checkbox
+  atualizarVisualParcelas?.(emprestimoSelecionado);
 });
+
 
 // Função para verificar se há atraso e calcular multa
 function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
@@ -268,6 +269,13 @@ function verificarAtrasoEPreencherValor(emprestimo, indiceParcela) {
   return { valorMinimo, multa };
 }
 
+modalRecebedor.addEventListener('click', (e) => {
+  if (e.target === modalRecebedor) {
+    fecharModalRecebedor(); // fechar clicando fora
+  }
+});
+
+
 btnConfirmarRecebedor.addEventListener('click', async () => {
   if (!modalRecebedor || !btnConfirmarRecebedor) {
     console.error('Elementos do modal não encontrados no DOM');
@@ -283,7 +291,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   const { emprestimo, indice, checkbox } = parcelaSelecionada;
   const dataPagamento = new Date().toISOString();
   
-  // Obtém o valor do input ou usa o valor calculado da lista
   let valorRecebido;
   if (parcelaSelecionada.valor) {
     valorRecebido = parcelaSelecionada.valor;
@@ -298,9 +305,7 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     return;
   }
 
-  // Verifica atraso e valor mínimo
-  const { valorMinimo, multa } = verificarAtrasoEPreencherValor(emprestimo, indice);
-  
+  const { valorMinimo } = verificarAtrasoEPreencherValor(emprestimo, indice);
   if (valorRecebido < valorMinimo) {
     mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)}`);
     return;
@@ -335,46 +340,12 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     emprestimo.recebidoPor[indice] = nome;
     emprestimo.valoresRecebidos[indice] = valorRecebido;
 
-    // Atualiza a UI
     if (checkbox) {
       checkbox.checked = true;
       checkbox.disabled = true;
-
-      const label = checkbox.nextElementSibling;
-      if (label) {
-        const data = new Date(dataPagamento).toLocaleDateString('pt-BR');
-        const horario = new Date(dataPagamento).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        
-        let info = `
-          <br><strong>✅ Paga em:</strong> ${data}<br>
-          <strong>🙍‍♂️ Recebido por:</strong> ${nome} às ${horario}<br>
-          <strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-
-        if (emprestimoAtualizado.diasAtraso && emprestimoAtualizado.diasAtraso > 0) {
-          info += `
-            <strong style="color:#d9534f;">⚠️ Parcela paga com atraso</strong><br>
-            <hr>
-            <strong>⚠️ Dias de atraso:</strong> ${emprestimoAtualizado.diasAtraso}<br>
-            <strong>💰 Multa:</strong> ${formatarMoeda(emprestimoAtualizado.multa)}<br>`;
-
-          if (valorRecebido === emprestimoAtualizado.multa) {
-            info += `<em>Foi realizado apenas o pagamento da multa.</em>`;
-          } else if (valorRecebido > emprestimoAtualizado.multa) {
-            const extra = valorRecebido - emprestimoAtualizado.multa;
-            info += `<em>Valor pago além da multa: ${formatarMoeda(extra)}</em>`;
-          }
-        }
-
-        label.innerHTML += info;
-        checkbox.parentElement.classList.add('parcela-paga');
-        
-        if (emprestimoAtualizado.diasAtraso > 0) {
-          checkbox.parentElement.classList.add('parcela-paga-com-atraso');
-        }
-      }
+      // ... resto da atualização da UI
     }
 
-    // Atualiza a lista se estiver visível
     if (document.getElementById('listaEmprestimosCidade').style.display !== 'none') {
       const cidadeAtual = cidadeSelecionada;
       if (cidadeAtual) {
@@ -383,7 +354,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
       }
     }
 
-    // Atualiza o modal se estiver aberto
     if (modal.style.display === 'flex') {
       atualizarVisualParcelas(emprestimo);
       atualizarValorRestante(emprestimo);
@@ -399,10 +369,40 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     mostrarAlertaError(`Erro ao marcar parcela: ${err.message}`);
   }
 
-  modalRecebedor.style.display = 'none';
-  inputValorRecebido.value = '';
-  parcelaSelecionada = null;
+  // ✅ Fecha o modal corretamente
+  fecharModalRecebedor();
 });
+
+
+
+function mostrarModalRecebedor() {
+  if (!modalRecebedor) {
+    console.error("Modal do recebedor não encontrado no DOM");
+    return;
+  }
+
+  // Garante que o input esteja limpo
+  inputRecebedor.value = '';
+  inputValorRecebido.value = '';
+
+  // Exibe o modal
+  modalRecebedor.style.display = 'flex';
+}
+
+function fecharModalRecebedor() {
+  if (modalRecebedor) {
+    modalRecebedor.style.display = 'none';
+  }
+
+  // 👉 Se tinha uma parcela selecionada e o usuário não confirmou, reseta o checkbox
+  if (parcelaSelecionada?.checkbox) {
+    parcelaSelecionada.checkbox.checked = false;
+  }
+
+  parcelaSelecionada = null; // limpa seleção
+}
+
+
 
 function atualizarValorRestante(emprestimoAtualizado) {
   if (!emprestimoAtualizado) return;
@@ -1447,31 +1447,34 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
     li.className = 'emprestimo-item';
 
     // 🔹 Monta as parcelas desse empréstimo
-    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
-      const diasAtraso = calcularDiasAtrasoDataOnly(data);
-      const pago = emp.statusParcelas?.[idx] || false;
-      const multa = diasAtraso > 0 && !pago ? diasAtraso * 20 : 0;
-      const valorJuros = emp.valorComJuros - emp.valorOriginal;
-      const valorMinimo = valorJuros + multa;
+      const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
+        const diasAtraso = calcularDiasAtrasoDataOnly(data);
+        const pago = emp.statusParcelas?.[idx] || false;
 
-      const taxaPercentual = emp.taxaJuros !== undefined 
-        ? emp.taxaJuros 
-        : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+        // 🔹 Multa só se houver atraso e a parcela não estiver paga
+        const multa = (!pago && diasAtraso > 0) ? diasAtraso * 20 : 0;
 
-      return {
-        data,
-        pago,
-        indice: idx,
-        valorJuros,
-        multa,
-        valorMinimo,
-        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
-        emprestimoNome: emp.nome,
-        telefone: emp.telefone,
-        juros: taxaPercentual // 🔹 aqui
-      };
+        const valorJuros = emp.valorComJuros - emp.valorOriginal;
+        const valorMinimo = valorJuros + multa;
 
+        return {
+          data,
+          pago,
+          indice: idx,
+          valorJuros,
+          multa,
+          diasAtraso,
+          valorMinimo,
+          valorRecebido: emp.valoresRecebidos?.[idx] || 0,
+          emprestimoNome: emp.nome,
+          telefone: emp.telefone
+        };
     }).filter(p => {
+
+      if (filtroStatus === 'atrasado') {
+  return !p.pago && p.multa > 0;
+}
+
       // 🔹 Aplica filtros adicionais
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
@@ -1499,36 +1502,43 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
         : '';
 
       if (p.pago) {
-        htmlParcelas += `
-          <div class="parcela-linha paga">
-            <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-            <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong> | <span style="color: #074e07; font-weight: bold;">PAGO</span></span>
-            ${telefoneHTML}
-          </div>
-        `;
-      } else {
-        htmlParcelas += `
-          <div class="parcela-linha ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
-            <div class="parcela-info">
-              <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-              <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
-              ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
-              <span class="parcela-atraso"><strong>(${p.multa/20} dias atraso)</strong></span>` : ''}
-              ${telefoneHTML}
-            </div>
-            <label class="parcela-checkbox">
-              <input 
-                type="checkbox"
-                data-id="${emp.id}" 
-                data-indice="${p.indice}"
-                data-valor="${p.valorMinimo}"
-                class="parcela-pendente"
-              />
-              <span class="checkmark"></span>
-              <span class="pagar-label">MARCAR</span>
-            </label>
-          </div>
-        `;
+  htmlParcelas += `
+    <div class="parcela-linha paga">
+      <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+        <span class="parcela-valor">
+          <strong>${formatarMoeda(p.valorMinimo)}</strong> 
+          ${p.multa > 0 ? ` - Multa: <strong>${formatarMoeda(p.multa)}</strong> 
+          <span class="parcela-atraso"><strong>(${p.diasAtraso} dias atraso)</strong></span>` : ''}
+          ${p.pago ? '| <span style="color: #074e07; font-weight: bold;">PAGO</span>' : ''}
+        </span>
+      ${telefoneHTML}
+    </div>
+  `;
+} else {
+  htmlParcelas += `
+    <div class="parcela-linha ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
+      <div class="parcela-info">
+        <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
+        <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
+        ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
+        <span class="parcela-atraso"><strong>(${p.diasAtraso} dias atraso)</strong></span>` : ''}
+
+        ${telefoneHTML}
+      </div>
+      <label class="parcela-checkbox">
+        <input 
+          type="checkbox"
+          data-id="${emp.id}" 
+          data-indice="${p.indice}"
+          data-valor="${p.valorMinimo}"
+          class="parcela-pendente"
+        />
+        <span class="checkmark"></span>
+        <span class="pagar-label">MARCAR</span>
+      </label>
+    </div>
+  `;
+
       }
     });
 
@@ -1557,20 +1567,23 @@ li.innerHTML = `
 
     // 🔹 Checkbox de marcar parcela
     li.querySelectorAll('input.parcela-pendente').forEach(chk => {
-      chk.addEventListener('change', async function() {
-        if (this.checked) {
-          const indice = parseInt(this.dataset.indice, 10);
-          const valorMinimo = calcularValorMinimoParcela(emp, indice);
-          parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
-          document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          });
-          mostrarModalRecebedor();
-          const ok = await marcarParcelaComoPaga(emp.id, indice, valorMinimo, "Recebedor");
-          if (ok) filtrarEmprestimos({ dataFiltro, mesFiltro });
-        }
-      });
+    chk.addEventListener('change', function() {
+      if (this.checked) {
+        const indice = parseInt(this.dataset.indice, 10);
+        const valorMinimo = calcularValorMinimoParcela(emp, indice);
+        parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
+        document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL'
+        });
+
+        // 👉 agora apenas abre o modal
+        mostrarModalRecebedor();
+      } else {
+        parcelaSelecionada = null; // se desmarcar, limpa
+      }
+    });
+
     });
 
     setTimeout(() => li.classList.add('mostrar'), i * 25);
