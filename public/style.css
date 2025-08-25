@@ -2254,11 +2254,11 @@ input[type="date"] {
 }
 
 .totais-card.recebido {
-  border-left: 5px solid #28a745; /* verde */
+  border-left: 5px solid #28a745;
 }
 
 .totais-card.previsto {
-  border-left: 5px solid #007bff; /* azul */
+  border-left: 5px solid #007bff;
 }
 
 .totais-card .titulo {
@@ -2273,6 +2273,20 @@ input[type="date"] {
   color: #222;
 }
 
+/* --- */
+
+/* Estilos para telas pequenas (mobile) */
+@media (max-width: 600px) {
+  #totaisResumo {
+    flex-direction: column; /* Empilha os cards verticalmente */
+    gap: 12px; /* Reduz o espaçamento entre eles */
+  }
+
+  .totais-card {
+    flex: none; /* Remove a flexibilidade para que ocupem a largura total */
+    width: 100%; /* Garante que os cards ocupem 100% do espaço disponível */
+  }
+}
 .emprestimo-header{
   /* background-color: #dbe1e7; */
   background: linear-gradient(90deg, #dbe1e7, #abc8e6);
@@ -2489,4 +2503,129 @@ input[type="date"] {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+/* Estilos existentes para telas maiores (desktop) */
+.parcelas-cabecalho,
+.parcela-linha {
+  display: grid;
+  grid-template-columns: 0.5fr 2fr 0.7fr 1fr 1fr 1.2fr;
+  align-items: center;
+  padding: 5px 0;
+  gap: 5px; /* Adiciona espaçamento entre as colunas */
+  margin-bottom: 15px;
+}
+
+/* --- */
+
+/* Estilos para telas menores (mobile) */
+@media (max-width: 600px) {
+  .parcelas-cabecalho,
+  .parcela-linha {
+    /* Ajuste as larguras das colunas para telas menores */
+    grid-template-columns: 0.5fr 2fr 0.5fr 1fr 0.5fr 1fr;
+    font-size: 12px; /* Reduz a fonte para caber melhor */
+  }
+
+  /* Ajusta o estilo para o checkbox e o texto "MARCAR" */
+  .parcela-checkbox .pagar-label {
+    display: none; /* Esconde o texto "MARCAR" em telas pequenas */
+  }
+
+  /* Ajusta o padding para maximizar o espaço */
+  .parcela-linha span {
+    padding: 0 2px;
+    margin-left: 5px;
+  }
+}
+
+/* Estilos gerais, mantidos */
+.parcelas-cabecalho {
+  font-weight: bold;
+  background-color: #eeeeee;
+  border-bottom: 2px solid #aaaaaa;
+  color: black;
+}
+
+.parcela-linha {
+  border-bottom: 1px solid #ddd;
+  transition: background 0.2s;
+}
+
+.parcela-linha:hover {
+  background-color: #f9f9f9;
+}
+
+.parcela-linha.paga {
+  background-color: #e6f4e6;
+  font-weight: bold;
+}
+
+
+
+/* Estilo geral para o rótulo da parcela */
+.parcela-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer; /* Muda o cursor para indicar que é clicável */
+  user-select: none; /* Impede a seleção do texto */
+  white-space: nowrap; /* Impede a quebra de linha em telas pequenas */
+
+  /* Adiciona padding e borda para parecer um botão */
+
+}
+
+/* Estilo para o rótulo quando o mouse passa por cima */
+.parcela-checkbox:hover {
+  background-color: #e0e0e0;
+  border-color: #aaa;
+}
+
+/* Oculta o checkbox nativo para estilizar o próprio rótulo */
+.parcela-checkbox input[type="checkbox"] {
+  display: none;
+}
+
+/* Estilo para a caixa de marcação (checkmark) */
+.parcela-checkbox .checkmark {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #555;
+  background-color: #fff;
+  border-radius: 3px;
+  flex-shrink: 0; /* Impede que ele encolha */
+  position: relative;
+}
+
+/* Estilo do "visto" dentro da caixa quando marcado */
+.parcela-checkbox input[type="checkbox"]:checked + .checkmark {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.parcela-checkbox input[type="checkbox"]:checked + .checkmark::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Estilo para o rótulo em telas menores */
+@media (max-width: 600px) {
+  .parcela-checkbox {
+    padding: 5px 8px; /* Reduz o padding para economizar espaço */
+  }
+
+  .parcela-checkbox .pagar-label {
+    display: block; /* Mantém o texto "MARCAR" visível em telas pequenas */
+  }
 }

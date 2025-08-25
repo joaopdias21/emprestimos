@@ -61,16 +61,21 @@ function hojeLocalISO() {
 
 // dias de atraso usando datas "de calendário" (sem fuso)
 function calcularDiasAtrasoDataOnly(dataStr) {
-  const vencimento = new Date(dataStr);
+  const partes = dataStr.split('-'); // supondo formato YYYY-MM-DD
+  const vencimento = new Date(
+    parseInt(partes[0]), 
+    parseInt(partes[1]) - 1, 
+    parseInt(partes[2])
+  );
+
   const hoje = new Date();
-  
-  // Zera horas, minutos, segundos
   hoje.setHours(0,0,0,0);
   vencimento.setHours(0,0,0,0);
 
   const diff = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
   return diff > 0 ? diff : 0;
 }
+
 
 
 function criarDataLocal(dataStr) {
@@ -1324,12 +1329,23 @@ function eVencimentoHoje(dataVencimento) {
 
 
 function atualizarTotaisResumo(parcelasFiltradas = []) {
-  let totalRecebido = 0;
-  let totalPrevisto = 0;
+  let totalRecebido = 0;   // só valor mínimo das parcelas pagas
+  let totalPrevisto = 0;   // só valor mínimo das parcelas previstas
+  let valorExcedente = 0;  // multas não pagas + pagamento acima do mínimo
 
   parcelasFiltradas.forEach(p => {
-    totalPrevisto += p.valorMinimo;
-    if (p.pago && p.valorRecebido) totalRecebido += p.valorRecebido;
+    // Total previsto: apenas o valor mínimo da parcela
+totalPrevisto += p.valorParcela;
+if (p.pago) totalRecebido += p.valorParcela;
+
+// valor excedente: multa + pagamento acima do valorParcela
+if (p.pago && p.valorRecebido > p.valorParcela) {
+  valorExcedente += (p.valorRecebido - p.valorParcela);
+}
+if (p.multa && (!p.pagoMulta || p.pagoMulta === false)) {
+  valorExcedente += p.multa;
+}
+
   });
 
   const totaisContainer = document.getElementById('totaisResumo');
@@ -1342,8 +1358,15 @@ function atualizarTotaisResumo(parcelasFiltradas = []) {
       <span class="titulo">Total Previsto</span>
       <span class="valor">${formatarMoeda(totalPrevisto)}</span>
     </div>
+    <div class="totais-card excedente">
+      <span class="titulo">Valor Excedente</span>
+      <span class="valor">${formatarMoeda(valorExcedente)}</span>
+    </div>
   `;
 }
+
+
+
 
 
 // Funções auxiliares adicionais necessárias
@@ -1400,30 +1423,16 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
   let emprestimosBase = [];
 
-  // 🔹 Elemento para exibir as cidades do grupo
-  const cidadesDoGrupoEl = document.getElementById('cidadesDoGrupo');
-  if (cidadesDoGrupoEl) cidadesDoGrupoEl.textContent = "";
-
-  // 🔹 Verifica se é grupo ou cidade
   if (emprestimosPorGrupo[cidadeSelecionada]) {
     emprestimosBase = emprestimosPorGrupo[cidadeSelecionada];
-
-    // 👉 Monta a lista de cidades do grupo
-    if (cidadesDoGrupoEl) {
-      const cidadesDoGrupo = emprestimosBase.map(emp => emp.cidade);
-      const cidadesUnicas = [...new Set(cidadesDoGrupo)];
-      cidadesDoGrupoEl.textContent = "Cidades: " + cidadesUnicas.join(", ");
-    }
   } else if (emprestimosPorCidade[cidadeSelecionada]) {
     emprestimosBase = emprestimosPorCidade[cidadeSelecionada];
-    if (cidadesDoGrupoEl) cidadesDoGrupoEl.textContent = ""; // limpa se não for grupo
   } else {
     return;
   }
 
   const mesAnoAtual = (!dataFiltro && !mesFiltro) ? getMesAnoAtual() : mesFiltro;
 
-  // 🔹 Filtra empréstimos que tenham parcelas dentro do filtro de data
   const emprestimosFiltrados = emprestimosBase.filter(emp => {
     if (!emp.datasVencimentos) return false;
     if (dataFiltro) {
@@ -1435,47 +1444,48 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
   if (emprestimosFiltrados.length === 0) {
     resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
-    atualizarTotaisResumo([]); 
+    atualizarTotaisResumo([]);
     parcelasFiltradas = [];
     return;
   }
 
-  parcelasFiltradas = []; // limpa a lista global
+  parcelasFiltradas = []; // Reinicia o array de parcelas
 
-  emprestimosFiltrados.forEach((emp, i) => {
-    const li = document.createElement('li');
-    li.className = 'emprestimo-item';
+  emprestimosFiltrados.forEach(emp => {
+    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
+      const diasAtraso = calcularDiasAtrasoDataOnly(data);
+      const pago = emp.statusParcelas?.[idx] || false;
 
-    // 🔹 Monta as parcelas desse empréstimo
-      const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
-        const diasAtraso = calcularDiasAtrasoDataOnly(data);
-        const pago = emp.statusParcelas?.[idx] || false;
+      const valorJuros = emp.valorComJuros - emp.valorOriginal;
+      let multa = 0;
 
-        // 🔹 Multa só se houver atraso e a parcela não estiver paga
-        const multa = (!pago && diasAtraso > 0) ? diasAtraso * 20 : 0;
+      if (diasAtraso > 0) {
+        if (!pago) {
+          multa = diasAtraso * 20;
+        } else {
+          const valorPago = emp.valoresRecebidos?.[idx] || 0;
+          multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
+        }
+      }
 
-        const valorJuros = emp.valorComJuros - emp.valorOriginal;
-        const valorMinimo = valorJuros + multa;
+      const valorParcela = valorJuros; // apenas o valor da parcela
+      const multaAtual = multa;         // valor da multa separado
 
-        return {
-          data,
-          pago,
-          indice: idx,
-          valorJuros,
-          multa,
-          diasAtraso,
-          valorMinimo,
-          valorRecebido: emp.valoresRecebidos?.[idx] || 0,
-          emprestimoNome: emp.nome,
-          telefone: emp.telefone
-        };
+      return {
+        data,
+        pago,
+        indice: idx,
+        valorJuros,
+        multa: multaAtual,
+        diasAtraso,
+        valorParcela,       // substitui valorMinimo
+        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
+        emprestimoNome: emp.nome,
+        telefone: emp.telefone,
+        taxaJuros: emp.taxaJuros,
+        emprestimoId: emp.id
+      };
     }).filter(p => {
-
-      if (filtroStatus === 'atrasado') {
-  return !p.pago && p.multa > 0;
-}
-
-      // 🔹 Aplica filtros adicionais
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
       if (filtroStatus) {
@@ -1489,108 +1499,106 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       return true;
     });
 
-    if (parcelas.length === 0) return;
-
-    parcelasFiltradas.push(...parcelas);
-
-    // 🔹 Renderiza HTML
-    let htmlParcelas = '';
-    parcelas.forEach(p => {
-      const dataFormatada = toBR(p.data);
-      const telefoneHTML = (filtroStatus === 'vencendo-hoje' || filtroStatus === 'atrasado') 
-        ? `<div class="parcela-telefone">Telefone: ${p.telefone}</div>` 
-        : '';
-
-      if (p.pago) {
-  htmlParcelas += `
-    <div class="parcela-linha paga">
-      <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-        <span class="parcela-valor">
-          <strong>${formatarMoeda(p.valorMinimo)}</strong> 
-          ${p.multa > 0 ? ` - Multa: <strong>${formatarMoeda(p.multa)}</strong> 
-          <span class="parcela-atraso"><strong>(${p.diasAtraso} dias atraso)</strong></span>` : ''}
-          ${p.pago ? '| <span style="color: #074e07; font-weight: bold;">PAGO</span>' : ''}
-        </span>
-      ${telefoneHTML}
-    </div>
-  `;
-} else {
-  htmlParcelas += `
-    <div class="parcela-linha ${p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}">
-      <div class="parcela-info">
-        <span class="parcela-data"><strong>Parcela ${p.indice + 1} - ${dataFormatada}</strong></span>
-        <span class="parcela-valor"><strong>${formatarMoeda(p.valorJuros)}</strong></span>
-        ${p.multa > 0 ? `<span class="parcela-multa"><strong> - Multa: ${formatarMoeda(p.multa)}</strong></span>
-        <span class="parcela-atraso"><strong>(${p.diasAtraso} dias atraso)</strong></span>` : ''}
-
-        ${telefoneHTML}
-      </div>
-      <label class="parcela-checkbox">
-        <input 
-          type="checkbox"
-          data-id="${emp.id}" 
-          data-indice="${p.indice}"
-          data-valor="${p.valorMinimo}"
-          class="parcela-pendente"
-        />
-        <span class="checkmark"></span>
-        <span class="pagar-label">MARCAR</span>
-      </label>
-    </div>
-  `;
-
-      }
-    });
-
-// calcula taxa de juros (caso não exista em emp)
-const taxaPercentual = emp.taxaJuros !== undefined 
-  ? emp.taxaJuros 
-  : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
-
-li.innerHTML = `
-  <div class="emprestimo-header" data-id="${emp.id}">
-    <h3>${emp.nome}</h3>
-    <div class="emprestimo-total">
-      Total: ${formatarMoeda(emp.valorComJuros)} | 
-      Parcelas: ${emp.parcelas} | 
-      Juros: ${taxaPercentual}%
-    </div>
-  </div>
-  <div class="parcelas-container">
-    ${htmlParcelas || '<div class="sem-parcelas">Nenhuma parcela encontrada</div>'}
-  </div>
-`;
-
-
-    li.querySelector('.emprestimo-header').addEventListener('click', () => abrirModal(emp));
-    resultadoFiltrado.appendChild(li);
-
-    // 🔹 Checkbox de marcar parcela
-    li.querySelectorAll('input.parcela-pendente').forEach(chk => {
-    chk.addEventListener('change', function() {
-      if (this.checked) {
-        const indice = parseInt(this.dataset.indice, 10);
-        const valorMinimo = calcularValorMinimoParcela(emp, indice);
-        parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
-        document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL'
-        });
-
-        // 👉 agora apenas abre o modal
-        mostrarModalRecebedor();
-      } else {
-        parcelaSelecionada = null; // se desmarcar, limpa
-      }
-    });
-
-    });
-
-    setTimeout(() => li.classList.add('mostrar'), i * 25);
+    if (parcelas.length > 0) {
+      parcelasFiltradas.push(...parcelas);
+    }
   });
 
+  parcelasFiltradas.sort((a, b) => {
+    const diaA = new Date(a.data).getDate();
+    const diaB = new Date(b.data).getDate();
+    return diaA - diaB;
+  });
+
+  const containerTabela = document.createElement('div');
+  containerTabela.className = 'parcelas-tabela';
+  containerTabela.innerHTML = `
+    <div class="parcelas-cabecalho">
+      <span>Dia</span>
+      <span>Cliente</span>
+      <span>% Juros</span>
+      <span>Valor</span>
+      <span>Multa</span>
+      <span>Status</span>
+    </div>
+  `;
+
+  const corpoTabela = document.createElement('div');
+  corpoTabela.id = 'parcelas-corpo';
+  containerTabela.appendChild(corpoTabela);
+
+  parcelasFiltradas.forEach(p => {
+    const emp = emprestimosBase.find(e => e.id === p.emprestimoId);
+    if (!emp) return;
+
+    const diaVencimento = new Date(p.data).getDate();
+    const taxaPercentual = p.taxaJuros !== undefined 
+      ? p.taxaJuros 
+      : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+
+      let statusHTML = '';
+      if (p.pago) {
+        statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
+        
+        // Ícone só se pago acima do valorParcela + multa
+        if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
+          statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
+        }
+      } else {
+        statusHTML = `<label class="parcela-checkbox">
+                        <input 
+                          type="checkbox"
+                          data-id="${emp.id}" 
+                          data-indice="${p.indice}"
+                          data-valor="${p.valorParcela}"
+                          class="parcela-pendente"
+                        />
+                        <span class="checkmark"></span>
+                        <span class="pagar-label">MARCAR</span>
+                      </label>`;
+      }
+
+    const linha = document.createElement('div');
+    linha.className = `parcela-linha ${p.pago ? 'paga' : p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}`;
+    linha.innerHTML = `
+      <span>${diaVencimento}</span>
+      <span class="nome-cliente" style="cursor:pointer; text-decoration: underline;">${p.emprestimoNome}</span>
+      <span>${taxaPercentual}%</span>
+      <span>${p.valorParcela}</span>
+      <span>${p.multa > 0 ? (p.multa) : '-'}</span>
+      <span>${statusHTML}</span>
+    `;
+    corpoTabela.appendChild(linha);
+
+    const nomeCliente = linha.querySelector('.nome-cliente');
+    if (nomeCliente) {
+      nomeCliente.addEventListener('click', () => abrirModal(emp));
+    }
+
+    const chk = linha.querySelector('input.parcela-pendente');
+    if (chk) {
+      chk.addEventListener('change', function() {
+        if (this.checked) {
+          const indice = parseInt(this.dataset.indice, 10);
+          const valorMinimo = calcularValorMinimoParcela(emp, indice);
+          parcelaSelecionada = { emprestimo: emp, indice, checkbox: chk, valorMinimo };
+          document.getElementById('valorRecebido').value = valorMinimo.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          });
+          mostrarModalRecebedor();
+        } else {
+          parcelaSelecionada = null;
+        }
+      });
+    }
+  });
+
+  resultadoFiltrado.appendChild(containerTabela);
   atualizarTotaisResumo(parcelasFiltradas);
 }
+
+
 
 
 
@@ -1665,11 +1673,11 @@ btnLimparFiltro.addEventListener('click', () => {
 
 
 document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
-  const itens = document.querySelectorAll('#resultadoFiltrado .emprestimo-item');
-  if (itens.length === 0) {
+  if (!parcelasFiltradas || parcelasFiltradas.length === 0) {
     alert("Nenhum dado para exportar");
     return;
   }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
@@ -1680,7 +1688,7 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
   doc.setLineWidth(0.8);
   doc.line(14, 22, 196, 22);
 
-  // --- Descrição dos filtros ---
+  // --- Filtro ---
   let descricaoFiltro = "";
   if (inputDataFiltro.value) {
     const data = inputDataFiltro.value.split("-").reverse().join("/");
@@ -1710,63 +1718,84 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
   doc.setTextColor(80, 80, 80);
   doc.text(descricaoFiltro, 14, 28);
 
-  // --- Totais ---
-  const totaisTexto = document.getElementById('totaisResumo').innerText.split("\n");
+  // --- Totais e linhas ---
+  let totalRecebido = 0;
+  let totalPrevisto = 0;
+  let totalExcedente = 0;
+  const rows = [];
+
+  parcelasFiltradas.forEach(p => {
+    const dia = new Date(p.data).getDate();
+    const cliente = p.emprestimoNome;
+    const juros = p.taxaJuros !== undefined ? p.taxaJuros : 0;
+    const valorParcela = p.valorParcela;
+    const multa = p.multa || 0;
+    const valorRecebido = p.valorRecebido || 0;
+
+    // Total previsto e recebido (somente parcela, sem multa)
+    totalPrevisto += valorParcela;
+    if (p.pago) totalRecebido += valorParcela;
+
+    let statusFinal = p.pago ? "PAGO" : "A RECEBER";
+    let pagoMais = false;
+
+    if (p.pago && valorRecebido > (valorParcela + multa)) {
+      pagoMais = true;
+      statusFinal += " + EXTRA";  // ícone de pagamento acima
+      totalExcedente += (valorRecebido - (valorParcela + multa));
+    }
+
+    // Multa não paga entra no excedente
+    if (!p.pago && multa > 0) {
+      totalExcedente += multa;
+    }
+
+    rows.push([
+      dia,
+      cliente,
+      juros + "%",
+      valorParcela.toFixed(2),
+      multa > 0 ? multa.toFixed(2) : "-",
+      statusFinal
+    ]);
+  });
+
+  // --- Totais exibidos ---
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 128, 0);
-  doc.text(`Total Recebido: ${totaisTexto[1]}`, 14, 32);
+  doc.text(`Total Recebido: R$ ${totalRecebido.toFixed(2)}`, 14, 32);
   doc.setTextColor(0, 0, 128);
-  doc.text(`Total Previsto: ${totaisTexto[3]}`, 14, 40);
+  doc.text(`Total Previsto: R$ ${totalPrevisto.toFixed(2)}`, 14, 40);
+  doc.setTextColor(128, 0, 0);
+  doc.text(`Total Excedente: R$ ${totalExcedente.toFixed(2)}`, 14, 48);
   doc.setLineWidth(0.3);
-  doc.line(14, 42, 196, 42);
+  doc.line(14, 50, 196, 50);
   doc.setTextColor(0, 0, 0);
 
-  // --- Monta dados da tabela diretamente de parcelasFiltradas ---
-          const rows = parcelasFiltradas.map(p => {
-        const dataObj = new Date(p.data);
-        const dia = String(dataObj.getDate()).padStart(2, '0');
-        const parcelaNum = p.indice + 1;
-        const nome = p.emprestimoNome || '';
-        const valor = formatarMoeda(p.valorJuros);
-
-        // 🔹 Agora pega direto
-        const taxaPercentual = p.juros ? p.juros + '%' : '-';
-
-        let statusFinal = '';
-        if (p.pago) {
-          statusFinal = 'PAGO';
-        } else if (p.multa > 0) {
-          statusFinal = `ATRASADO (Multa: ${formatarMoeda(p.multa)}, ${p.multa/20} dias atraso)`;
-        } else if (eVencimentoHoje(p.data)) {
-          statusFinal = 'VENCE HOJE';
-        } else {
-          statusFinal = 'A RECEBER';
-        }
-
-        return [dia, parcelaNum, nome, valor, taxaPercentual, statusFinal];
-      });
-
-      doc.autoTable({
-        head: [['Dia', 'Parcela', 'Cliente', 'Valor (R$)', 'Juros (%)', 'Status']],
-        body: rows,
-        startY: 45,
-        styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak', lineColor: [200,200,200], lineWidth: 0.2 },
-        headStyles: { fillColor: [220,220,220], textColor: [0,0,0], fontStyle: 'bold', lineWidth: 0.3 },
-        alternateRowStyles: { fillColor: [245,245,245] },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },   // Dia
-          1: { cellWidth: 15, halign: 'center' },   // Parcela
-          2: { cellWidth: 45 },                     // Cliente
-          3: { cellWidth: 25, halign: 'right' },    // Valor
-          4: { cellWidth: 20, halign: 'center' },   // Juros %
-          5: { cellWidth: 55 }                      // Status
-        }
-      });
-
+  // --- Gera tabela ---
+  doc.autoTable({
+    head: [['Dia', 'Cliente', 'Juros (%)', 'Valor (R$)', 'Multa', 'Status']],
+    body: rows,
+    startY: 55,
+    styles: { fontSize: 9, cellPadding: 3, overflow: 'linebreak', lineColor: [200,200,200], lineWidth: 0.2 },
+    headStyles: { fillColor: [220,220,220], textColor: [0,0,0], fontStyle: 'bold', lineWidth: 0.3 },
+    alternateRowStyles: { fillColor: [245,245,245] },
+    columnStyles: {
+      0: { cellWidth: 12, halign: 'center' },
+      1: { cellWidth: 45 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 25, halign: 'center' },
+      5: { cellWidth: 55 }
+    }
+  });
 
   doc.save(`relatorio_${cidadeSelecionada}.pdf`);
 });
+
+
+
 
 
 
