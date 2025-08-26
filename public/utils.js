@@ -23,11 +23,14 @@ export function mostrarAlertaWarning(msg) {
 }
 
 export function formatarMoeda(valor) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(valor);
+  if (typeof valor !== 'number') return 'R$ 0,00';
+  
+  // Formata com 2 casas decimais sem arredondar valores inteiros
+  const partes = valor.toFixed(2).split('.');
+  return `R$ ${partes[0]},${partes[1]}`;
 }
+
+
 
 
 export function formatarDataParaBR(dataISO) {

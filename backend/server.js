@@ -345,31 +345,42 @@ function getJurosFixo(emp) {
  * - totalPagoValido = soma dos excedentes (amortização do principal)
  * - valorRestante (p/ UI) = valorComJuros - totalPagoValido
  */
+
+
+// Utilitário para cálculos monetários exatos
+function calcularJurosExatos(valorPrincipal, taxaJuros) {
+  // Evita problemas de ponto flutuante
+  const juros = (valorPrincipal * taxaJuros) / 100;
+  return parseFloat(juros.toFixed(2));
+}
+
+function calcularValorMinimoExato(valorParcela, diasAtraso) {
+  const multa = diasAtraso * 20;
+  return parseFloat((valorParcela + multa).toFixed(2));
+}
+
+
+
 function calcularResumoParcelas(emp) {
   const jurosFixo = getJurosFixo(emp);
-
-  // Multas de parcelas vencidas e NÃO pagas (p/ exibição)
   let totalMultas = 0;
-  (emp.datasVencimentos || []).forEach((venc, i) => {
-    if (!emp.statusParcelas?.[i] && venc) {
-      const dias = calcularDiasAtraso(venc);
-      if (dias > 0) totalMultas += dias * 20;
-    }
-  });
-
-  let totalPagoValido = 0; // amortização acumulada (só excedentes)
+  let totalPagoValido = 0;
   const parcelasInfo = [];
 
   (emp.valoresRecebidos || []).forEach((val, i) => {
     if (typeof val !== 'number') return;
 
-    const diasAtraso = calcularDiasAtraso(emp.datasVencimentos?.[i]);
+    const diasAtraso = calcularDiasAtraso(emp.datasVencimentos?.[i] || null);
     const multaParcela = diasAtraso * 20;
-    const valorMinimoParcela = jurosFixo + multaParcela;
+    totalMultas += (!emp.statusParcelas?.[i] && diasAtraso > 0) ? multaParcela : 0;
+
+    // VALOR EXATO SEM ARREDONDAMENTO
+    const valorParcela = emp.valorParcelasPendentes?.[i] ?? jurosFixo;
+    const valorMinimoParcela = valorParcela + multaParcela;
 
     const info = {
       indice: i + 1,
-      valorParcela: jurosFixo,   // igual ao front
+      valorParcela,
       valorPago: val,
       multa: multaParcela,
       excedente: 0,
@@ -380,7 +391,7 @@ function calcularResumoParcelas(emp) {
       info.excedente = val - valorMinimoParcela;
       info.status = '💰 Acima do juros + multa';
       totalPagoValido += info.excedente;
-    } else if (val >= jurosFixo) {
+    } else if (val >= valorParcela) {
       info.status = '✅ Pago corretamente';
     } else {
       info.status = '⚠️ Pago abaixo do juros';
@@ -390,34 +401,34 @@ function calcularResumoParcelas(emp) {
   });
 
   const valorTotalComJuros = emp.valorComJuros || 0;
-  const valorRestante = Math.max(0, valorTotalComJuros - totalPagoValido);
+  const valorRestanteUI = Math.max(0, valorTotalComJuros - totalPagoValido);
+  const valorPrincipalRestante = Math.max(0, (emp.valorOriginal || 0) - totalPagoValido);
 
   return {
     parcelasInfo,
     totalMultas,
-    totalPagoValido,         // amortização acumulada do principal
-    valorRestante            // para UI (igual ao front)
+    totalPagoValido,
+    valorRestanteUI,
+    valorPrincipalRestante
   };
 }
 
-// Rota PATCH atualizada
+// Rota PATCH - CORREÇÃO DO ARREDONDAMENTO
 app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
   try {
     const idNum = Number(req.params.id);
     const indice = Number(req.params.indice);
-
     const emp = await Emprestimo.findOne({ id: idNum });
     if (!emp) return res.status(404).json({ erro: 'Empréstimo não encontrado' });
     if (!Number.isInteger(indice) || indice < 0 || indice >= emp.parcelas)
       return res.status(400).json({ erro: 'Parcela inválida' });
 
-    // Garante arrays com o mesmo comprimento de emp.parcelas
+    // Inicializa arrays
     const campos = ['statusParcelas', 'datasPagamentos', 'recebidoPor', 'valorParcelasPendentes', 'valoresRecebidos', 'datasVencimentos'];
     campos.forEach(campo => {
       if (!Array.isArray(emp[campo])) emp[campo] = [];
       while (emp[campo].length < emp.parcelas) {
-        if (campo === 'statusParcelas') emp[campo].push(false);
-        else emp[campo].push(null);
+        emp[campo].push(campo === 'statusParcelas' ? false : null);
       }
     });
 
@@ -428,82 +439,75 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
 
     const dataPagamento = req.body.dataPagamento || new Date().toISOString();
 
-    // ======= Validação baseado no FRONT: mínimo = juros fixo + multa da parcela =======
-    const jurosFixo = getJurosFixo(emp);
-    let diasAtraso = 0;
-    let multa = 0;
+    // Calcula atraso e multa
+    let diasAtraso = 0, multa = 0;
     const vencimentoAtual = emp.datasVencimentos?.[indice];
-
     if (vencimentoAtual) {
       const dataVenc = new Date(vencimentoAtual);
       const dataPag = new Date(dataPagamento);
       if (dataPag > dataVenc) {
-        diasAtraso = Math.floor((dataPag - dataVenc) / (1000 * 60 * 60 * 24));
+        diasAtraso = Math.floor((dataPag - dataVenc) / (1000*60*60*24));
         multa = diasAtraso * 20;
       }
     }
 
-    const valorMinimoNecessario = jurosFixo + multa;
+    const valorBaseDaParcela = emp.valorParcelasPendentes?.[indice] ?? 0;
+    const valorMinimoNecessario = valorBaseDaParcela + multa;
+
     if (recebido < valorMinimoNecessario) {
       return res.status(400).json({
-        erro: `Valor insuficiente. Mínimo: ${valorMinimoNecessario.toFixed(2)} (Juros: ${jurosFixo.toFixed(2)}${multa > 0 ? ` + Multa: ${multa.toFixed(2)}` : ''})`
+        erro: `Valor insuficiente. Mínimo: ${valorMinimoNecessario.toFixed(2)} (Juros: ${valorBaseDaParcela.toFixed(2)}${multa>0?` + Multa: ${multa.toFixed(2)}`:''})`
       });
     }
 
-    // ======= Atualiza parcela =======
+    // Atualiza parcela
     emp.statusParcelas[indice] = true;
     emp.datasPagamentos[indice] = dataPagamento;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
     emp.valoresRecebidos[indice] = recebido;
-    emp.valorParcelasPendentes[indice] = recebido;
 
-    // ======= Recalcula resumo no mesmo padrão do front =======
-    const resumo = calcularResumoParcelas(emp);
-
-    // ✅ CORREÇÃO: Verifica se TODAS as parcelas estão pagas E se o valor total foi atingido
-    const todasParcelasPagas = emp.statusParcelas.every(status => status === true);
-    const valorTotalPago = emp.valoresRecebidos.reduce((total, valor) => total + (valor || 0), 0);
-    const valorTotalDevido = emp.valorComJuros;
-    
-    // Quitação somente se todas as parcelas estão pagas E o valor total foi atingido OU excedido
-    const quitado = todasParcelasPagas && valorTotalPago >= valorTotalDevido;
+    // Calcula resumo sem arredondamento
+    const resumoAtualizado = calcularResumoParcelas(emp);
+    const todasParcelasPagas = emp.statusParcelas.every(s => s===true);
+    const quitado = todasParcelasPagas && resumoAtualizado.valorPrincipalRestante <= 0;
     emp.quitado = quitado;
 
-    // ✅ CORREÇÃO: Só gera nova parcela se NÃO estiver quitado E for a última parcela
+    // CORREÇÃO: Adiciona nova parcela SEM ARREDONDAMENTO
     if (!quitado && indice === emp.parcelas - 1) {
-      emp.parcelas += 1;
+      emp.parcelas++;
       emp.statusParcelas.push(false);
       emp.datasPagamentos.push(null);
       emp.recebidoPor.push(null);
       emp.valoresRecebidos.push(null);
-      emp.valorParcelasPendentes.push(null);
 
-      // Nova data de vencimento: +1 mês após a última data conhecida (ou hoje, se não houver)
-      const base = emp.datasVencimentos?.[emp.datasVencimentos.length - 1]
-        ? new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1])
-        : new Date();
-      base.setMonth(base.getMonth() + 1);
-      const iso = base.toISOString().slice(0, 10);
-      emp.datasVencimentos.push(iso);
+      const taxa = emp.taxaJuros || 20;
+      
+      // CALCULO EXATO SEM ARREDONDAMENTO
+      const jurosSobreSaldo = resumoAtualizado.valorPrincipalRestante * (taxa/100);
+      
+      // Mantém o valor exato com 2 casas decimais, mas sem arredondar para inteiros
+      const valorNovaParcela = parseFloat(Math.min(resumoAtualizado.valorPrincipalRestante, jurosSobreSaldo).toFixed(2));
+
+      emp.valorParcelasPendentes.push(valorNovaParcela);
+
+      const base = emp.datasVencimentos[emp.datasVencimentos.length-1] ? new Date(emp.datasVencimentos[emp.datasVencimentos.length-1]) : new Date();
+      base.setMonth(base.getMonth()+1);
+      emp.datasVencimentos.push(base.toISOString().slice(0,10));
     }
 
     await emp.save();
 
-    // Recalcula para refletir possíveis mudanças pós-save
     const resumoFinal = calcularResumoParcelas(emp);
-    const saldoRestantePrincipal = Math.max(0, (emp.valorOriginal || 0) - resumoFinal.totalPagoValido);
 
     res.json({
       ...emp.toObject(),
       ...resumoFinal,
-      saldoRestantePrincipal,
-      jurosFixoPorParcela: jurosFixo,
       diasAtraso,
       multa,
       quitado,
-      todasParcelasPagas, // ✅ Adiciona informação se todas as parcelas estão pagas
-      valorTotalPago, // ✅ Adiciona valor total pago
-      valorTotalDevido // ✅ Adiciona valor total devido
+      todasParcelasPagas,
+      valorTotalPago: resumoFinal.totalPagoValido,
+      valorTotalDevido: emp.valorComJuros
     });
 
   } catch (err) {
@@ -511,6 +515,8 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
+
+
 
 
 // Atualizar datas de vencimento das parcelas de um empréstimo
@@ -691,17 +697,20 @@ app.get('/emprestimos', async (req, res) => {
     const { termo, status } = req.query;
     let filtro = {};
 
+    // Filtro por termo (busca tanto no nome quanto no CPF)
     if (termo) {
-      filtro.cpf = { $regex: termo, $options: 'i' };
+      filtro.$or = [
+        { nome: { $regex: termo, $options: 'i' } },
+        { cpf: { $regex: termo, $options: 'i' } }
+      ];
     }
 
+    // Resto do código permanece igual...
     if (status === 'ativo') {
       filtro.quitado = false;
     } else if (status === 'quitado') {
       filtro.quitado = true;
     } else if (status === 'inadimplente') {
-      // Para inadimplentes, você pode chamar a lógica da rota /emprestimos/inadimplentes
-      // mas para manter simples, aqui retorna vazio ou manda erro, ou chama função auxiliar
       return res.status(400).json({ erro: 'Use /emprestimos/inadimplentes para status inadimplente' });
     }
 
@@ -744,6 +753,7 @@ app.get('/health', (req, res) => {
 
 /* ⇢ Dados do Dashboard */
 
+/* ⇢ Dados do Dashboard */
 app.get('/dashboard/dados', async (req, res) => {
   try {
     const { mes } = req.query; // ex: "2025-08"
@@ -752,7 +762,6 @@ app.get('/dashboard/dados', async (req, res) => {
     hoje.setHours(0, 0, 0, 0);
 
     let ativos = 0, quitados = 0, inadimplentes = 0;
-    const porMes = {};
     const jurosMes = {};
     const parcelasVencimento = {};
 
@@ -772,21 +781,8 @@ app.get('/dashboard/dados', async (req, res) => {
     }
 
     for (const emp of todos) {
-      const dataCriacao = new Date(emp.createdAt);
-      const mesCriacao = formatarMesAno(dataCriacao);
-
-      // Só considera o empréstimo se estiver no mês filtrado (se filtrado)
-      if (filtroAno && filtroMes) {
-        if (dataCriacao.getFullYear() !== filtroAno || (dataCriacao.getMonth() + 1) !== filtroMes) {
-          continue; // pula empréstimos fora do mês selecionado
-        }
-      }
-
-      // Acumula valor original por mês
-      porMes[mesCriacao] = (porMes[mesCriacao] || 0) + emp.valorOriginal;
-
       const totalJuros = emp.valorComJuros - emp.valorOriginal;
-      const jurosPorParcela = totalJuros / emp.parcelas;
+      const jurosPorParcela = emp.parcelas > 0 ? totalJuros / emp.parcelas : 0;
 
       emp.datasVencimentos?.forEach((dataStr, idx) => {
         const data = new Date(dataStr);
@@ -841,7 +837,6 @@ app.get('/dashboard/dados', async (req, res) => {
       ativos,
       quitados,
       inadimplentes,
-      porMes: ordenarEConstruir(porMes),
       jurosMes: ordenarEConstruir(jurosMes),
       parcelasVencimento: ordenarEConstruir(parcelasVencimento)
     });
@@ -850,6 +845,7 @@ app.get('/dashboard/dados', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao calcular estatísticas' });
   }
 });
+
 
 
 

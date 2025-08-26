@@ -247,7 +247,7 @@
         <div class="form-column" id="buscarEmprestimos">
           <h2>Pesquisar Empréstimos Ativos</h2>
           <div class="campo-busca">
-            <input type="text" id="pesquisa" placeholder="Buscar por CPF" />
+            <input type="text" id="pesquisa" placeholder="Buscar por Nome ou CPF" />
             <button type="button" id="btnConsultarAtivos">Consultar</button>
           </div>
           <ul id="resultado"></ul>
@@ -256,7 +256,7 @@
         <div class="form-column" id="buscarQuitados">
           <h2>Pesquisar Empréstimos Quitados</h2>
           <div class="campo-busca">
-            <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por CPF" />
+            <input type="text" id="pesquisaQuitados" placeholder="Buscar empréstimo quitado por Nome ou CPF" />
             <button type="button" id="btnConsultarQuitados">Consultar</button>
           </div>
           <ul id="resultadoQuitados"></ul>
@@ -319,48 +319,34 @@
       </div>
 
       <!-- DASHBOARD -->
-      <section id="dashboard" class="dashboard-container">
-        <h2>Dashboard</h2>
-        <div class="dashboard-item" id="ativos">
-          Empréstimos Ativos: <span id="ativosCount">0</span>
-        </div>
-        <br>
-        <div class="dashboard-item" id="quitados">
-          Empréstimos Quitados: <span id="quitadosCount">0</span>
-        </div>
-        <br>
+          <!-- DASHBOARD -->
+            <section id="dashboard" class="dashboard-container">
+              <h2>Dashboard</h2>
 
-        <div class="dashboard-item" id="inadimplentes">
-          Empréstimos Inadimplentes: <span id="inadimplentesCount">0</span>
-        </div>
-        <div class="export-buttons">
-          <button id="exportCSV">Exportar CSV do tipo selecionado</button>
-        </div>
+              <div class="dashboard-item" id="ativos">
+                Empréstimos Ativos: <span id="ativosCount">0</span>
+              </div>
+              <br>
+              <div class="dashboard-item" id="quitados">
+                Empréstimos Quitados: <span id="quitadosCount">0</span>
+              </div>
+              <br>
+              <div class="dashboard-item" id="inadimplentes">
+                Empréstimos Inadimplentes: <span id="inadimplentesCount">0</span>
+              </div>
 
-        <label for="mesSelecionado" class="label-mes">Selecionar Mês:</label>
-        <input type="month" id="mesSelecionado" class="input-mes" />
+              <div class="export-buttons">
+                <button id="exportCSV">Exportar CSV do tipo selecionado</button>
+              </div>
 
-        <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 40px;">
-          <div style="flex: 1; min-width: 300px;">
-            <canvas id="graficoEmprestimosMes"></canvas>
-          </div>
-          <div style="flex: 1; min-width: 300px;">
-            <canvas id="graficoJurosMes"></canvas>
-          </div>
-          <div style="flex: 1; min-width: 300px;">
-            <canvas id="graficoVencimentosMes"></canvas>
-          </div>
-        </div>
-      </section>
+              <!-- Removido picker de mês -->
+            </section>
 
-      <!-- DADOS DO MÊS SELECIONADO PELO GRÁFICO -->
-      <section id="dadosGraficoMesSelecionado" style="display: none; margin-top: 30px;">
-        <h3>Dados do Mês Selecionado</h3>
-        <div id="dadosDetalhadosMes"></div>
-        <button id="btnExportarPDFGrafico">Exportar PDF do Mês</button>
-      </section>
-    </div>
-  </div>
+            <!-- DADOS DETALHADOS -->
+            <section id="dadosGraficoMesSelecionado" style="display: none; margin-top: 30px;">
+              <h3>Dados Detalhados</h3>
+              <div id="dadosDetalhadosMes"></div>
+            </section>
 
   <section id="filtroPagamentos" class="filtro-pagamentos">
     <h3>Extrair Pagamentos por Intervalo</h3>

@@ -20,28 +20,58 @@ import { abrirModal } from './modal.js';
 import {aplicarMascaraCPF} from './mascaras.js';
 let termoAtual = ''; // Certifique-se de que termoAtual está declarado globalmente
 
+// --- Pesquisa empréstimos ativos ---
+// Helpers pra limpar resultados
+const limparAtivos = () => { 
+  resultado.innerHTML = '';
+  termoAtual = '';
+};
+const limparQuitados = () => {
+  resultadoQuitados.innerHTML = '';
+};
+
+// Função genérica: trata entrada como CPF (numérica) ou Nome (texto)
+function tratarEntradaCPFouNome(inputEl, limparCb) {
+  const textoAtual = inputEl.value;
+
+  // Se há letras, considera modo "Nome": não mascara nem limita
+  if (/[a-zA-Z]/.test(textoAtual)) {
+    inputEl.removeAttribute('maxlength'); // não limitar nome
+    if (textoAtual.trim().length < 3) limparCb();
+    return;
+  }
+
+  // Modo "CPF": só números, limita a 11 e aplica máscara
+  let digitos = textoAtual.replace(/\D/g, '').slice(0, 11);
+
+  if (digitos.length === 0) {
+    inputEl.value = '';
+    inputEl.removeAttribute('maxlength');
+    limparCb();
+    return;
+  }
+
+  // Aplica máscara e trava o comprimento visual do CPF: 000.000.000-00 → 14 chars
+  inputEl.value = aplicarMascaraCPF(digitos);
+  inputEl.setAttribute('maxlength', '14');
+
+  // (opcional) enquanto não tiver 11 dígitos, limpa resultados
+  if (digitos.length < 11) {
+    limparCb();
+  }
+}
+
+// --- Pesquisa empréstimos ativos ---
 pesquisa.addEventListener('input', (e) => {
-  e.target.value = aplicarMascaraCPF(e.target.value);
-
-  const cpfNumeros = e.target.value.replace(/\D/g, '');
-
-  // Se tiver menos de 11 dígitos, limpa os resultados
-  if (cpfNumeros.length < 11) {
-    resultado.innerHTML = '';
-    termoAtual = '';
-  }
+  tratarEntradaCPFouNome(e.target, limparAtivos);
 });
 
-
+// --- Pesquisa empréstimos quitados ---
 pesquisaQuitados.addEventListener('input', (e) => {
-  e.target.value = aplicarMascaraCPF(e.target.value);
-
-  const cpfNumeros = e.target.value.replace(/\D/g, '');
-
-  if (cpfNumeros.length < 11) {
-    resultadoQuitados.innerHTML = '';
-  }
+  tratarEntradaCPFouNome(e.target, limparQuitados);
 });
+
+
 
 // --- Busca empréstimos ativos ---
 btnConsultarAtivos.addEventListener('click', async () => {
@@ -50,67 +80,58 @@ btnConsultarAtivos.addEventListener('click', async () => {
   if (!texto) return;
 
   try {
-  const res = await fetch(`${URL_SERVICO}/emprestimos?status=ativo&termo=${encodeURIComponent(texto)}`);
-
+    const res = await fetch(`${URL_SERVICO}/emprestimos?status=ativo&termo=${encodeURIComponent(texto)}`);
     if (!res.ok) throw new Error('Erro na busca');
     const dados = await res.json();
 
     if (!dados.length) {
-      resultado.innerHTML = 
-       `<li class="mensagem-vazia">
+      resultado.innerHTML = `
+        <li class="mensagem-vazia">
           <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
           <p>Nenhum empréstimo encontrado</p>
-        </li>
-`;
+        </li>`;
       return;
     }
 
     const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0); // zera hora
+    hoje.setHours(0, 0, 0, 0);
 
-          dados.forEach((emprestimo, index) => {
-            const vencido = emprestimo.datasVencimentos?.some((data, i) => {
-              const [ano, mes, dia] = data.split('-').map(Number);
-              const vencimento = new Date(ano, mes - 1, dia);
-              vencimento.setHours(0, 0, 0, 0);
-              return vencimento < hoje && !emprestimo.statusParcelas[i];
-            });
+    dados.forEach((emprestimo, index) => {
+      const vencido = emprestimo.datasVencimentos?.some((data, i) => {
+        const [ano, mes, dia] = data.split('-').map(Number);
+        const vencimento = new Date(ano, mes - 1, dia);
+        vencimento.setHours(0, 0, 0, 0);
+        return vencimento < hoje && !emprestimo.statusParcelas[i];
+      });
 
-            const li = document.createElement('li');
-            li.setAttribute('tabindex', '-1');
-            li.classList.add('card-vencimento');
+      const li = document.createElement('li');
+      li.setAttribute('tabindex', '-1');
+      li.classList.add('card-vencimento');
+      li.innerHTML = `
+        <h3>${emprestimo.nome}</h3>
+        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
+        <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
+        <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
+        ${vencido ? '<p style="color: red; font-weight: bold;">ATRASADO</p>' : ''}
+      `;
 
-            li.innerHTML = `
-              <h3>${emprestimo.nome}</h3>
-              <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
-              <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
-              <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
-              ${vencido ? '<p style="color: red; font-weight: bold;">ATRASADO</p>' : ''}
-            `;
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        abrirModal(emprestimo);
+      });
 
-            li.addEventListener('click', (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              abrirModal(emprestimo);
-            });
+      resultado.appendChild(li);
 
-            resultado.appendChild(li);
-
-            setTimeout(() => {
-              li.classList.add('mostrar');
-            }, index * 100);
-          });
-
-
-
-
-          
-
-            } catch (err) {
-              console.error(err);
-              mostrarAlertaError('Erro ao buscar empréstimos');
-            }
-          });
+      setTimeout(() => {
+        li.classList.add('mostrar');
+      }, index * 100);
+    });
+  } catch (err) {
+    console.error(err);
+    mostrarAlertaError('Erro ao buscar empréstimos');
+  }
+});
 
 // --- Busca empréstimos quitados ---
 btnConsultarQuitados.addEventListener('click', async () => {
@@ -119,17 +140,16 @@ btnConsultarQuitados.addEventListener('click', async () => {
   if (!texto) return;
 
   try {
-    const res = await fetch(`${URL_SERVICO}/emprestimos/quitados?termo=${encodeURIComponent(texto)}`);
+    const res = await fetch(`${URL_SERVICO}/emprestimos?status=quitado&termo=${encodeURIComponent(texto)}`);
     if (!res.ok) throw new Error('Erro na busca de quitados');
     const dados = await res.json();
 
     if (!dados.length) {
-      resultadoQuitados.innerHTML =        
-      `<li class="mensagem-vazia">
+      resultadoQuitados.innerHTML = `
+        <li class="mensagem-vazia">
           <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
           <p>Nenhum empréstimo encontrado</p>
-        </li>
-`;
+        </li>`;
       return;
     }
 
@@ -145,12 +165,11 @@ btnConsultarQuitados.addEventListener('click', async () => {
         <p style="color: green; font-weight: bold;">QUITADO</p>
       `;
 
-li.addEventListener('click', (e) => {
-  e.preventDefault();           // impede comportamento padrão
-  e.stopPropagation();          // impede propagação que pode causar scroll
-  abrirModal(emprestimo);      // abre modal
-});
-
+      li.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        abrirModal(emprestimo);
+      });
 
       resultadoQuitados.appendChild(li);
 
