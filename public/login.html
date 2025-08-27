@@ -147,20 +147,29 @@ async function logar() {
       return;
     }
 
-    const dados = await res.json();
-    if (dados.sucesso) {
-      if (dados.tipo === 'admin') {
-        localStorage.setItem("isAdmin", "true");
-        localStorage.removeItem("isOperador");
-      } else if (dados.tipo === 'operador') {
-        localStorage.setItem("isOperador", "true");
-        localStorage.removeItem("isAdmin");
-        localStorage.setItem("operadorNome", dados.user);
-      }
-      window.location.href = "index.html";
-    } else {
-      mostrarAlertaError('Login falhou');
-    }
+const dados = await res.json();
+
+if (dados.sucesso) {
+  // limpa todos antes de setar
+  localStorage.removeItem("isAdmin");
+  localStorage.removeItem("isAdminMensal3");
+  localStorage.removeItem("isOperador");
+  localStorage.removeItem("operadorNome");
+
+  if (dados.tipo === "admin") {
+    localStorage.setItem("isAdmin", "true");
+  } else if (dados.tipo === "adminMensal3") {
+    localStorage.setItem("isAdminMensal3", "true");
+  } else if (dados.tipo === "operador") {
+    localStorage.setItem("isOperador", "true");
+    localStorage.setItem("operadorNome", dados.user);
+  }
+
+  window.location.href = "index.html";
+} else {
+  mostrarAlertaError('Login falhou');
+}
+
 
   } catch (err) {
     mostrarAlertaError('Erro ao conectar no servidor');

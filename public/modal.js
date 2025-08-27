@@ -918,17 +918,22 @@ function atualizarVisualParcelas(emprestimo) {
     item.className = 'parcela-box';
     item.style = 'margin-bottom: 16px; display: flex; align-items: flex-start;';
 
-    const chk = document.createElement('input');
-    chk.type = 'checkbox';
-    chk.checked = paga;
-    chk.disabled = paga;
-    chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
-
     const label = document.createElement('label');
     label.style.lineHeight = '1.4';
 
-    // ✅ CORREÇÃO: Acessa o valor dinâmico para cada parcela
-    // Se a parcela pendente existir, usa o valor dela, senão usa o valorBase
+    const isOperador = localStorage.getItem('isOperador') === 'true';
+    let chk = null;
+
+    // ✅ Só cria o checkbox se NÃO for operador
+    if (!isOperador) {
+      chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = paga;
+      chk.disabled = paga;
+      chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
+    }
+
+    // Valor e vencimento
     const valorParcelaCorrigido = emprestimo.valorParcelasPendentes?.[i] || valorBase;
     const valorFormatado = formatarMoeda(valorParcelaCorrigido);
     const vencimento = datasVencimentos[i];
@@ -939,6 +944,7 @@ function atualizarVisualParcelas(emprestimo) {
 
     let statusClass = 'parcela-em-dia';
 
+    // Verifica atrasos
     if (vencimento && !paga) {
       const diasAtraso = calcularDiasAtraso(vencimento);
       if (diasAtraso > 0) {
@@ -960,6 +966,7 @@ function atualizarVisualParcelas(emprestimo) {
       }
     }
 
+    // Se já foi paga
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
       const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -994,79 +1001,64 @@ function atualizarVisualParcelas(emprestimo) {
     }
 
     label.innerHTML = html;
-    const isOperador = localStorage.getItem('isOperador') === 'true';
-    const operadorNome = localStorage.getItem('operadorNome') || '';
 
-    chk.addEventListener('change', () => {
-      if (chk.checked) {
-        if (i > 0 && !parcelas[i - 1]) {
-          mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes da ${i + 1}.`);
-          chk.checked = false;
-          return;
-        }
-
-        chk.checked = false;
-        parcelaSelecionada = { emprestimo, indice: i, checkbox: chk };
-        modalRecebedor.style.display = 'flex';
-
-        // Configurações do operador
-        if (isOperador) {
-          const options = inputRecebedor.options;
-          let valorParaSetar = '';
-          for (let k = 0; k < options.length; k++) {
-            if (options[k].text === operadorNome || options[k].value === operadorNome) {
-              valorParaSetar = options[k].value;
-              break;
-            }
+    // Evento só se não for operador
+    if (chk) {
+      chk.addEventListener('change', () => {
+        if (chk.checked) {
+          if (i > 0 && !parcelas[i - 1]) {
+            mostrarAlertaWarning(`Você precisa marcar a parcela ${i} como paga antes da ${i + 1}.`);
+            chk.checked = false;
+            return;
           }
-          inputRecebedor.value = valorParaSetar || '';
-          inputRecebedor.disabled = true;
-        } else {
+
+          chk.checked = false;
+          parcelaSelecionada = { emprestimo, indice: i, checkbox: chk };
+          modalRecebedor.style.display = 'flex';
+
           inputRecebedor.value = '';
           inputRecebedor.disabled = false;
           inputRecebedor.focus();
-        }
 
-        // ✅ CORREÇÃO: Calcular valor mínimo baseado no tipo de empréstimo e valor pendente
-        let valorMinimo = valorParcelaCorrigido;
-        let mensagemInfo = '';
+          let valorMinimo = valorParcelaCorrigido;
+          let mensagemInfo = '';
 
-        // Verificar atraso
-        if (emprestimo.datasVencimentos?.[i]) {
-          const vencimento = new Date(emprestimo.datasVencimentos[i]);
-          const hoje = new Date();
-          hoje.setHours(0, 0, 0, 0);
-          vencimento.setHours(0, 0, 0, 0);
+          if (emprestimo.datasVencimentos?.[i]) {
+            const vencimento = new Date(emprestimo.datasVencimentos[i]);
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            vencimento.setHours(0, 0, 0, 0);
 
-          if (hoje > vencimento) {
-            const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
-            const multa = diasAtraso * 20;
-            valorMinimo = valorParcelaCorrigido + multa;
-            mensagemInfo = `⚠️ Esta parcela está atrasada. O valor mínimo a ser pago deve ser ${formatarMoeda(valorParcelaCorrigido)} + ${formatarMoeda(multa)} de multa`;
+            if (hoje > vencimento) {
+              const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
+              const multa = diasAtraso * 20;
+              valorMinimo = valorParcelaCorrigido + multa;
+              mensagemInfo = `⚠️ Esta parcela está atrasada. O valor mínimo a ser pago deve ser ${formatarMoeda(valorParcelaCorrigido)} + ${formatarMoeda(multa)} de multa`;
+            }
           }
-        }
 
-        // Adicionar mensagem informativa no modal
-        const infoDiv = document.getElementById('infoMulta') || document.createElement('div');
-        infoDiv.id = 'infoMulta';
-        infoDiv.style.margin = '10px 0';
-        infoDiv.style.padding = '10px';
-        infoDiv.style.backgroundColor = '#fff3e0';
-        infoDiv.style.borderRadius = '4px';
-        infoDiv.style.borderLeft = '4px solid #ffb74d';
-        
-        if (mensagemInfo) {
-          infoDiv.innerHTML = mensagemInfo;
-          modalRecebedor.insertBefore(infoDiv, btnConfirmarRecebedor);
-        } else if (infoDiv.parentNode) {
-          infoDiv.parentNode.removeChild(infoDiv);
-        }
+          const infoDiv = document.getElementById('infoMulta') || document.createElement('div');
+          infoDiv.id = 'infoMulta';
+          infoDiv.style.margin = '10px 0';
+          infoDiv.style.padding = '10px';
+          infoDiv.style.backgroundColor = '#fff3e0';
+          infoDiv.style.borderRadius = '4px';
+          infoDiv.style.borderLeft = '4px solid #ffb74d';
 
-        // Deixa o campo vazio
-        document.getElementById('valorRecebido').value = '';
-      }
-    });
-    item.appendChild(chk);
+          if (mensagemInfo) {
+            infoDiv.innerHTML = mensagemInfo;
+            modalRecebedor.insertBefore(infoDiv, btnConfirmarRecebedor);
+          } else if (infoDiv.parentNode) {
+            infoDiv.parentNode.removeChild(infoDiv);
+          }
+
+          document.getElementById('valorRecebido').value = '';
+        }
+      });
+    }
+
+    // ✅ Monta o item final
+    if (chk) item.appendChild(chk); // só adiciona o checkbox se for admin
     item.appendChild(label);
     item.classList.add(statusClass);
     parcelasContainer.appendChild(item);
@@ -1134,7 +1126,10 @@ function filtrarEmprestimosPorMes(mesAno) {
   });
 
   if (emprestimosFiltrados.length === 0) {
-    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
+    resultadoFiltrado.innerHTML =         `<li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo encontrado</p>
+        </li>`;
     atualizarTotaisResumo(); // zera totais
     return;
   }
@@ -1474,7 +1469,10 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
   });
 
   if (emprestimosFiltrados.length === 0) {
-    resultadoFiltrado.innerHTML = '<li class="sem-resultados">Nenhum empréstimo encontrado</li>';
+    resultadoFiltrado.innerHTML =  `<li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum empréstimo encontrado</p>
+        </li>`;
     atualizarTotaisResumo([]);
     parcelasFiltradas = [];
     return;
@@ -1568,27 +1566,35 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       ? p.taxaJuros 
       : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
 
-      let statusHTML = '';
-      if (p.pago) {
-        statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
-        
-        // Ícone só se pago acima do valorParcela + multa
-        if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
-          statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
+        let statusHTML = '';
+        if (p.pago) {
+          statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
+          
+          // Ícone só se pago acima do valorParcela + multa
+          if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
+            statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
+          }
+        } else {
+          const isOperador = localStorage.getItem("isOperador") === "true";
+
+          if (isOperador) {
+            // Somente exibição, sem checkbox
+            statusHTML = `<span style="font-weight:bold; color:#d9534f;">PENDENTE</span>`;
+          } else {
+            // Admin pode marcar como pago
+            statusHTML = `<label class="parcela-checkbox">
+                            <input 
+                              type="checkbox"
+                              data-id="${emp.id}" 
+                              data-indice="${p.indice}"
+                              data-valor="${p.valorParcela}"
+                              class="parcela-pendente"
+                            />
+                            <span class="checkmark"></span>
+                            <span class="pagar-label">MARCAR</span>
+                          </label>`;
+          }
         }
-      } else {
-        statusHTML = `<label class="parcela-checkbox">
-                        <input 
-                          type="checkbox"
-                          data-id="${emp.id}" 
-                          data-indice="${p.indice}"
-                          data-valor="${p.valorParcela}"
-                          class="parcela-pendente"
-                        />
-                        <span class="checkmark"></span>
-                        <span class="pagar-label">MARCAR</span>
-                      </label>`;
-      }
 
     const linha = document.createElement('div');
     linha.className = `parcela-linha ${p.pago ? 'paga' : p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}`;

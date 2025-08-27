@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = localStorage.getItem("isAdmin") === "true";
+  const isAdminMensal3 = localStorage.getItem("isAdminMensal3") === "true";
   const isOperador = localStorage.getItem("isOperador") === "true";
   
   const authButtonsContainer = document.getElementById("authButtonsContainer");
-
   authButtonsContainer.innerHTML = '';
   
-  if (isAdmin || isOperador) {
+  if (isAdmin || isAdminMensal3 || isOperador) {
     // Botão de sair
     const logoutBtn = document.createElement('button');
     logoutBtn.id = 'logoutBtn';
@@ -14,21 +14,36 @@ document.addEventListener('DOMContentLoaded', () => {
     authButtonsContainer.appendChild(logoutBtn);
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem("isAdmin");
+      localStorage.removeItem("isAdminMensal3");
       localStorage.removeItem("isOperador");
       location.reload();
     });
 
     if (isAdmin) {
-      // Mostra tudo
+      // Admin completo → mostra tudo
       document.querySelectorAll(".form-column, #dashboard, #filtroPagamentos").forEach(el => {
         el.style.display = "block";
       });
-      //carregarEstatisticas();
+    }
+
+    if (isAdminMensal3) {
+      // Esconde tudo primeiro
+      document.querySelectorAll(".separadorCadastro, .form-column, #dashboard, #filtroPagamentos, .card-cidade").forEach(el => {
+        el.style.display = "none";
+      });
+
+      // Mostra apenas Mensal 3
+      document.querySelectorAll('.card-cidade[data-grupo="Mensal 3"]').forEach(el => {
+        el.style.display = "block";
+      });
+
+      // Se precisar: mostrar também a lista de empréstimos do Mensal 3
+      document.querySelector("#listaEmprestimosCidade").style.display = "block";
     }
 
     if (isOperador) {
-      // Esconde tudo
-      document.querySelectorAll(".separadorCadastro,.separadorPesquisas, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+      // Operador → acesso reduzido
+      document.querySelectorAll("#totaisResumo, .separadorCadastro,.separadorPesquisas, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
         el.style.display = "none";
       });
 
@@ -36,8 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll("#emprestimosPorDataDia, #emprestimosPorData, #painelUnificado").forEach(el => {
         el.style.display = "block";
       });
-
-      // ATENÇÃO: se o "Vencimentos do dia" está dentro de #emprestimosPorData, ele já será exibido
     }
 
   } else {
@@ -47,14 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loginBtn.onclick = () => { window.location.href = 'login.html'; };
     authButtonsContainer.appendChild(loginBtn);
 
-    document.querySelectorAll(".separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+    document.querySelectorAll(".selecioneData, .btn-pdf, .legenda-status, #totaisResumo, .botoes-filtro-container, .cards-cidades-container, .separadorMensais, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
       el.style.display = "none";
     });
 
-          document.querySelectorAll(".sessaoCadastro").forEach(el => {
-        el.style.display = "block";
-      });
+    document.querySelectorAll(".sessaoCadastro").forEach(el => {
+      el.style.display = "block";
+    });
   }
 });
-
-

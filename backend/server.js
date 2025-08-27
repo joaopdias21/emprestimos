@@ -51,7 +51,8 @@ function preencherDatasPadrao(datasVencimentos, parcelas) {
 
 // Defina suas senhas seguras aqui (ou melhor ainda, use variáveis de ambiente)
 const SENHAS = {
-  admin: 'Z9#vLp!2@WdXq7&Fs',
+  admin: 'Z9#vLp!2@WdXq7&Fs', // Admin total
+  adminMensal3: 'X4$kMn!8@QrLp2#Hs', // Admin restrito ao Mensal 3
   operadores: {
     Gugu: 'N7%rTb$5!QmVz1@Wy',
     Bigu: 'K2!xFd#8@PcJs6%Rt',
@@ -65,20 +66,22 @@ app.post('/login', (req, res) => {
     return res.status(400).json({ erro: 'Insira a senha para login' });
   }
 
-  if (!['admin', 'operador'].includes(tipo)) {
+  if (!['admin', 'adminMensal3', 'operador'].includes(tipo)) {
     return res.status(400).json({ erro: 'Tipo inválido' });
   }
 
-  if (tipo === 'admin') {
-    if (senha === SENHAS.admin) {
-      return res.json({ sucesso: true, tipo: 'admin' });
-    } else {
-      return res.status(401).json({ erro: 'Senha incorreta' });
-    }
+if (tipo === 'admin') {
+  if (senha === SENHAS.admin) {
+    return res.json({ sucesso: true, tipo: 'admin' }); // admin total
+  } else if (senha === SENHAS.adminMensal3) {
+    return res.json({ sucesso: true, tipo: 'adminMensal3' }); // admin restrito
+  } else {
+    return res.status(401).json({ erro: 'Senha incorreta' });
   }
+}
+
 
   if (tipo === 'operador') {
-    // Verifica se a senha bate com algum operador
     const operadorLogado = Object.entries(SENHAS.operadores).find(
       ([nome, senhaOperador]) => senha === senhaOperador
     );
@@ -91,6 +94,7 @@ app.post('/login', (req, res) => {
     }
   }
 });
+
 
 
 
