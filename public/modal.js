@@ -299,19 +299,13 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     valorRecebido = parseFloat(valorLimpoString) / 100;
   }
 
-  if (isNaN(valorRecebido)) {
+  if (isNaN(valorRecebido) || valorRecebido <= 0) {
     mostrarAlertaWarning('Informe um valor válido para o pagamento.');
     return;
   }
 
-  // ✅ CORREÇÃO: Usa a sua função para obter o valor mínimo
-  const { valorMinimo } = verificarAtrasoEPreencherValor(emprestimo, indice);
-
-  if (valorRecebido < valorMinimo) {
-    mostrarAlertaWarning(`Valor recebido insuficiente. O valor mínimo para esta parcela é ${formatarMoeda(valorMinimo)}`);
-    return;
-  }
-
+  // 🔹 Agora NÃO bloqueamos valores menores que o mínimo.
+  // O backend vai calcular quanto falta.
   try {
     const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
       method: 'PATCH',
@@ -336,17 +330,23 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
     if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
-    emprestimo.statusParcelas[indice] = true;
-    emprestimo.datasPagamentos[indice] = dataPagamento;
-    emprestimo.recebidoPor[indice] = nome;
-    emprestimo.valoresRecebidos[indice] = valorRecebido;
+    // ❌ Removemos esta parte, pq o backend já decide se está pago ou parcial:
+    // emprestimo.statusParcelas[indice] = true;
+    // emprestimo.datasPagamentos[indice] = dataPagamento;
+    // emprestimo.recebidoPor[indice] = nome;
+    // emprestimo.valoresRecebidos[indice] = valorRecebido;
 
+    // 🔹 Só marcamos o checkbox se o backend disser que está quitada
     if (checkbox) {
-      checkbox.checked = true;
-      checkbox.disabled = true;
-      // ... resto da atualização da UI
+      if (emprestimo.statusParcelas[indice]) {
+        checkbox.checked = true;
+        checkbox.disabled = true;
+      } else {
+        checkbox.checked = false; // ainda falta parte do valor
+      }
     }
 
+    // Atualiza UI
     if (document.getElementById('listaEmprestimosCidade').style.display !== 'none') {
       const cidadeAtual = cidadeSelecionada;
       if (cidadeAtual) {
@@ -360,19 +360,24 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
       atualizarValorRestante(emprestimo);
     }
 
-    mostrarAlerta(`Parcela ${indice + 1} marcada como paga por ${nome}`);
+    // Mensagem adaptada
+    if (emprestimo.statusParcelas[indice]) {
+      mostrarAlerta(`Parcela ${indice + 1} quitada por ${nome}`);
+    } else {
+      mostrarAlerta(`Parcela ${indice + 1} recebeu pagamento parcial de ${formatarMoeda(valorRecebido)} por ${nome}`);
+    }
 
   } catch (err) {
     console.error('Erro ao marcar parcela como paga:', err);
     if (checkbox) {
       checkbox.checked = false;
     }
-    mostrarAlertaError(`Erro ao marcar parcela: ${err.message}`);
+    mostrarAlertaError(`Erro ao registrar pagamento: ${err.message}`);
   }
 
-  // ✅ Fecha o modal corretamente
   fecharModalRecebedor();
 });
+
 
 
 function mostrarModalRecebedor() {
@@ -933,38 +938,67 @@ function atualizarVisualParcelas(emprestimo) {
       chk.style = 'margin-right: 10px; transform: scale(1.5); cursor: pointer; margin-top: 4px;';
     }
 
-    // Valor e vencimento
-    const valorParcelaCorrigido = emprestimo.valorParcelasPendentes?.[i] || valorBase;
-    const valorFormatado = formatarMoeda(valorParcelaCorrigido);
-    const vencimento = datasVencimentos[i];
-    const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
+// Valor base da parcela
+const valorParcelaCorrigido = emprestimo.valorParcelasPendentes?.[i] || valorBase;
+const vencimento = datasVencimentos[i];
+const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
-    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${valorFormatado}<br>`;
-    if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
+// Valor já recebido
+const valorRecebido = emprestimo.valoresRecebidos?.[i] || 0;
 
-    let statusClass = 'parcela-em-dia';
+// Calcula multa se atrasada
+let multa = 0;
+if (vencimento && !paga) {
+  const diasAtraso = calcularDiasAtraso(vencimento);
+  if (diasAtraso > 0) {
+    multa = diasAtraso * 20;
+  }
+}
 
-    // Verifica atrasos
-    if (vencimento && !paga) {
-      const diasAtraso = calcularDiasAtraso(vencimento);
-      if (diasAtraso > 0) {
-        const multa = diasAtraso * 20;
-        html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-        html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
-        statusClass = 'parcela-atrasada';
-      } else {
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
-        const [yyyy, mm, dd] = vencimento.split('-');
-        const vencData = new Date(yyyy, mm - 1, dd);
-        vencData.setHours(0, 0, 0, 0);
+// Total necessário para quitar (parcela + multa)
+const valorTotalNecessario = valorParcelaCorrigido + multa;
 
-        if (hoje.getTime() === vencData.getTime()) {
-          html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
-          statusClass = 'parcela-hoje';
-        }
-      }
+// Quanto ainda falta
+const valorFaltante = Math.max(0, valorTotalNecessario - valorRecebido);
+
+// Monta HTML inicial
+let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorParcelaCorrigido)}<br>`;
+if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
+
+// Situação da parcela
+let statusClass = 'parcela-em-dia';
+
+// Mostra se já pagou algo
+if (valorRecebido > 0) {
+  html += `<strong>💵 Pago até agora:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+}
+
+// Mostra valor pendente (se tiver)
+if (valorFaltante > 0) {
+  html += `<strong style="color:orange;">⏳ Valor pendente:</strong> ${formatarMoeda(valorFaltante)}<br>`;
+}
+
+// Verifica atrasos
+if (vencimento && !paga) {
+  const diasAtraso = calcularDiasAtraso(vencimento);
+  if (diasAtraso > 0) {
+    html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
+    html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
+    statusClass = 'parcela-atrasada';
+  } else {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const [yyyy, mm, dd] = vencimento.split('-');
+    const vencData = new Date(yyyy, mm - 1, dd);
+    vencData.setHours(0, 0, 0, 0);
+
+    if (hoje.getTime() === vencData.getTime()) {
+      html += `<strong style="color: orange;">📅 Vence hoje</strong><br>`;
+      statusClass = 'parcela-hoje';
     }
+  }
+}
+
 
     // Se já foi paga
     if (paga && datasPagamentos[i]) {
