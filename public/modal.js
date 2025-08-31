@@ -1394,18 +1394,20 @@ function atualizarTotaisResumo(parcelasFiltradas = []) {
   let valorExcedente = 0;  // multas não pagas + pagamento acima do mínimo
 
   parcelasFiltradas.forEach(p => {
+    // Pega sempre o valor corrigido se existir
+    const valorBase = p.valorParcelaCorrigido ?? p.valorParcela ?? 0;
+
     // Total previsto: apenas o valor mínimo da parcela
-totalPrevisto += p.valorParcela;
-if (p.pago) totalRecebido += p.valorParcela;
+    totalPrevisto += valorBase;
+    if (p.pago) totalRecebido += valorBase;
 
-// valor excedente: multa + pagamento acima do valorParcela
-if (p.pago && p.valorRecebido > p.valorParcela) {
-  valorExcedente += (p.valorRecebido - p.valorParcela);
-}
-if (p.multa && (!p.pagoMulta || p.pagoMulta === false)) {
-  valorExcedente += p.multa;
-}
-
+    // valor excedente: multa + pagamento acima do valorBase
+    if (p.pago && p.valorRecebido > valorBase) {
+      valorExcedente += (p.valorRecebido - valorBase);
+    }
+    if (p.multa && (!p.pagoMulta || p.pagoMulta === false)) {
+      valorExcedente += p.multa;
+    }
   });
 
   const totaisContainer = document.getElementById('totaisResumo');
@@ -1424,6 +1426,7 @@ if (p.multa && (!p.pagoMulta || p.pagoMulta === false)) {
     </div>
   `;
 }
+
 
 
 
@@ -1515,40 +1518,40 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
   parcelasFiltradas = []; // Reinicia o array de parcelas
 
   emprestimosFiltrados.forEach(emp => {
-    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
-      const diasAtraso = calcularDiasAtrasoDataOnly(data);
-      const pago = emp.statusParcelas?.[idx] || false;
+            const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
+          const diasAtraso = calcularDiasAtrasoDataOnly(data);
+          const pago = emp.statusParcelas?.[idx] || false;
 
-      const valorJuros = emp.valorComJuros - emp.valorOriginal;
-      let multa = 0;
+          const valorJuros = emp.valorComJuros - emp.valorOriginal;
+          let multa = 0;
 
-      if (diasAtraso > 0) {
-        if (!pago) {
-          multa = diasAtraso * 20;
-        } else {
-          const valorPago = emp.valoresRecebidos?.[idx] || 0;
-          multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
-        }
-      }
+          if (diasAtraso > 0) {
+            if (!pago) {
+              multa = diasAtraso * 20;
+            } else {
+              const valorPago = emp.valoresRecebidos?.[idx] || 0;
+              multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
+            }
+          }
 
-      const valorParcela = valorJuros; // apenas o valor da parcela
-      const multaAtual = multa;         // valor da multa separado
+          // ✅ valor dinâmico corrigido
+          const valorParcelaCorrigido = emp.valorParcelasPendentes?.[idx] || emp.valorParcela || valorJuros;
 
-      return {
-        data,
-        pago,
-        indice: idx,
-        valorJuros,
-        multa: multaAtual,
-        diasAtraso,
-        valorParcela,       // substitui valorMinimo
-        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
-        emprestimoNome: emp.nome,
-        telefone: emp.telefone,
-        taxaJuros: emp.taxaJuros,
-        emprestimoId: emp.id
-      };
-    }).filter(p => {
+          return {
+            data,
+            pago,
+            indice: idx,
+            valorJuros,
+            multa,
+            diasAtraso,
+            valorParcelaCorrigido,   // <-- agora salvo o valor certo
+            valorRecebido: emp.valoresRecebidos?.[idx] || 0,
+            emprestimoNome: emp.nome,
+            telefone: emp.telefone,
+            taxaJuros: emp.taxaJuros,
+            emprestimoId: emp.id
+          };
+        }).filter(p => {
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
       if (filtroStatus) {
@@ -1621,7 +1624,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
                               type="checkbox"
                               data-id="${emp.id}" 
                               data-indice="${p.indice}"
-                              data-valor="${p.valorParcela}"
+                              data-valor="${p.valorParcelaCorrigido}""
                               class="parcela-pendente"
                             />
                             <span class="checkmark"></span>
@@ -1636,7 +1639,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       <span>${diaVencimento}</span>
       <span class="nome-cliente" style="cursor:pointer; text-decoration: underline;">${p.emprestimoNome}</span>
       <span>${taxaPercentual}%</span>
-      <span>${p.valorParcela}</span>
+      <span>${p.valorParcelaCorrigido}</span>
       <span>${p.multa > 0 ? (p.multa) : '-'}</span>
       <span>${statusHTML}</span>
     `;
