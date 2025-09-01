@@ -6,6 +6,7 @@ const multer   = require('multer');
 const path     = require('path');
 const mongoose = require('mongoose');
 const fs       = require('fs');
+
 require('dotenv').config();
 
 /* ----------------------- CONFIG APP ----------------------- */
@@ -109,7 +110,6 @@ mongoose.connect(process.env.MONGO_URI)
 
 /* --------------------- SCHEMA & MODEL --------------------- */
 const EmprestimoSchema = new mongoose.Schema({
-  id: { type: Number, unique: true },
   nome: String,
   email: String,
   telefone: String,
@@ -126,18 +126,19 @@ const EmprestimoSchema = new mongoose.Schema({
   valorParcela: Number,
   valorParcelasPendentes: [Number],
   taxaJuros: Number,
-  statusParcelas:   [Boolean],
-  datasPagamentos:  [String],
+  statusParcelas: [Boolean],
+  datasPagamentos: [String],
   datasVencimentos: [String],
   valoresRecebidos: [Number],
-  recebidoPor:      [String],
+  recebidoPor: [String],
   arquivos: [{
     nomeOriginal: String,
-    caminho:      String
+    caminho: String
   }],
   quitado: { type: Boolean, default: false },
   tipoParcelamento: { type: String, default: 'juros' }
 }, { timestamps: true });
+
 
 const Emprestimo = mongoose.model('Emprestimo', EmprestimoSchema);
 
@@ -1102,9 +1103,12 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
 
     const emprestimosFormatados = lista.map((dados) => {
       const {
-        nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+        nome, email, telefone, cpf, endereco, cidade, estado, cep, numero,
         valor, parcelas, datasVencimentos = [], taxaJuros
       } = dados;
+
+      // Definir complemento como string vazia se não existir
+      const complemento = dados.complemento || '';
 
       const taxa = taxaJuros !== undefined ? Number(taxaJuros) : 20;
       const valorNum = Number(valor);
@@ -1114,7 +1118,7 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
       const valorComJuros = valorNum * (1 + taxa / 100);
 
       return {
-        id: Date.now() + Math.floor(Math.random() * 1000), // evitar duplicidade
+        // REMOVER a geração manual do ID - o MongoDB gerará _id automaticamente
         nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
         valorOriginal: valorNum,
         valorComJuros,
@@ -1140,6 +1144,37 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
     res.status(500).json({ erro: 'Erro ao criar empréstimos em lote' });
   }
 });
+
+
+
+
+/* ----------------------- ROTA PARA DELETAR TUDO (TESTE) ---------------------- */
+// ⚠️ ROTA PERIGOSA - APENAS PARA AMBIENTE DE TESTE ⚠️
+app.delete('/api/test/limpar-tudo', async (req, res) => {
+  try {
+    console.log('⚠️  LIMPANDO TODOS OS DADOS - AMBIENTE DE TESTE');
+    
+    // Deleta todos os empréstimos
+    const resultado = await Emprestimo.deleteMany({});
+    
+    console.log(`✅ ${resultado.deletedCount} registros deletados`);
+    
+    res.json({
+      message: 'Base de dados limpa com sucesso',
+      deletedCount: resultado.deletedCount,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao limpar dados:', error);
+    res.status(500).json({ 
+      error: 'Erro ao limpar dados',
+      details: error.message 
+    });
+  }
+});
+
+
 
 
 

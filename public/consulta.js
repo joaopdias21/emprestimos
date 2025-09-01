@@ -543,5 +543,190 @@ async function listarVencidosOuHoje() {
 
 
 
+const btnExtrairPagamentos = document.getElementById("btnExtrairPagamentos");
+const btnLimparExtracao = document.getElementById("btnLimparExtracao");
+const resultadoExtracao = document.getElementById("resultadoExtracao");
+const btnExportarPDF = document.getElementById("btnExportarPDF");
+
+
+
+btnLimparExtracao.addEventListener("click", () => {
+  // Limpa campos de data
+  document.getElementById("dataInicio").value = "";
+  document.getElementById("dataFim").value = "";
+
+  // Limpa resultados da extração
+  resultadoExtracao.innerHTML = "";
+  resultadoExtracao.style.display = "none";
+
+  // Esconde botão PDF
+  btnExportarPDF.style.display = "none";
+
+  // Limpa dados salvos para PDF
+  dadosTotalPago = null;
+});
+
+
+let dadosTotalPago = null; // variável global para exportação PDF
+
+btnExtrairPagamentos.addEventListener("click", async () => {
+  const inicio = document.getElementById("dataInicio").value;
+  const fim = document.getElementById("dataFim").value;
+
+  if (!inicio || !fim) {
+    return mostrarAlertaWarning("Selecione as duas datas (início e fim).");
+  }
+
+  try {
+    const res = await fetch(`${URL_SERVICO}/relatorio/pagamentos?inicio=${inicio}&fim=${fim}`);
+    if (!res.ok) throw new Error("Erro ao buscar pagamentos");
+
+    const dados = await res.json();
+    resultadoExtracao.innerHTML = "";
+    resultadoExtracao.style.display = "block";
+
+    if (!dados.emprestimos || !dados.emprestimos.length) {
+      resultadoExtracao.innerHTML = `
+        <li class="mensagem-vazia">
+          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+          <p>Nenhum pagamento encontrado nesse intervalo.</p>
+        </li>`;
+      btnExportarPDF.style.display = "none";
+      return;
+    }
+
+    // --- Tabela de pagamentos ---
+    const containerTabela = document.createElement("div");
+    containerTabela.className = "parcelas-tabela";
+    containerTabela.innerHTML = `
+      <div class="parcelas-cabecalho">
+        <span>Dia</span>
+        <span>Cliente</span>
+        <span>Parcela</span>
+        <span>Valor Pago</span>
+        <span>Recebido por</span>
+      </div>
+    `;
+    const corpoTabela = document.createElement("div");
+    corpoTabela.id = "pagamentos-corpo";
+    containerTabela.appendChild(corpoTabela);
+
+    let totalPago = 0;
+    const listaPagamentos = [];
+
+    dados.emprestimos.forEach(emp => {
+      emp.pagamentos.forEach(p => {
+        const diaPagamento = new Date(p.dataPagamento).getDate();
+        totalPago += p.valor;
+
+        listaPagamentos.push({
+          dia: diaPagamento,
+          cliente: emp.nomeCliente,
+          parcela: p.parcela,
+          valor: formatarMoeda(p.valor),
+          recebidoPor: p.recebidoPor
+        });
+
+        const linha = document.createElement("div");
+        linha.className = "parcela-linha paga";
+        linha.innerHTML = `
+          <span>${diaPagamento}</span>
+          <span class="nome-cliente">${emp.nomeCliente}</span>
+          <span>${p.parcela}</span>
+          <span>${formatarMoeda(p.valor)}</span>
+          <span>${p.recebidoPor}</span>
+        `;
+        corpoTabela.appendChild(linha);
+      });
+    });
+
+    resultadoExtracao.appendChild(containerTabela);
+
+    // --- Cartão Total Pago ---
+    dadosTotalPago = { totalPago, listaPagamentos };
+    const totalEl = document.createElement("div");
+    totalEl.classList.add("total-pago-card");
+    totalEl.innerHTML = `
+      <div class="total-icone">💰</div>
+      <div class="total-texto">
+        <span class="total-titulo">Total Pago</span>
+        <span class="total-valor">${formatarMoeda(totalPago)}</span>
+      </div>
+    `;
+    resultadoExtracao.appendChild(totalEl);
+
+    btnExportarPDF.style.display = "inline-block";
+
+  } catch (err) {
+    console.error(err);
+    mostrarAlertaError("Erro ao extrair pagamentos.");
+  } // <-- fechei o try/catch aqui
+}); // <-- fechei o addEventListener corretamente
+
+
+// --- Exportar PDF ---
+btnExportarPDF.addEventListener('click', () => {
+  if (!dadosTotalPago || !dadosTotalPago.totalPago) {
+    alert("Nenhum dado para exportar");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // --- Cabeçalho ---
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("Resumo de Pagamentos", 14, 20);
+  doc.setLineWidth(0.8);
+  doc.line(14, 22, 196, 22);
+
+  // --- Datas filtradas ---
+  const inicio = document.getElementById("dataInicio").value;
+  const fim = document.getElementById("dataFim").value;
+  let filtroTexto = "Período: ";
+  if (inicio) filtroTexto += `${inicio}`;
+  if (inicio && fim) filtroTexto += " até ";
+  if (fim) filtroTexto += `${fim}`;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(80, 80, 80);
+  doc.text(filtroTexto, 14, 30);
+
+  // --- Total Pago ---
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 128, 0);
+  doc.text(`Total Pago: ${formatarMoeda(dadosTotalPago.totalPago)}`, 14, 38);
+  doc.setLineWidth(0.3);
+  doc.line(14, 40, 196, 40);
+  doc.setTextColor(0, 0, 0);
+
+  // --- Tabela de pagamentos ---
+  const rows = dadosTotalPago.listaPagamentos.map(p => [
+    p.dia, p.cliente, p.parcela, p.valor, p.recebidoPor
+  ]);
+
+  doc.autoTable({
+    head: [['Dia', 'Cliente', 'Parcela', 'Valor Pago', 'Recebido por']],
+    body: rows,
+    startY: 45, // deixa espaço para as datas e total
+    styles: { fontSize: 9, cellPadding: 3 },
+    headStyles: { fillColor: [220,220,220], textColor: [0,0,0], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245,245,245] },
+    columnStyles: {
+      0: { cellWidth: 12, halign: 'center' },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 20, halign: 'center' },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 50 }
+    }
+  });
+
+  doc.save("pagamentos.pdf");
+});
+
+
 
 

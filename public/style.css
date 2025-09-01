@@ -2629,3 +2629,36 @@ input[type="date"] {
     display: block; /* Mantém o texto "MARCAR" visível em telas pequenas */
   }
 }
+
+
+.total-pago-card {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #e0f2ff, #ffffff);
+  padding: 15px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  font-family: 'Arial', sans-serif;
+  margin-top: 15px;
+  max-width: 250px;
+}
+
+.total-icone {
+  font-size: 2em;
+  margin-right: 15px;
+}
+
+.total-texto {
+  display: flex;
+  flex-direction: column;
+}
+
+.total-titulo {
+  font-weight: bold;
+  color: #333;
+}
+
+.total-valor {
+  font-size: 1.2em;
+  color: #1a73e8;
+}
