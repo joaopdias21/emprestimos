@@ -940,20 +940,20 @@ function atualizarVisualParcelas(emprestimo) {
 
 // Valor base da parcela
 const valorParcelaCorrigido = emprestimo.valorParcelasPendentes?.[i] || valorBase;
-const vencimento = datasVencimentos[i];
+    const vencimento = datasVencimentos[i];
 const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
 
 // Valor já recebido
-const valorRecebido = emprestimo.valoresRecebidos?.[i] || 0;
+    const valorRecebido = emprestimo.valoresRecebidos?.[i] || 0;
 
-// Calcula multa se atrasada
-let multa = 0;
-if (vencimento && !paga) {
-  const diasAtraso = calcularDiasAtraso(vencimento);
+    // Calcula multa se atrasada
+    let multa = 0;
+    if (vencimento && !paga) {
+      const diasAtraso = calcularDiasAtraso(vencimento);
   if (diasAtraso > 0) {
     multa = diasAtraso * 20;
   }
-}
+    }
 
 // Total necessário para quitar (parcela + multa)
 const valorTotalNecessario = valorParcelaCorrigido + multa;
@@ -962,11 +962,11 @@ const valorTotalNecessario = valorParcelaCorrigido + multa;
 const valorFaltante = Math.max(0, valorTotalNecessario - valorRecebido);
 
 // Monta HTML inicial
-let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorParcelaCorrigido)}<br>`;
+    let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorParcelaCorrigido)}<br>`;
 if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
 
 // Situação da parcela
-let statusClass = 'parcela-em-dia';
+    let statusClass = 'parcela-em-dia';
 
 // Mostra se já pagou algo
 if (valorRecebido > 0) {
@@ -980,11 +980,11 @@ if (valorFaltante > 0) {
 
 // Verifica atrasos
 if (vencimento && !paga) {
-  const diasAtraso = calcularDiasAtraso(vencimento);
+    const diasAtraso = calcularDiasAtraso(vencimento);
   if (diasAtraso > 0) {
     html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
     html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
-    statusClass = 'parcela-atrasada';
+      statusClass = 'parcela-atrasada';
   } else {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -1029,8 +1029,8 @@ if (vencimento && !paga) {
           html += `<strong>💰 Multa:</strong> ${formatarMoeda(multa)}<br>`;
           statusClass = 'parcela-paga-com-atraso';
         } else {
-          statusClass = 'parcela-paga';
-        }
+      statusClass = 'parcela-paga';
+    }
       }
     }
 
@@ -1440,9 +1440,11 @@ function getMesAnoAtual() {
 
 
 function getMesAnoFromDate(dateString) {
-  const date = new Date(dateString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  if (!dateString) return "";
+  const [ano, mes] = dateString.split("-");
+  return `${ano}-${mes}`;
 }
+
 
 
 
@@ -1498,62 +1500,65 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
   const emprestimosFiltrados = emprestimosBase.filter(emp => {
     if (!emp.datasVencimentos) return false;
+
     if (dataFiltro) {
       return emp.datasVencimentos.some(d => normalizarData(d) === dataFiltro);
-    } else {
+    } 
+    if (mesAnoAtual) {
       return emp.datasVencimentos.some(d => getMesAnoFromDate(d) === mesAnoAtual);
     }
+
+    return true;
   });
 
   if (emprestimosFiltrados.length === 0) {
-    resultadoFiltrado.innerHTML =  `<li class="mensagem-vazia">
-          <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
-          <p>Nenhum empréstimo encontrado</p>
-        </li>`;
+    resultadoFiltrado.innerHTML = `<li class="mensagem-vazia">
+      <img src="vazio.png" alt="Sem resultados" width="64" height="64" style="margin-bottom: 10px;" />
+      <p>Nenhum empréstimo encontrado</p>
+    </li>`;
     atualizarTotaisResumo([]);
     parcelasFiltradas = [];
     return;
   }
 
-  parcelasFiltradas = []; // Reinicia o array de parcelas
+  parcelasFiltradas = [];
 
   emprestimosFiltrados.forEach(emp => {
-            const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
-          const diasAtraso = calcularDiasAtrasoDataOnly(data);
-          const pago = emp.statusParcelas?.[idx] || false;
+    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
+      const diasAtraso = calcularDiasAtrasoDataOnly(data);
+      const pago = emp.statusParcelas?.[idx] || false;
+      const valorJuros = emp.valorComJuros - emp.valorOriginal;
+      let multa = 0;
 
-          const valorJuros = emp.valorComJuros - emp.valorOriginal;
-          let multa = 0;
+      if (diasAtraso > 0) {
+        if (!pago) {
+          multa = diasAtraso * 20;
+        } else {
+          const valorPago = emp.valoresRecebidos?.[idx] || 0;
+          multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
+        }
+      }
 
-          if (diasAtraso > 0) {
-            if (!pago) {
-              multa = diasAtraso * 20;
-            } else {
-              const valorPago = emp.valoresRecebidos?.[idx] || 0;
-              multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
-            }
-          }
+      const valorParcelaCorrigido = emp.valorParcelasPendentes?.[idx] || emp.valorParcela || valorJuros;
 
-          // ✅ valor dinâmico corrigido
-          const valorParcelaCorrigido = emp.valorParcelasPendentes?.[idx] || emp.valorParcela || valorJuros;
-
-          return {
-            data,
-            pago,
-            indice: idx,
-            valorJuros,
-            multa,
-            diasAtraso,
-            valorParcelaCorrigido,   // <-- agora salvo o valor certo
-            valorRecebido: emp.valoresRecebidos?.[idx] || 0,
-            emprestimoNome: emp.nome,
-            telefone: emp.telefone,
-            taxaJuros: emp.taxaJuros,
-            emprestimoId: emp.id
-          };
-        }).filter(p => {
+      return {
+        data,
+        pago,
+        indice: idx,
+        valorJuros,
+        multa,
+        diasAtraso,
+        valorParcelaCorrigido,
+        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
+        emprestimoNome: emp.nome,
+        telefone: emp.telefone,
+        taxaJuros: emp.taxaJuros,
+        emprestimoId: emp.id
+      };
+    }).filter(p => {
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
+
       if (filtroStatus) {
         switch (filtroStatus) {
           case 'pago': if (!p.pago) return false; break;
@@ -1571,8 +1576,8 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
   });
 
   parcelasFiltradas.sort((a, b) => {
-    const diaA = new Date(a.data).getDate();
-    const diaB = new Date(b.data).getDate();
+    const diaA = parseInt(a.data.split('-')[2], 10);
+    const diaB = parseInt(b.data.split('-')[2], 10);
     return diaA - diaB;
   });
 
@@ -1603,35 +1608,30 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       ? p.taxaJuros 
       : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
 
-        let statusHTML = '';
-        if (p.pago) {
-          statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
-          
-          // Ícone só se pago acima do valorParcela + multa
-          if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
-            statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
-          }
-        } else {
-          const isOperador = localStorage.getItem("isOperador") === "true";
-
-          if (isOperador) {
-            // Somente exibição, sem checkbox
-            statusHTML = `<span style="font-weight:bold; color:#d9534f;">PENDENTE</span>`;
-          } else {
-            // Admin pode marcar como pago
-            statusHTML = `<label class="parcela-checkbox">
-                            <input 
-                              type="checkbox"
-                              data-id="${emp.id}" 
-                              data-indice="${p.indice}"
-                              data-valor="${p.valorParcelaCorrigido}""
-                              class="parcela-pendente"
-                            />
-                            <span class="checkmark"></span>
-                            <span class="pagar-label">MARCAR</span>
-                          </label>`;
-          }
-        }
+    let statusHTML = '';
+    if (p.pago) {
+      statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
+      if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
+        statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
+      }
+    } else {
+      const isOperador = localStorage.getItem("isOperador") === "true";
+      if (isOperador) {
+        statusHTML = `<span style="font-weight:bold; color:#d9534f;">PENDENTE</span>`;
+      } else {
+        statusHTML = `<label class="parcela-checkbox">
+          <input 
+            type="checkbox"
+            data-id="${emp.id}" 
+            data-indice="${p.indice}"
+            data-valor="${p.valorParcelaCorrigido}"
+            class="parcela-pendente"
+          />
+          <span class="checkmark"></span>
+          <span class="pagar-label">MARCAR</span>
+        </label>`;
+      }
+    }
 
     const linha = document.createElement('div');
     linha.className = `parcela-linha ${p.pago ? 'paga' : p.multa > 0 ? 'atrasada' : eVencimentoHoje(p.data) ? 'vencendo-hoje' : 'pendente'}`;
@@ -1645,6 +1645,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
     `;
     corpoTabela.appendChild(linha);
 
+    // 🔹 Closure corrigido para abrir modal com o empréstimo correto
     const nomeCliente = linha.querySelector('.nome-cliente');
     if (nomeCliente) {
       nomeCliente.addEventListener('click', () => abrirModal(emp));

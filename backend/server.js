@@ -110,6 +110,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 /* --------------------- SCHEMA & MODEL --------------------- */
 const EmprestimoSchema = new mongoose.Schema({
+  id: { type: Number, unique: true },
   nome: String,
   email: String,
   telefone: String,
@@ -197,24 +198,30 @@ app.post('/emprestimos', upload.array('anexos'), async (req, res) => {
       caminho: `/uploads/${f.filename}`
     }));
 
-    const novo = await Emprestimo.create({
-      id: Date.now(),
-      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
-      valorOriginal: valorNum,
-      valorComJuros,
-      parcelas: parcelasNum,
-      valorParcela: null, // sem valor fixo no cadastro
-      valorParcelasPendentes: Array.from({ length: parcelasNum }, () => valorNum), // ✅ cada parcela começa com o valor do empréstimo ou calculado
-      taxaJuros,
-      statusParcelas: Array.from({ length: parcelasNum }, () => false),
-      datasPagamentos: Array.from({ length: parcelasNum }, () => null),
-      datasVencimentos: datasCalc,
-      valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
-      recebidoPor: Array.from({ length: parcelasNum }, () => null),
-      arquivos,
-      quitado: false,
-      tipoParcelamento: 'juros' // ✅ ADICIONE ESTA LINHA
-    });
+const valorJuros = valorNum * (taxaJuros / 100); // só o juros
+const valorParcelasPendentes = Array.from({ length: parcelasNum }, (_, i) =>
+  i === 0 ? valorJuros : 0
+);
+
+const novo = await Emprestimo.create({
+  id: Date.now(),
+  nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+  valorOriginal: valorNum,
+  valorComJuros: valorJuros, // se quiser guardar só o juros, ou total com juros se preferir
+  parcelas: parcelasNum,
+  valorParcela: valorJuros, // valor inicial da primeira parcela
+  valorParcelasPendentes,
+  taxaJuros,
+  statusParcelas: Array.from({ length: parcelasNum }, () => false),
+  datasPagamentos: Array.from({ length: parcelasNum }, () => null),
+  datasVencimentos: datasCalc,
+  valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
+  recebidoPor: Array.from({ length: parcelasNum }, () => null),
+  arquivos,
+  quitado: false,
+  tipoParcelamento: 'juros'
+});
+
 
     res.status(201).json(novo);
   } catch (err) {
@@ -1101,7 +1108,7 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
       return res.status(400).json({ erro: 'Envie um array de empréstimos.' });
     }
 
-    const emprestimosFormatados = lista.map((dados) => {
+    const emprestimosFormatados = lista.map((dados, i) => {
       const {
         nome, email, telefone, cpf, endereco, cidade, estado, cep, numero,
         valor, parcelas, datasVencimentos = [], taxaJuros
@@ -1125,6 +1132,7 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
         parcelas: parcelasNum,
         valorParcela: null,
         valorParcelasPendentes: Array.from({ length: parcelasNum }, () => null),
+        id: Date.now() + i, // i é o índice do map
         taxaJuros: taxa,
         statusParcelas: Array.from({ length: parcelasNum }, () => false),
         datasPagamentos: Array.from({ length: parcelasNum }, () => null),
