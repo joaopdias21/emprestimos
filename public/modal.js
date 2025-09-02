@@ -4,7 +4,8 @@ import {
   mostrarAlerta,
   mostrarAlertaError,
   mostrarAlertaWarning,
-  formatarMoeda
+  formatarMoeda,
+  formatarMoedaLista
 } from './utils.js';
 import {
   modal,
@@ -1639,7 +1640,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       <span>${diaVencimento}</span>
       <span class="nome-cliente" style="cursor:pointer; text-decoration: underline;">${p.emprestimoNome}</span>
       <span>${taxaPercentual}%</span>
-      <span>${p.valorParcelaCorrigido}</span>
+      <span>${formatarMoedaLista(p.valorParcelaCorrigido)}</span>
       <span>${p.multa > 0 ? (p.multa) : '-'}</span>
       <span>${statusHTML}</span>
     `;

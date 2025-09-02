@@ -33,6 +33,17 @@ export function formatarMoeda(valor) {
 
 
 
+export function formatarMoedaLista(valor) {
+  if (typeof valor !== 'number') return 'R$ 0,00';
+  
+  // Formata com 2 casas decimais sem arredondar valores inteiros
+  const partes = valor.toFixed(2).split('.');
+  return `${partes[0]}`;
+}
+
+
+
+
 export function formatarDataParaBR(dataISO) {
   if (!dataISO) return '';
   const [ano, mes, dia] = dataISO.split('-');

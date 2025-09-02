@@ -22,7 +22,9 @@ if (!fs.existsSync(uploadDir)) {
 
 /* ------------------- MIDDLEWARES --------------------------- */
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // aumenta limite do JSON
+app.use(express.urlencoded({ limit: '50mb', extended: true })); // aumenta limite de forms
+
 
 // Middleware para servir arquivos estáticos da pasta uploads
 // Deve ficar antes das rotas que usam uploads
