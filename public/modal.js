@@ -23,6 +23,45 @@ let termoAtual = '';
 let scrollPos = 0;
 let cidadeSelecionada = null;
 
+
+
+function calcularResumoFinanceiro(emprestimoAtualizado) {
+  if (!emprestimoAtualizado) {
+    return { valorParcela: 0, valorJuros: 0, valorRestantePrincipal: 0 };
+  }
+
+  const valorOriginal = emprestimoAtualizado.valorOriginal || 0;
+  const taxaJuros = emprestimoAtualizado.taxaJuros || 0;
+
+  let saldoAtual = valorOriginal;
+  let valorParcelaAtual = 0;
+  let totalJurosCalculado = 0;
+
+  (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
+    const jurosParcela = saldoAtual * (taxaJuros / 100);
+
+    if (typeof val === 'number' && val > 0) {
+      if (val > jurosParcela) {
+        saldoAtual -= (val - jurosParcela); // abate no principal
+        totalJurosCalculado += jurosParcela;
+      } else {
+        totalJurosCalculado += val; // pagou só juros
+      }
+    }
+  });
+
+  // A próxima parcela é sempre calculada sobre o saldo atual
+  valorParcelaAtual = saldoAtual * (taxaJuros / 100);
+
+  return {
+    valorParcela: valorParcelaAtual,
+    valorJuros: totalJurosCalculado,
+    valorRestantePrincipal: Math.max(0, saldoAtual)
+  };
+}
+
+
+
 // pega só o YYYY-MM-DD de qualquer coisa (string ISO com ou sem hora)
 function getDateOnly(s) {
   if (!s) return '';
@@ -664,15 +703,45 @@ export async function abrirModal(emprestimo) {
       <h3>💰 Informações Financeiras</h3>
       <div id="infoFinanceira" class="grid-detalhes">
         <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
-        <div><strong>Valor com juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros)}</div>
-        <div><strong>Parcelas:</strong> ${emprestimo.parcelas}x</div>
-        ${isParcelado 
-          ? `<div><strong>Valor da parcela:</strong> ${formatarMoeda(emprestimo.valorParcela)}</div>`
-          : `<div><strong>Valor do juros (${taxaFormatada}%):</strong> ${formatarMoeda(emprestimo.valorComJuros - emprestimo.valorOriginal)}</div>`
-        }
+        <!-- Mostra o total de parcelas já geradas -->
+        <div><strong>Parcelas geradas:</strong> ${emprestimo.statusParcelas?.length || 0}</div>
+
+        <!-- Mostra quantas foram quitadas -->
+        <div><strong>Parcelas quitadas:</strong> 
+          ${(emprestimo.statusParcelas || []).filter(p => p).length}
+          </div>
+              ${(() => {
+            const resumo = calcularResumoFinanceiro(emprestimo);
+            return `
+              <div><strong>Valor da parcela:</strong> ${formatarMoeda(resumo.valorParcela)}</div>
+              <div><strong>Valor restante do principal:</strong> ${formatarMoeda(resumo.valorRestantePrincipal)}</div>
+            `;
+          })()}
+
 
         ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
       </div>
+
+
+      <div id="historicoAlteracoes">
+  <h3>📜 Histórico de Alterações</h3>
+  ${emprestimo.historicoAlteracoes && emprestimo.historicoAlteracoes.length > 0 
+    ? `<ul>
+        ${emprestimo.historicoAlteracoes.map(h => `
+          
+
+          <strong>Valor Original</strong><br>          <br>
+          De: <span style="color: #d9534f;">${formatarMoeda(h.de)}</span><br>
+          Para: <span style="color: #28a745;">${formatarMoeda(h.para)}</span>
+          <br>
+            <em>(${new Date(h.data).toLocaleString('pt-BR')})</em>
+          
+        `).join('')}
+      </ul>`
+    : '<p>Nenhuma alteração registrada.</p>'
+  }
+</div>
+
           <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;"></div>
 
       </div>
