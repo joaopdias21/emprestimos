@@ -659,16 +659,6 @@ export async function abrirModal(emprestimo) {
         <button id="btnEditar" style="margin-top:20px;">Editar Empréstimo</button>
         <div id="editarContainer" style="margin-top: 15px; display:none;">
           <form id="formEditarEmprestimo">
-            <label>Nome: <input type="text" name="nome" value="${emprestimo.nome}" required></label><br>
-            <label>Email: <input type="email" name="email" value="${emprestimo.email}" required></label><br>
-            <label>Telefone: <input type="text" name="telefone" value="${emprestimo.telefone}" required></label><br>
-            <label>CPF: <input type="text" name="cpf" value="${emprestimo.cpf}" required></label><br>
-            <label>CEP: <input type="text" name="cep" value="${emprestimo.cep}" required></label><br>
-            <label>Endereço: <input type="text" name="endereco" value="${emprestimo.endereco}" required></label><br>
-            <label>Número: <input type="text" name="numero" value="${emprestimo.numero}" required></label><br>
-            <label>Complemento: <input type="text" name="complemento" value="${emprestimo.complemento || ''}"></label><br>
-            <label>Cidade: <input type="text" name="cidade" value="${emprestimo.cidade}" required></label><br>
-            <label>Estado: <input type="text" name="estado" value="${emprestimo.estado}" maxlength="2" required></label><br>
 
             <div id="financeiro-edit">
               <label>Valor original: <input type="number" step="0.01" name="valorOriginal" value="${emprestimo.valorOriginal}" required></label><br>
@@ -703,6 +693,7 @@ export async function abrirModal(emprestimo) {
       <h3>💰 Informações Financeiras</h3>
       <div id="infoFinanceira" class="grid-detalhes">
         <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
+        <div><strong>Taxa de juros:</strong> ${(emprestimo.taxaJuros)}</div>
         <!-- Mostra o total de parcelas já geradas -->
         <div><strong>Parcelas geradas:</strong> ${emprestimo.statusParcelas?.length || 0}</div>
 
@@ -722,25 +713,6 @@ export async function abrirModal(emprestimo) {
         ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
       </div>
 
-
-      <div id="historicoAlteracoes">
-  <h3>📜 Histórico de Alterações</h3>
-  ${emprestimo.historicoAlteracoes && emprestimo.historicoAlteracoes.length > 0 
-    ? `<ul>
-        ${emprestimo.historicoAlteracoes.map(h => `
-          
-
-          <strong>Valor Original</strong><br>          <br>
-          De: <span style="color: #d9534f;">${formatarMoeda(h.de)}</span><br>
-          Para: <span style="color: #28a745;">${formatarMoeda(h.para)}</span>
-          <br>
-            <em>(${new Date(h.data).toLocaleString('pt-BR')})</em>
-          
-        `).join('')}
-      </ul>`
-    : '<p>Nenhuma alteração registrada.</p>'
-  }
-</div>
 
           <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;"></div>
 
