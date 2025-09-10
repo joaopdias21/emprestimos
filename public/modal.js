@@ -420,6 +420,7 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
 
 
+
 function mostrarModalRecebedor() {
   if (!modalRecebedor) {
     console.error("Modal do recebedor não encontrado no DOM");
@@ -715,7 +716,32 @@ export async function abrirModal(emprestimo) {
 
 
           <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;"></div>
+  <div style="margin-top: 25px; text-align: center;">
+    <button id="btnExcluirEmprestimo" 
+            style="background: #e53935; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer;">
+      ❌ Excluir Empréstimo
+    </button>
+  </div>
 
+  <!-- Modal de confirmação -->
+  <div id="modalConfirmacaoExcluir" 
+       style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; 
+              background: rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:10000;">
+    <div style="background:white; padding:20px; border-radius:8px; width: 350px; text-align:center;">
+      <h3 style="margin-bottom:15px;">⚠️ Confirmar Exclusão</h3>
+      <p>Você tem certeza que deseja excluir este empréstimo?</p>
+      <div style="margin-top:20px; display:flex; justify-content:space-around;">
+        <button id="btnConfirmarExclusao" 
+                style="background:#e53935; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">
+          Sim, excluir
+        </button>
+        <button id="btnCancelarExclusao" 
+                style="background:#9e9e9e; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
       </div>
         <div id="parcelasContainer" style="flex: 1;">
           <h3>📆 Parcelas</h3>
@@ -724,6 +750,8 @@ export async function abrirModal(emprestimo) {
           <br>
 
         </div>
+
+
   `;
   atualizarValorRestante(emprestimo);
 
@@ -752,6 +780,45 @@ export async function abrirModal(emprestimo) {
     btnEditar.style.display = 'inline-block';
     infoFinanceiraDiv.style.display = 'grid';
   });
+
+
+  // 🔹 Só depois de montar o HTML, adicione os eventos:
+const btnExcluir = document.getElementById("btnExcluirEmprestimo");
+const modalExcluir = document.getElementById("modalConfirmacaoExcluir");
+const btnConfirmar = document.getElementById("btnConfirmarExclusao");
+const btnCancelar = document.getElementById("btnCancelarExclusao");
+
+// Abrir modal
+btnExcluir.addEventListener("click", () => {
+  modalExcluir.style.display = "flex";
+});
+
+// Cancelar exclusão
+btnCancelar.addEventListener("click", () => {
+  modalExcluir.style.display = "none";
+});
+
+// Confirmar exclusão
+btnConfirmar.addEventListener("click", async () => {
+  try {
+    const resp = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}`, {
+      method: "DELETE"
+    });
+    if (resp.ok) {
+      mostrarAlerta("✅ Empréstimo excluído com sucesso!");
+      modalExcluir.style.display = "none"; // fecha modal de confirmação
+      modal.style.display = "none";        // fecha modal principal
+      document.body.classList.remove('modal-aberto'); // restaura scroll
+      window.scrollTo(0, scrollPos);       // volta para posição anterior
+    } else {
+      mostrarAlertaError("❌ Erro ao excluir empréstimo!");
+    }
+  } catch (err) {
+    console.error(err);
+    mostrarAlertaError("❌ Erro inesperado ao excluir!");
+  }
+});
+
 
   const formEditarEmprestimo = document.getElementById('formEditarEmprestimo');
   const inputValorOriginal = formEditarEmprestimo.querySelector('input[name="valorOriginal"]');

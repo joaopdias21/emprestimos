@@ -1251,6 +1251,23 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
   }
 });
 
+// DELETE /emprestimos/:id
+app.delete('/emprestimos/:id', async (req, res) => {
+  try {
+    const idNum = Number(req.params.id);
+    if (isNaN(idNum)) return res.status(400).json({ erro: 'ID inválido' });
+
+    const emprestimo = await Emprestimo.findOneAndDelete({ id: idNum });
+    if (!emprestimo) {
+      return res.status(404).json({ erro: 'Empréstimo não encontrado' });
+    }
+
+    res.json({ sucesso: true, mensagem: `Empréstimo ${idNum} deletado com sucesso.` });
+  } catch (err) {
+    console.error('DELETE /emprestimos/:id:', err);
+    res.status(500).json({ erro: 'Erro ao deletar empréstimo' });
+  }
+});
 
 
 
