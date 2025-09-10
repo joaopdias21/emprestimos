@@ -1168,6 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
   "Mensal 1": ["Cotia", "Itapevi", "Jandira", "São Paulo"],
   "Mensal 2": ["São Roque", "Alumínio", "Mairinque", "Araçariguama"],
   "Mensal 3": ["Sorocaba", "Itu", "Tatuí", "Porto Feliz", "Salto de Pirapora", "Boituva"],
+  "Mensal 3A": ["Sorocaba-3A", "Itu-3A", "Tatuí-3A", "Porto Feliz-3A", "Salto de Pirapora-3A", "Boituva-3A"],
   "Mensal 4": ["Santos", "Guarujá", "São Vicente", "Praia Grande", "Bertioga", "Cubatão", "Mongaguá", "Itanhaém", "Peruíbe"]
 
 };
@@ -1177,6 +1178,7 @@ let emprestimosPorGrupo = {
   "Mensal 1": [],
   "Mensal 2": [],
   "Mensal 3": [],
+  "Mensal 3A": [],
   "Mensal 4": []
 };
 
@@ -1305,6 +1307,7 @@ li.innerHTML = `
         "Mensal 1": [],
         "Mensal 2": [],
         "Mensal 3": [],
+        "Mensal 3A": [],
         "Mensal 4": []
       };
 
@@ -1316,6 +1319,7 @@ emprestimosPorGrupo = {
   "Mensal 1": [],
   "Mensal 2": [],
   "Mensal 3": [],
+  "Mensal 3A": [],
   "Mensal 4": []
 };
 

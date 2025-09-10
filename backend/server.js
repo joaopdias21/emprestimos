@@ -1281,6 +1281,34 @@ app.delete('/api/test/limpar-tudo', async (req, res) => {
 });
 
 
+/* ------------------- ROTA PARA DELETAR CLIENTES POR CIDADE ------------------- */
+// ⚠️ ROTA PERIGOSA - USE COM CUIDADO ⚠️
+app.delete('/api/test/limpar-clientes/:cidade', async (req, res) => {
+  try {
+    const { cidade } = req.params;
+
+    console.log(`⚠️ Deletando todos os clientes da cidade: ${cidade}`);
+
+    const resultado = await Emprestimo.deleteMany({ cidade: new RegExp(`^${cidade}$`, 'i') });
+
+    console.log(`✅ ${resultado.deletedCount} clientes de ${cidade} deletados`);
+
+    res.json({
+      message: `Clientes da cidade ${cidade} deletados com sucesso`,
+      deletedCount: resultado.deletedCount,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao deletar clientes:', error);
+    res.status(500).json({
+      error: 'Erro ao deletar clientes',
+      details: error.message
+    });
+  }
+});
+
+
 
 
 
