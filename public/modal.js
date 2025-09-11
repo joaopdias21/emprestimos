@@ -22,6 +22,8 @@ let parcelaSelecionada = null;
 let termoAtual = '';
 let scrollPos = 0;
 let cidadeSelecionada = null;
+let parcelasFiltradas = []; // declara no topo do modal.js
+
 
 
 
@@ -344,8 +346,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     return;
   }
 
-  // 🔹 Agora NÃO bloqueamos valores menores que o mínimo.
-  // O backend vai calcular quanto falta.
   try {
     const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
       method: 'PATCH',
@@ -370,23 +370,15 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
     if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
 
-    // ❌ Removemos esta parte, pq o backend já decide se está pago ou parcial:
-    // emprestimo.statusParcelas[indice] = true;
-    // emprestimo.datasPagamentos[indice] = dataPagamento;
-    // emprestimo.recebidoPor[indice] = nome;
-    // emprestimo.valoresRecebidos[indice] = valorRecebido;
-
-    // 🔹 Só marcamos o checkbox se o backend disser que está quitada
     if (checkbox) {
       if (emprestimo.statusParcelas[indice]) {
         checkbox.checked = true;
         checkbox.disabled = true;
       } else {
-        checkbox.checked = false; // ainda falta parte do valor
+        checkbox.checked = false;
       }
     }
 
-    // Atualiza UI
     if (document.getElementById('listaEmprestimosCidade').style.display !== 'none') {
       const cidadeAtual = cidadeSelecionada;
       if (cidadeAtual) {
@@ -400,12 +392,17 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
       atualizarValorRestante(emprestimo);
     }
 
-    // Mensagem adaptada
     if (emprestimo.statusParcelas[indice]) {
       mostrarAlerta(`Parcela ${indice + 1} quitada por ${nome}`);
     } else {
       mostrarAlerta(`Parcela ${indice + 1} recebeu pagamento parcial de ${formatarMoeda(valorRecebido)} por ${nome}`);
     }
+
+    // 🔥 Atualiza a lista automaticamente
+    filtrarEmprestimos({
+      dataFiltro: inputDataFiltro.value,
+      mesFiltro: filtroMes.value
+    });
 
   } catch (err) {
     console.error('Erro ao marcar parcela como paga:', err);
@@ -417,7 +414,6 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
   fecharModalRecebedor();
 });
-
 
 
 
@@ -799,17 +795,46 @@ btnCancelar.addEventListener("click", () => {
 });
 
 // Confirmar exclusão
+// 1️⃣ Garantir que as listas globais estejam no escopo global
+window.emprestimosPorCidade = window.emprestimosPorCidade || {};
+window.emprestimosPorGrupo = window.emprestimosPorGrupo || {};
+
+// 2️⃣ Listener de exclusão
 btnConfirmar.addEventListener("click", async () => {
   try {
-    const resp = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}`, {
-      method: "DELETE"
-    });
+    const resp = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}`, { method: "DELETE" });
+
     if (resp.ok) {
       mostrarAlerta("✅ Empréstimo excluído com sucesso!");
-      modalExcluir.style.display = "none"; // fecha modal de confirmação
-      modal.style.display = "none";        // fecha modal principal
-      document.body.classList.remove('modal-aberto'); // restaura scroll
-      window.scrollTo(0, scrollPos);       // volta para posição anterior
+
+      // Fecha modais
+      modalExcluir.style.display = "none";
+      modal.style.display = "none";
+      document.body.classList.remove('modal-aberto'); 
+      window.scrollTo(0, scrollPos);
+
+      // 🔹 Remove da lista global
+      if (window.emprestimosPorCidade[cidadeSelecionada]) {
+        window.emprestimosPorCidade[cidadeSelecionada] =
+          window.emprestimosPorCidade[cidadeSelecionada].filter(e => e.id !== emprestimo.id);
+      }
+
+      if (window.emprestimosPorGrupo[cidadeSelecionada]) {
+        window.emprestimosPorGrupo[cidadeSelecionada] =
+          window.emprestimosPorGrupo[cidadeSelecionada].filter(e => e.id !== emprestimo.id);
+      }
+
+      // 🔹 Remove também da lista de parcelas filtradas
+      if (window.parcelasFiltradas) {
+        window.parcelasFiltradas = window.parcelasFiltradas.filter(p => p.emprestimoId !== emprestimo.id);
+      }
+
+      // 🔹 Re-renderiza a lista com os dados atualizados
+      window.filtrarEmprestimos({
+        dataFiltro: inputDataFiltro.value,
+        mesFiltro: filtroMes.value
+      });
+
     } else {
       mostrarAlertaError("❌ Erro ao excluir empréstimo!");
     }
@@ -818,6 +843,12 @@ btnConfirmar.addEventListener("click", async () => {
     mostrarAlertaError("❌ Erro inesperado ao excluir!");
   }
 });
+
+
+
+
+
+
 
 
   const formEditarEmprestimo = document.getElementById('formEditarEmprestimo');
@@ -1439,54 +1470,6 @@ function mostrarEmprestimosGrupo(grupo) {
   filtrarEmprestimos({ dataFiltro, mesFiltro: filtroMes.value });
 }
 
-async function marcarParcelaComoPaga(emprestimoId, indiceParcela, valorRecebido, nomeRecebedor) {
-  try {
-    const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoId}/parcela/${indiceParcela}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dataPagamento: new Date().toISOString(),
-        nomeRecebedor,
-        valorRecebido
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erro ao marcar parcela: ${await response.text()}`);
-    }
-
-    // Atualiza localmente
-    const emprestimo = Object.values(emprestimosPorCidade)
-      .flat()
-      .find(e => e.id === emprestimoId);
-    
-    if (emprestimo) {
-      if (!emprestimo.statusParcelas) emprestimo.statusParcelas = [];
-      if (!emprestimo.recebidoPor) emprestimo.recebidoPor = [];
-      if (!emprestimo.valoresRecebidos) emprestimo.valoresRecebidos = [];
-      if (!emprestimo.datasPagamentos) emprestimo.datasPagamentos = [];
-      
-      emprestimo.statusParcelas[indiceParcela] = true;
-      emprestimo.recebidoPor[indiceParcela] = nomeRecebedor;
-      emprestimo.valoresRecebidos[indiceParcela] = valorRecebido;
-      emprestimo.datasPagamentos[indiceParcela] = new Date().toISOString();
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Erro ao marcar parcela como paga:', error);
-    return false;
-  }
-}
-
-
-//   // Se vier em Date ou ISO
-//   const d = new Date(data);
-//   const ano = d.getUTCFullYear();  // <-- usa UTC
-//   const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
-//   const dia = String(d.getUTCDate()).padStart(2, "0");
-//   return `${ano}-${mes}-${dia}`;
-// }
 
 function eVencimentoHoje(dataVencimento) {
   try {
@@ -1539,6 +1522,7 @@ function atualizarTotaisResumo(parcelasFiltradas = []) {
     </div>
   `;
 }
+window.atualizarTotaisResumo = atualizarTotaisResumo;
 
 
 
@@ -1724,7 +1708,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
     let statusHTML = '';
     if (p.pago) {
       statusHTML = `<span style="font-weight:bold; color:#043604;">PAGO</span>`;
-      if (p.valorRecebido > (p.valorParcela + (p.multa || 0))) {
+      if (p.valorRecebido > (p.valorParcelaCorrigido  + (p.multa || 0))) {
         statusHTML += ` <span title="Pago acima do mínimo" style="color:#ff9800; font-weight:bold;">➕</span>`;
       }
     } else {
@@ -1785,7 +1769,16 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 
   resultadoFiltrado.appendChild(containerTabela);
   atualizarTotaisResumo(parcelasFiltradas);
+
 }
+// 🔥 deixa global para ser chamada em qualquer lugar (inclusive dentro do modal)
+// script principal
+window.filtrarEmprestimos = filtrarEmprestimos;
+window.emprestimosPorCidade = emprestimosPorCidade;
+window.emprestimosPorGrupo = emprestimosPorGrupo;
+window.resultadoFiltrado = resultadoFiltrado;
+window.cidadeSelecionada = cidadeSelecionada;
+
 
 
 
@@ -1917,7 +1910,7 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
     const dia = new Date(p.data).getDate();
     const cliente = p.emprestimoNome;
     const juros = p.taxaJuros !== undefined ? p.taxaJuros : 0;
-    const valorParcela = p.valorParcela;
+    const valorParcela = p.valorParcela !== undefined ? p.valorParcela : p.valorParcelaCorrigido || 0;
     const multa = p.multa || 0;
     const valorRecebido = p.valorRecebido || 0;
 
@@ -1947,6 +1940,7 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
       multa > 0 ? multa.toFixed(2) : "-",
       statusFinal
     ]);
+
   });
 
   // --- Totais exibidos ---
