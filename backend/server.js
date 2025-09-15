@@ -596,7 +596,7 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     console.error('PATCH /parcela erro:', err);
     res.status(500).json({ erro: 'Erro ao atualizar parcela', detalhe: err.message });
   }
-});
+ });
 
 
 

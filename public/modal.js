@@ -327,7 +327,7 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
   if (!nome) {
     mostrarAlertaWarning('Selecione o nome de quem recebeu.');
     return;
-  }
+   }
 
   const { emprestimo, indice, checkbox } = parcelaSelecionada;
   const dataPagamento = new Date().toISOString();
