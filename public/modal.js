@@ -1141,18 +1141,25 @@ if (vencimento && !paga) {
 
 
     // Se já foi paga
-    if (paga && datasPagamentos[i]) {
-      const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-      const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const recebedor = recebidoPor[i] || 'N/A';
-      const valorRecebido = emprestimo.valoresRecebidos?.[i];
-      
-      html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-      html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
-      
-      if (valorRecebido != null) {
-        html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-      }
+ // Se já foi paga
+if (paga && datasPagamentos[i]) {
+  const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
+  const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const recebedor = recebidoPor[i] || 'N/A';
+
+  html += `<strong>✅ Paga em:</strong> ${data}<br>`;
+  html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
+
+  // 💡 Aqui somamos contrato + multa
+  const valorContrato = emprestimo.valoresRecebidos?.[i] || 0;
+  const valorMulta = emprestimo.multasPagas?.[i] || 0;
+  const valorTotalRecebido = valorContrato + valorMulta;
+
+  html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorTotalRecebido)}<br>`;
+
+
+
+
       
       if (vencimento && datasPagamentos[i]) {
         const dataPag = new Date(datasPagamentos[i]);
