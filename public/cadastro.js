@@ -1,5 +1,5 @@
 import { URL_SERVICO } from './config.js';
-import { mostrarAlerta, mostrarAlertaError, formatarMoeda } from './utils.js';
+import { mostrarAlerta, mostrarAlertaError, formatarMoeda, mostrarAlertaWarning } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('emprestimoForm');
@@ -269,3 +269,239 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+
+
+
+
+
+
+    const cidadePadraoPorMensal = {
+  "Mensal 1": "Cotia",
+  "Mensal 2": "São Roque",
+  "Mensal 3": "Sorocaba",
+  "Mensal 3A": "Sorocaba-3A",
+  "Mensal 4": "Santos"
+};
+
+
+
+
+
+
+
+// gerarJSON.js
+function gerarJSONDaLista(lista, taxaDefault = 20) {
+  const linhas = lista
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  const now = new Date();
+  const ano = now.getFullYear();
+  const mes = String(now.getMonth() + 1).padStart(2, '0');
+
+  const emprestimos = [];
+
+  for (const linha of linhas) {
+    const partes = linha.split(/\s+/);
+    const dia = partes.shift();
+
+    if (!dia || isNaN(Number(dia))) continue;
+
+    let taxa = Number(taxaDefault);
+    let ultimo = partes[partes.length - 1];
+    if (ultimo && /%$/.test(ultimo)) {
+      taxa = parseFloat(ultimo.replace('%', '').replace(',', '.'));
+      partes.pop();
+    }
+
+    const tokenJuros = partes.pop();
+    if (!tokenJuros) continue;
+
+    const jurosStr = tokenJuros.replace(/[^\d,.-]/g, '').replace(',', '.');
+    const juros = parseFloat(jurosStr);
+    if (isNaN(juros) || taxa === 0) continue;
+
+    const principal = juros / (taxa / 100);
+    const principalArred = Math.round((principal + Number.EPSILON) * 100) / 100;
+
+    const nome = partes.join(' ') || 'SEM NOME';
+
+
+
+const mensalSelecionado = document.getElementById('mensalSelect').value;
+const cidadePadrao = cidadePadraoPorMensal[mensalSelecionado];
+
+emprestimos.push({
+  nome,
+  email: "teste@teste.com",
+  telefone: "11900000000",
+  cpf: "000.000.000-00",
+  endereco: "Rua",
+  cidade: cidadePadrao, // agora dinâmico
+  estado: "SP",
+  cep: "00000-000",
+  numero: "00",
+  valor: principalArred,
+  parcelas: 1,
+  datasVencimentos: [`${ano}-${mes}-${String(dia).padStart(2,'0')}`],
+  taxaJuros: taxa
+});
+
+  }
+
+  return { emprestimos };
+}
+
+
+
+
+let jsonGerado = null;
+
+document.getElementById("fileInput").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await window.mammoth.extractRawText({ arrayBuffer });
+    const texto = result.value.trim();
+
+    // gera JSON e guarda em variável global
+    jsonGerado = gerarJSONDaLista(texto);
+
+    // exibe lista
+    montarListaEmprestimos(jsonGerado.emprestimos);
+
+    // mostra botão de enviar e select
+    document.getElementById("btnEnviar").style.display = "block";
+    document.getElementById("btnCancelar").style.display = "block";
+    document.getElementById("mensalLabel").style.display = "block";
+    document.getElementById("mensalSelect").style.display = "block";
+    document.getElementById("listaEmprestimos").style.display = "block";
+
+  } catch (err) {
+    console.error("Erro ao ler DOCX:", err);
+    mostrarAlertaError("Erro ao ler arquivo.");
+  }
+});
+
+
+
+
+
+
+function montarListaEmprestimos(emprestimos) {
+  const container = document.getElementById("listaEmprestimos");
+  container.innerHTML = "";
+
+  if (!emprestimos || emprestimos.length === 0) {
+    container.innerHTML = `<p class="sem-resultados">Nenhum empréstimo encontrado</p>`;
+    return;
+  }
+
+  const tabela = document.createElement("div");
+  tabela.className = "parcelas-tabela";
+
+  // Cabeçalho
+  tabela.innerHTML = `
+    <div class="parcelas-cabecalho">
+      <span>📅 Dia</span>
+      <span>👤 Cliente</span>
+      <span>💰 % Juros</span>
+      <span>📈 Juros (R$)</span>
+    </div>
+  `;
+
+  // Corpo
+  const corpo = document.createElement("div");
+  corpo.id = "parcelas-corpo";
+  tabela.appendChild(corpo);
+
+  emprestimos.forEach((emp, index) => {
+    const data = emp.datasVencimentos[0];
+    const dia = data.split("-")[2];
+
+    const valorJuros = emp.valor * (emp.taxaJuros / 100);
+
+    const linha = document.createElement("div");
+    linha.className = `parcela-linha ${index % 2 === 0 ? "linha-par" : "linha-impar"}`;
+    linha.innerHTML = `
+      <span>${dia}</span>
+      <span>${emp.nome}</span>
+      <span>${emp.taxaJuros}%</span>
+      <span>${formatarMoedaLista(valorJuros)}</span>
+    `;
+    corpo.appendChild(linha);
+  });
+
+  container.appendChild(tabela);
+}
+
+
+
+
+document.getElementById("btnEnviar").addEventListener("click", async () => {
+  if (!jsonGerado || !jsonGerado.emprestimos) return;
+
+  // Lê o mensal selecionado
+  const mensalSelecionado = document.getElementById("mensalSelect").value;
+  const cidadePadrao = cidadePadraoPorMensal[mensalSelecionado];
+
+  // Atualiza cidade de todos os empréstimos
+  jsonGerado.emprestimos.forEach(emp => {
+    emp.cidade = cidadePadrao;
+  });
+
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos/lote`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ emprestimos: jsonGerado.emprestimos })
+    });
+
+    if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+    const result = await response.json();
+    console.log("Empréstimos enviados:", result);
+
+    // Limpa tela
+    document.getElementById("btnCancelar").click();
+    mostrarAlerta("Empréstimos enviados com sucesso!");
+  } catch (err) {
+    console.error(err);
+    mostrarAlertaError("Erro ao enviar empréstimos.");
+  }
+});
+
+
+document.getElementById("btnCancelar").addEventListener("click", () => {
+  // Limpa input de arquivo
+  const fileInput = document.getElementById("fileInput");
+  fileInput.value = "";
+
+  // Limpa lista de empréstimos
+  document.getElementById("listaEmprestimos").innerHTML = "";
+
+  // Esconde botões e select
+  document.getElementById("btnEnviar").style.display = "none";
+  document.getElementById("btnCancelar").style.display = "none";
+  document.getElementById("mensalSelect").style.display = "none";
+  document.getElementById("mensalLabel").style.display = "none";
+  document.getElementById("listaEmprestimos").style.display = "none";
+
+
+  // Limpa variável global
+  jsonGerado = null;
+});
+
+
+
+function formatarMoedaLista(valor) {
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}

@@ -129,6 +129,39 @@
 
     <br /><br />
 
+  <div class="form-column">
+  <h2>Cadastro de Empréstimo via Arquivo</h2>
+  <br>
+
+<div class="upload-container">
+  <label for="fileInput" class="upload-label">
+    📂 Selecionar arquivo DOCX
+  </label>
+  <input type="file" id="fileInput" accept=".docx" hidden />
+</div>
+<label for="mensalSelect" id="mensalLabel" style="display:none">Escolher mensal:</label>
+<select id="mensalSelect" style="display:none">
+  <option value="Mensal 1">Mensal 1</option>
+  <option value="Mensal 2">Mensal 2</option>
+  <option value="Mensal 3">Mensal 3</option>
+  <option value="Mensal 3A">Mensal 3A</option>
+  <option value="Mensal 4">Mensal 4</option>
+</select>
+
+<div id="listaEmprestimos" class="lista-container" style="display:none"></div>
+
+<div class="acoes-upload">
+  <button id="btnCancelar" class="btn-cancelar" style="display:none">Cancelar</button>
+
+  <button id="btnEnviar" style="display:none">Cadastrar empréstimos</button>
+</div>
+
+
+
+<pre id="saida" style="display:none"></pre>
+</div>  
+
+
 
     <div class="separador separadorMensais">
       <span id="pesquisasLinha">Mensais</span>
@@ -423,6 +456,7 @@
   </div>
 </div>
 
+  <script src="https://unpkg.com/mammoth/mammoth.browser.min.js"></script>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
