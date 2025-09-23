@@ -133,6 +133,7 @@ const EmprestimoSchema = new mongoose.Schema({
   datasPagamentos: [String],
   datasVencimentos: [String],
   valoresRecebidos: [Number],
+  multasParcelas: [Number],
   recebidoPor: [String],
 historicoAlteracoes: [
   {
@@ -468,16 +469,23 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     if (!Number.isInteger(indice) || indice < 0 || indice >= emp.parcelas)
       return res.status(400).json({ erro: 'Parcela inválida' });
 
+    // ✅ multa manual vinda do frontend
+    const valorMulta = parseFloat(req.body.valorMulta) || 0;
+
     // Inicializa arrays essenciais
     const campos = [
       'statusParcelas', 'datasPagamentos', 'recebidoPor',
       'valorParcelasPendentes', 'valoresRecebidos',
-      'parcelasPagasParciais', 'datasVencimentos'
+      'parcelasPagasParciais', 'datasVencimentos', 'multasParcelas'
     ];
     campos.forEach(campo => {
       if (!Array.isArray(emp[campo])) emp[campo] = [];
       while (emp[campo].length < emp.parcelas) {
-        emp[campo].push(campo === 'statusParcelas' ? false : null);
+        emp[campo].push(
+          campo === 'statusParcelas' ? false
+          : campo === 'multasParcelas' ? 0
+          : null
+        );
       }
     });
 
@@ -491,6 +499,9 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     emp.valoresRecebidos[indice] = (emp.valoresRecebidos[indice] || 0) + recebido;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
 
+    // ✅ salva a multa manualmente
+    emp.multasParcelas[indice] = (emp.multasParcelas[indice] || 0) + valorMulta;
+
     // CALCULO DINÂMICO TIPO FRONT
     let saldoAtual = emp.valorOriginal || 0;
     let totalJurosRecebidos = 0;
@@ -499,10 +510,12 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     for (let i = 0; i < emp.parcelas; i++) {
       const taxa = emp.taxaJuros || 20;
       const jurosParcela = saldoAtual * (taxa / 100);
-      const diasAtrasoParcela = calcularDiasAtraso(emp.datasVencimentos[i]);
-      const multaParcela = diasAtrasoParcela * 20;
-      const valorMinimo = jurosParcela + multaParcela;
 
+      // ❌ removi multa automática
+      // const diasAtrasoParcela = calcularDiasAtraso(emp.datasVencimentos[i]);
+      // const multaParcela = diasAtrasoParcela * 20;
+
+      const valorMinimo = jurosParcela;
       const pago = emp.valoresRecebidos[i] || 0;
 
       // Juros recebidos apenas se a parcela estiver quitada
@@ -539,6 +552,7 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
       emp.recebidoPor.push(null);
       emp.valoresRecebidos.push(0);
       emp.parcelasPagasParciais.push(null);
+      emp.multasParcelas.push(0); // ✅ nova posição para multa
 
       // SALVA VALOR DA NOVA PARCELA
       if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];

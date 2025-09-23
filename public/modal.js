@@ -181,6 +181,26 @@ inputValorRecebido.addEventListener('input', (e) => {
   });
 });
 
+const inputMultaRecebida = document.getElementById('valorMulta');
+
+
+inputMultaRecebida.addEventListener('input', (e) => {
+  let valor = e.target.value.replace(/\D/g, '');
+
+  let valorNum = parseInt(valor, 10);
+  if (isNaN(valorNum)) {
+    e.target.value = '';
+    return;
+  }
+
+  valorNum = valorNum / 100;
+
+  e.target.value = valorNum.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  });
+});
+
 async function realizarBusca(termo) {
   try {
     const res = await fetch(`${URL_SERVICO}/emprestimos?termo=${termo}`);
@@ -346,6 +366,15 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
     return;
   }
 
+
+  let valorMulta = 0;
+const valorMultaRaw = document.getElementById('valorMulta').value;
+if (valorMultaRaw) {
+  const valorMultaString = valorMultaRaw.replace(/\D/g, '');
+  valorMulta = parseFloat(valorMultaString) / 100;
+}
+
+
   try {
     const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimo.id}/parcela/${indice}`, {
       method: 'PATCH',
@@ -353,7 +382,8 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
       body: JSON.stringify({
         dataPagamento,
         nomeRecebedor: nome,
-        valorRecebido
+        valorRecebido,
+        valorMulta
       })
     });
 
@@ -418,18 +448,40 @@ btnConfirmarRecebedor.addEventListener('click', async () => {
 
 
 function mostrarModalRecebedor() {
-  if (!modalRecebedor) {
-    console.error("Modal do recebedor não encontrado no DOM");
-    return;
-  }
+  if (!modalRecebedor) return;
 
-  // Garante que o input esteja limpo
+  // Limpa inputs
   inputRecebedor.value = '';
   inputValorRecebido.value = '';
+  document.getElementById('valorMulta').value = '';
 
-  // Exibe o modal
+  const campoMulta = document.getElementById('valorMulta');
+  const infoMulta = document.getElementById('infoMulta');
+
+  if (parcelaSelecionada?.emprestimo && parcelaSelecionada?.indice != null) {
+    const emprestimo = parcelaSelecionada.emprestimo;
+    const indice = parcelaSelecionada.indice;
+    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indice]);
+
+    if (diasAtraso > 0) {
+      campoMulta.parentElement.style.display = 'block';
+      const valorMultaAutomatico = diasAtraso * 20;
+      infoMulta.style.display = 'block';
+      infoMulta.textContent = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). 
+      O valor de uma multa considerando R$20/dia seria R$${valorMultaAutomatico}.`;
+    } else {
+      campoMulta.parentElement.style.display = 'none';
+      infoMulta.style.display = 'none';
+    }
+  } else {
+    campoMulta.parentElement.style.display = 'none';
+    infoMulta.style.display = 'none';
+  }
+
   modalRecebedor.style.display = 'flex';
 }
+
+
 
 function fecharModalRecebedor() {
   if (modalRecebedor) {
@@ -499,46 +551,41 @@ function atualizarValorRestante(emprestimoAtualizado) {
     // CORREÇÃO: Calcular juros de cada parcela DINAMICAMENTE
     let saldoAtual = valorOriginal;
     
-    (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
-      // CALCULAR JUROS DA PARCELA COM BASE NO SALDO ATUAL
-      const taxaJuros = emprestimoAtualizado.taxaJuros || 20;
-      const jurosParcela = saldoAtual * (taxaJuros / 100);
-      
-      const diasAtraso = calcularDiasAtraso(emprestimoAtualizado.datasVencimentos[i]);
-      const multaParcela = diasAtraso * 20;
-      const valorMinimoParcela = jurosParcela + multaParcela;
+      (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
+        const taxaJuros = emprestimoAtualizado.taxaJuros || 20;
+        const jurosParcela = saldoAtual * (taxaJuros / 100);
 
-      // SOMA JUROS RECEBIDOS APENAS SE A PARCELA FOI PAGA
-      if (emprestimoAtualizado.statusParcelas?.[i] && typeof val === 'number') {
-        totalJurosRecebidos += jurosParcela;
-      }
+        // 🔴 agora usa a multa registrada pelo usuário, não automática
+        const multaParcela = emprestimoAtualizado.multasParcelas?.[i] || 0;
 
-      // Armazena informações da parcela
-      parcelasInfo.push({
-        indice: i + 1,
-        valorParcela: jurosParcela, // Usa o juros calculado, não o valor pendente
-        valorMinimo: valorMinimoParcela,
-        valorPago: val,
-        multa: multaParcela,
-        excedente: Math.max(0, val - valorMinimoParcela)
-      });
-      
-      // Lógica para cálculo de excedente
-      if (val > valorMinimoParcela) {
-        const excedente = val - valorMinimoParcela;
-        totalPagoValido += excedente;
-        
-        // ATUALIZA SALDO PARA PRÓXIMA PARCELA
-        saldoAtual -= excedente;
-        
-        parcelasComExcedente.push({
+        const valorMinimoParcela = jurosParcela + multaParcela;
+
+        if (emprestimoAtualizado.statusParcelas?.[i] && typeof val === 'number') {
+          totalJurosRecebidos += jurosParcela;
+        }
+
+        parcelasInfo.push({
           indice: i + 1,
           valorParcela: jurosParcela,
+          valorMinimo: valorMinimoParcela,
           valorPago: val,
           multa: multaParcela,
-          excedente: excedente,
-          valorMinimo: valorMinimoParcela
+          excedente: Math.max(0, val - valorMinimoParcela)
         });
+
+        if (val > valorMinimoParcela) {
+          const excedente = val - valorMinimoParcela;
+          totalPagoValido += excedente;
+          saldoAtual -= excedente;
+
+          parcelasComExcedente.push({
+            indice: i + 1,
+            valorParcela: jurosParcela,
+            valorPago: val,
+            multa: multaParcela,
+            excedente: excedente,
+            valorMinimo: valorMinimoParcela
+          });
       } else if (emprestimoAtualizado.statusParcelas?.[i]) {
         // Se pagou pelo menos o mínimo, mantém o saldo
         saldoAtual = saldoAtual;
@@ -553,7 +600,10 @@ function atualizarValorRestante(emprestimoAtualizado) {
     const listaParcelasHTML = parcelasInfo.map(p => {
         const statusText = emprestimoAtualizado.statusParcelas?.[p.indice - 1] ? '✅ Paga' : '🔴 Pendente';
         const valorPagoDisplay = typeof p.valorPago === 'number' ? `(${formatarMoeda(p.valorPago)} pago)` : '';
-        const multaDisplay = p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : '';
+       const multaDisplay = p.multa > 0 
+  ? `<strong style="color:red;">💰 Multa aplicada:</strong> ${formatarMoeda(p.multa)}<br>` 
+  : '';
+
 
         return `
             <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
@@ -1096,7 +1146,7 @@ const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
     }
 
 // Total necessário para quitar (parcela + multa)
-const valorTotalNecessario = valorParcelaCorrigido + multa;
+const valorTotalNecessario = valorParcelaCorrigido;
 
 // Quanto ainda falta
 const valorFaltante = Math.max(0, valorTotalNecessario - valorRecebido);
@@ -1123,7 +1173,7 @@ if (vencimento && !paga) {
     const diasAtraso = calcularDiasAtraso(vencimento);
   if (diasAtraso > 0) {
     html += `<strong style="color: red;">⚠️ Atrasada:</strong> ${diasAtraso} dia(s)<br>`;
-    html += `<strong style="color: red;">Multa:</strong> ${formatarMoeda(multa)}<br>`;
+    html += `<strong style="color: red;">⚠️ Possivel aplicação de multa:</strong> ${formatarMoeda(multa)}<br>`;
       statusClass = 'parcela-atrasada';
   } else {
     const hoje = new Date();
@@ -1151,13 +1201,15 @@ if (paga && datasPagamentos[i]) {
   html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
 
   // 💡 Aqui somamos contrato + multa
-  const valorContrato = emprestimo.valoresRecebidos?.[i] || 0;
-  const valorMulta = emprestimo.multasPagas?.[i] || 0;
-  const valorTotalRecebido = valorContrato + valorMulta;
+        const valorContrato = emprestimo.valoresRecebidos?.[i] || 0;
+        const valorMulta = emprestimo.multasParcelas?.[i] || 0;
+        const valorTotalRecebido = valorContrato + valorMulta;
 
-  html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorTotalRecebido)}<br>`;
+        html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorContrato)}<br>`;
 
-
+        if (valorMulta > 0) {
+          html += `<strong style="color:red;">💰 Multa aplicada:</strong> ${formatarMoeda(valorMulta)}<br>`;
+        }
 
 
       
@@ -1168,12 +1220,13 @@ if (paga && datasPagamentos[i]) {
         dataPag.setHours(0, 0, 0, 0);
         if (dataPag > dataVenc) {
           const diasAtraso = Math.floor((dataPag - dataVenc) / (1000 * 60 * 60 * 24));
-          const multa = diasAtraso * 20;
+          //const multa = diasAtraso * 20;
 
           html += `<strong style="color:#d9534f;">⚠️ Parcela paga com atraso</strong><br>`;
           html += `<hr>`;
           html += `<strong>⚠️ Dias de atraso:</strong> ${diasAtraso}<br>`;
-          html += `<strong>💰 Multa:</strong> ${formatarMoeda(multa)}<br>`;
+
+
           statusClass = 'parcela-paga-com-atraso';
         } else {
       statusClass = 'parcela-paga';
@@ -1211,10 +1264,11 @@ if (paga && datasPagamentos[i]) {
             vencimento.setHours(0, 0, 0, 0);
 
             if (hoje > vencimento) {
-              const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24));
+              const diasAtraso = Math.floor((hoje - vencimento) / (1000 * 60 * 60 * 24)) -1;
               const multa = diasAtraso * 20;
               valorMinimo = valorParcelaCorrigido + multa;
-              mensagemInfo = `⚠️ Esta parcela está atrasada. O valor mínimo a ser pago deve ser ${formatarMoeda(valorParcelaCorrigido)} + ${formatarMoeda(multa)} de multa`;
+              mensagemInfo = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). 
+      O valor de uma multa considerando R$20/dia seria R$${multa}.`;
             }
           }
 
