@@ -297,9 +297,20 @@ function gerarJSONDaLista(lista, taxaDefault = 20) {
     .map(l => l.trim())
     .filter(Boolean);
 
+// Verifica se o usuário escolheu um mês manualmente
+const mesInput = document.getElementById("mesSelecionado");
+let ano, mes;
+
+if (mesInput && mesInput.value) {
+  const [anoSel, mesSel] = mesInput.value.split("-");
+  ano = anoSel;
+  mes = mesSel;
+} else {
   const now = new Date();
-  const ano = now.getFullYear();
-  const mes = String(now.getMonth() + 1).padStart(2, '0');
+  ano = now.getFullYear();
+  mes = String(now.getMonth() + 1).padStart(2, '0');
+}
+
 
   const emprestimos = [];
 
@@ -380,6 +391,9 @@ document.getElementById("fileInput").addEventListener("change", async (event) =>
     document.getElementById("mensalLabel").style.display = "block";
     document.getElementById("mensalSelect").style.display = "block";
     document.getElementById("listaEmprestimos").style.display = "block";
+    document.getElementById("mesLabel").style.display = "block";
+document.getElementById("mesSelecionado").style.display = "block";
+
 
   } catch (err) {
     console.error("Erro ao ler DOCX:", err);
@@ -388,6 +402,44 @@ document.getElementById("fileInput").addEventListener("change", async (event) =>
 });
 
 
+document.getElementById("btnGerarListaManual").addEventListener("click", () => {
+  const textoManual = document.getElementById("inputManual").value.trim();
+  if (!textoManual) {
+    mostrarAlertaError("Digite pelo menos uma linha antes de gerar a lista.");
+    return;
+  }
+
+  // Gera JSON usando a mesma função dos arquivos
+  jsonGerado = gerarJSONDaLista(textoManual);
+
+  // Monta a lista na tela
+  montarListaEmprestimos(jsonGerado.emprestimos);
+
+  // Exibe controles (mesmo comportamento do upload)
+  document.getElementById("btnEnviar").style.display = "block";
+  document.getElementById("btnCancelar").style.display = "block";
+  document.getElementById("mensalLabel").style.display = "block";
+  document.getElementById("mensalSelect").style.display = "block";
+  document.getElementById("listaEmprestimos").style.display = "block";
+  document.getElementById("mesLabel").style.display = "block";
+document.getElementById("mesSelecionado").style.display = "block";
+
+});
+
+document.getElementById("btnLimparTextoManual").addEventListener("click", () => {
+  const textarea = document.getElementById("inputManual");
+  textarea.value = "";
+  textarea.focus();
+});
+
+document.getElementById('mesSelecionado').addEventListener('change', function () {
+  const novoMes = this.value;
+  
+  // Seleciona todos os campos individuais de mês (ajuste o seletor se necessário)
+  document.querySelectorAll('.mes-individual').forEach(campo => {
+    campo.value = novoMes;
+  });
+});
 
 
 
@@ -402,11 +454,11 @@ function montarListaEmprestimos(emprestimos) {
   }
 
   const tabela = document.createElement("div");
-  tabela.className = "parcelas-tabela";
+  tabela.className = "parcelas-tabela-cadastro";
 
   // Cabeçalho
   tabela.innerHTML = `
-    <div class="parcelas-cabecalho">
+    <div class="parcelas-cabecalho-cadastro">
       <span>📅 Dia</span>
       <span>👤 Cliente</span>
       <span>💰 % Juros</span>
@@ -416,7 +468,7 @@ function montarListaEmprestimos(emprestimos) {
 
   // Corpo
   const corpo = document.createElement("div");
-  corpo.id = "parcelas-corpo";
+  corpo.id = "parcelas-corpo-cadastro";
   tabela.appendChild(corpo);
 
   emprestimos.forEach((emp, index) => {
@@ -426,13 +478,15 @@ function montarListaEmprestimos(emprestimos) {
     const valorJuros = emp.valor * (emp.taxaJuros / 100);
 
     const linha = document.createElement("div");
-    linha.className = `parcela-linha ${index % 2 === 0 ? "linha-par" : "linha-impar"}`;
-    linha.innerHTML = `
-      <span>${dia}</span>
-      <span>${emp.nome}</span>
-      <span>${emp.taxaJuros}%</span>
-      <span>${formatarMoedaLista(valorJuros)}</span>
-    `;
+    linha.className = `parcela-linha-cadastro ${index % 2 === 0 ? "linha-par" : "linha-impar"}`;
+linha.innerHTML = `
+  <span>${dia}</span>
+  <span>${emp.nome}</span>
+  <span>${emp.taxaJuros}%</span>
+  <span>${formatarMoedaLista(valorJuros)}</span>
+  <input type="month" class="mes-individual" value="${emp.datasVencimentos[0].slice(0,7)}" />
+`;
+
     corpo.appendChild(linha);
   });
 
@@ -442,7 +496,15 @@ function montarListaEmprestimos(emprestimos) {
 
 
 
+
 document.getElementById("btnEnviar").addEventListener("click", async () => {
+  const mesesIndividuais = document.querySelectorAll(".mes-individual");
+mesesIndividuais.forEach((input, i) => {
+  const [ano, mes] = input.value.split("-");
+  const dia = jsonGerado.emprestimos[i].datasVencimentos[0].split("-")[2];
+  jsonGerado.emprestimos[i].datasVencimentos[0] = `${ano}-${mes}-${dia}`;
+});
+
   if (!jsonGerado || !jsonGerado.emprestimos) return;
 
   // Lê o mensal selecionado
@@ -496,6 +558,8 @@ document.getElementById("btnCancelar").addEventListener("click", () => {
   // Limpa variável global
   jsonGerado = null;
 });
+
+
 
 
 

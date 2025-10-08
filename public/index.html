@@ -133,6 +133,23 @@
   <h2>Cadastro de Empréstimo via Arquivo</h2>
   <br>
 
+<div class="input-manual-container">
+  <label for="inputManual" class="upload-label">
+    ✍️ Inserir lista manualmente
+  </label>
+
+  <textarea id="inputManual" placeholder="Exemplo:
+10 JESSICA 200
+11 CARLOS 500 30%" rows="6"></textarea>
+
+  <div class="botoes-manual">
+    <button id="btnLimparTextoManual" class="btn-limpar">Limpar</button>
+    <button id="btnGerarListaManual">Gerar lista</button>
+  </div>
+</div>
+
+
+
 <div class="upload-container">
   <label for="fileInput" class="upload-label">
     📂 Selecionar arquivo DOCX
@@ -147,6 +164,10 @@
   <option value="Mensal 3A">Mensal 3A</option>
   <option value="Mensal 4">Mensal 4</option>
 </select>
+
+<label for="mesSelecionado" id="mesLabel" style="display:none">Mês de vencimento:</label>
+<input type="month" id="mesSelecionado" style="display:none">
+
 
 <div id="listaEmprestimos" class="lista-container" style="display:none"></div>
 
