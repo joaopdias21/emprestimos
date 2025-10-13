@@ -2543,12 +2543,14 @@ input[type="date"] {
 
 /* Estilos gerais, mantidos */
 .parcelas-cabecalho {
-  font-weight: bold;
-  background-color: #eeeeee;
-  border-bottom: 2px solid #aaaaaa;
-  color: black;
+  font-weight: 700;
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  color: #212529;
+  padding: 12px 16px;
+  font-size: 1.1em;
+  border-radius: 4px 4px 0 0;
 }
-
 .parcela-linha {
   border-bottom: 1px solid #ddd;
   transition: background 0.2s;

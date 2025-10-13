@@ -108,8 +108,11 @@ btnConsultarAtivos.addEventListener('click', async () => {
       li.setAttribute('tabindex', '-1');
       li.classList.add('card-vencimento');
       li.innerHTML = `
-        <h3>${emprestimo.nome}</h3>
-        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorComJuros)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
+        <h3>
+          ${emprestimo.nome} | Dia vencimento: ${emprestimo.datasVencimentos.length > 0 ? emprestimo.datasVencimentos[emprestimo.datasVencimentos.length - 1].split('-')[2] : '-'}
+        </h3>
+
+        <p><strong>Valor:</strong> ${formatarMoeda(emprestimo.valorOriginal)} | <strong>Parcelas:</strong> ${emprestimo.parcelas}</p>
         <p><strong>Endereço:</strong> ${emprestimo.endereco}, ${emprestimo.numero}${emprestimo.complemento ? ' - ' + emprestimo.complemento : ''}</p>
         <p><strong>Cidade:</strong> ${emprestimo.cidade} - ${emprestimo.estado} | <strong>CEP:</strong> ${emprestimo.cep}</p>
         ${vencido ? '<p style="color: red; font-weight: bold;">ATRASADO</p>' : ''}

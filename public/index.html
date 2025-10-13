@@ -229,68 +229,54 @@
 </div>
 
 
-          <div id="listaEmprestimosCidade" style="display: none;">
-            <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
-            <p id="cidadesDoGrupo" style="font-style: italic; color: #666;"></p>
-          </div>
-          <br>
-            <p class="selecioneData"><strong>Selecione uma data:</strong></p>
-          <div class="campo-busca">
-            <div class="botoes-filtro-container">
-              <input type="date" id="inputDataFiltro" class="input-filtro" />
-              <label for="filtroMes">Filtrar por mês:</label>
-              <input type="month" id="filtroMes">
-              <button type="button" id="btnFiltrarData" class="botao-filtro">Filtrar</button>
-              <button type="button" id="btnHojeFiltro" class="botao-filtro">Hoje</button>
-              <button type="button" id="btnLimparFiltro" class="botao-filtro">Limpar Filtros</button>
-            </div>
-          </div>
-          <br>
+<div id="secaoEmprestimosCidade" style="display: none;">
+  <div id="listaEmprestimosCidade">
+    <h2>Empréstimos - <span id="nomeCidadeSelecionada"></span></h2>
+    <p id="cidadesDoGrupo" style="font-style: italic; color: #666;"></p>
+<div id="totaisResumo" class="totais-resumo"></div>
 
-          <div id="totaisResumo" style="margin-top: 15px; font-weight: bold;">
-            Total Recebido: R$ 0,00 | Total Previsto: R$ 0,00
-          </div>
+  </div>
+  <br>
 
-          <br>
+  <p class="selecioneData"><strong>Selecione uma data:</strong></p>
+  <div class="campo-busca">
+    <div class="botoes-filtro-container">
+      <input type="date" id="inputDataFiltro" class="input-filtro" />
+      <label for="filtroMes">Filtrar por mês:</label>
+      <input type="month" id="filtroMes">
+      <button type="button" id="btnFiltrarData" class="botao-filtro">Filtrar</button>
+      <button type="button" id="btnLimparFiltro" class="botao-filtro">Limpar Filtros</button>
+    </div>
+  </div>
+  <br>
 
-          <!-- Adicione esta div da legenda -->
-          <div class="legenda-status">
-            <div class="item-legenda">
-              <span class="bolinha-legenda verde" data-status="pago"></span>
-              <span>Parcela paga</span>
-            </div>
-            <div class="item-legenda">
-              <span class="bolinha-legenda azul" data-status="em-dia"></span>
-              <span>Em dia</span>
-            </div>
-            <div class="item-legenda">
-              <span class="bolinha-legenda laranja" data-status="vencendo-hoje"></span>
-              <span>Vencendo hoje</span>
-            </div>
-            <div class="item-legenda">
-              <span class="bolinha-legenda vermelho" data-status="atrasado"></span>
-              <span>Atrasado</span>
-            </div>
-          </div>
+  <div class="legenda-status">
+    <div class="item-legenda">
+      <span class="bolinha-legenda verde" data-status="pago"></span>
+      <span>Parcela paga</span>
+    </div>
+    <div class="item-legenda">
+      <span class="bolinha-legenda azul" data-status="em-dia"></span>
+      <span>Em dia</span>
+    </div>
+    <div class="item-legenda">
+      <span class="bolinha-legenda laranja" data-status="vencendo-hoje"></span>
+      <span>Vencendo hoje</span>
+    </div>
+    <div class="item-legenda">
+      <span class="bolinha-legenda vermelho" data-status="atrasado"></span>
+      <span>Atrasado</span>
+    </div>
+  </div>
 
-          <br>
+  <br>
+  <ul id="resultadoFiltrado"></ul>
 
-          <ul id="resultadoFiltrado"></ul>
-<div style="margin-top: 20px; text-align: right;">
-  <button id="btnExportarPDFLista" class="btn-pdf">📄 Gerar Relatório PDF</button>
-          <br>
-          <br>
-
-    <button id="btnEnviarCobranca" class="btn-cobranca" style="display:none;">
-    💬 Enviar Mensagem de Cobrança
-  </button>
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="btnExportarPDFLista" class="btn-pdf">📄 Gerar Relatório PDF</button>
+  </div>
 </div>
 
-
-
-
-
-        </div>
 
 
 
@@ -454,6 +440,7 @@
 
     <select id="inputRecebedor">
       <option value="" disabled selected>Selecione o nome</option>
+      <option value="Bruno">Bruno Administrador</option>
       <option value="Gugu">Gugu</option>
       <option value="Bigu">Bigu</option>
       <option value="Amaral">Amaral</option>

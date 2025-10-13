@@ -707,11 +707,19 @@ export async function abrirModal(emprestimo) {
         <div id="editarContainer" style="margin-top: 15px; display:none;">
           <form id="formEditarEmprestimo">
 
-            <div id="financeiro-edit">
-              <label>Valor original: <input type="number" step="0.01" name="valorOriginal" value="${emprestimo.valorOriginal}" required></label><br>
-              <label>Taxa de Juros (%): <input type="number" step="0.01" name="taxaJuros" value="${emprestimo.taxaJuros || 0}" required></label><br>
-              <label>Parcelas: <input type="number" name="parcelas" value="${emprestimo.parcelas}" min="1" max="100" required></label><br>
-            </div>
+<div id="financeiro-edit">
+<label>Valor da Parcela: 
+  <input type="number" step="0.01" name="valorParcela" value="${emprestimo.valorParcela}" required>
+</label><br>
+<label>Taxa de Juros (%): 
+  <input type="number" step="0.01" name="taxaJuros" value="${emprestimo.taxaJuros || 0}" required>
+</label><br>
+<label>Parcelas: 
+  <input type="number" name="parcelas" value="${emprestimo.parcelas}" min="1" max="100" required>
+</label><br>
+
+</div>
+
             
             <div id="valoresCalculados" class="valores-card">
                 <div class="valor-item">
@@ -810,6 +818,9 @@ export async function abrirModal(emprestimo) {
       <ul>${lista}</ul>`;
   }
 
+
+  
+
   const btnEditar = document.getElementById('btnEditar');
   const editarContainer = document.getElementById('editarContainer');
   const infoFinanceiraDiv = document.getElementById('infoFinanceira');
@@ -901,77 +912,97 @@ btnConfirmar.addEventListener("click", async () => {
 
 
 
-  const formEditarEmprestimo = document.getElementById('formEditarEmprestimo');
-  const inputValorOriginal = formEditarEmprestimo.querySelector('input[name="valorOriginal"]');
-  const inputTaxaJuros = formEditarEmprestimo.querySelector('input[name="taxaJuros"]');
-  const inputParcelas = formEditarEmprestimo.querySelector('input[name="parcelas"]');
+const formEditarEmprestimo = document.getElementById('formEditarEmprestimo');
+const inputValorParcela = formEditarEmprestimo.querySelector('input[name="valorParcela"]');
+const inputTaxaJuros = formEditarEmprestimo.querySelector('input[name="taxaJuros"]');
+const inputParcelas = formEditarEmprestimo.querySelector('input[name="parcelas"]');
 
-  const displayValorOriginal = document.getElementById('displayValorOriginal');
-  const displayTaxaJuros = document.getElementById('displayTaxaJuros');
-  const displayValorComJuros = document.getElementById('displayValorComJuros');
-  const displayParcelas = document.getElementById('displayParcelas');
-  const displayValorParcela = document.getElementById('displayValorParcela');
+const displayValorOriginal = document.getElementById('displayValorOriginal');
+const displayTaxaJuros = document.getElementById('displayTaxaJuros');
+const displayValorComJuros = document.getElementById('displayValorComJuros');
+const displayParcelas = document.getElementById('displayParcelas');
+const displayValorParcela = document.getElementById('displayValorParcela');
 
-  function calcularValores() {
-    const valorOriginal = parseFloat(inputValorOriginal.value);
-    const taxaJuros = parseFloat(inputTaxaJuros.value);
-    const numParcelas = parseInt(inputParcelas.value, 10);
+function calcularValores() {
+  const parcela = parseFloat(inputValorParcela.value);
+  const taxa = parseFloat(inputTaxaJuros.value);
+  const numParcelas = parseInt(inputParcelas.value, 10);
 
-    if (isNaN(valorOriginal) || isNaN(taxaJuros) || isNaN(numParcelas) || numParcelas <= 0) {
-      return;
-    }
+  if (isNaN(parcela) || isNaN(taxa) || isNaN(numParcelas) || numParcelas <= 0) return;
 
-    const valorComJuros = valorOriginal * (1 + taxaJuros / 100);
-    const valorParcela = valorComJuros / numParcelas;
+  // 🔹 Calcula valor original a partir da parcela e taxa (inverso dos juros)
+  const valorOriginal = (parcela * numParcelas) / (taxa / 100);
 
-    displayValorOriginal.textContent = formatarMoeda(valorOriginal);
-    displayTaxaJuros.textContent = taxaJuros.toFixed(0);
-    displayValorComJuros.textContent = formatarMoeda(valorComJuros);
-    displayParcelas.textContent = numParcelas;
-    displayValorParcela.textContent = formatarMoeda(valorParcela);
-  }
+  // Valor com juros total
+  const valorComJuros = valorOriginal * (1 + taxa / 100);
 
-  inputValorOriginal.addEventListener('input', calcularValores);
-  inputTaxaJuros.addEventListener('input', calcularValores);
-  inputParcelas.addEventListener('input', calcularValores);
+  // Atualiza visual
+  displayValorOriginal.textContent = formatarMoeda(valorOriginal);
+  displayTaxaJuros.textContent = taxa.toFixed(0);
+  displayValorComJuros.textContent = formatarMoeda(valorComJuros);
+  displayParcelas.textContent = numParcelas;
+  displayValorParcela.textContent = formatarMoeda(parcela);
 
-  calcularValores();
+  // Atualiza no objeto do empréstimo
+  emprestimoSelecionado.valorOriginal = Number(valorOriginal.toFixed(2));
+  emprestimoSelecionado.valorComJuros = Number(valorComJuros.toFixed(2));
+  emprestimoSelecionado.valorParcela = Number(parcela.toFixed(2));
+  emprestimoSelecionado.parcelas = numParcelas;
+}
 
-  formEditarEmprestimo.addEventListener('submit', async (e) => {
-    e.preventDefault();
 
-    const formData = new FormData(e.target);
-    const dadosAtualizados = Object.fromEntries(formData.entries());
+inputValorParcela.addEventListener('input', calcularValores);
+inputTaxaJuros.addEventListener('input', calcularValores);
+inputParcelas.addEventListener('input', calcularValores);
 
-    dadosAtualizados.valorOriginal = parseFloat(dadosAtualizados.valorOriginal);
-    dadosAtualizados.taxaJuros = parseFloat(dadosAtualizados.taxaJuros);
-    dadosAtualizados.parcelas = parseInt(dadosAtualizados.parcelas, 10);
+calcularValores();
 
-    dadosAtualizados.valorComJuros = dadosAtualizados.valorOriginal * (1 + dadosAtualizados.taxaJuros / 100);
-    dadosAtualizados.valorParcela = dadosAtualizados.valorComJuros / dadosAtualizados.parcelas;
-    dadosAtualizados.datasVencimentos = emprestimoSelecionado.datasVencimentos || [];
+formEditarEmprestimo.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(e.target);
+  const dadosAtualizados = Object.fromEntries(formData.entries());
 
-    try {
-      const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoSelecionado.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosAtualizados)
-      });
+  const parcela = parseFloat(dadosAtualizados.valorParcela);
+  const taxa = parseFloat(dadosAtualizados.taxaJuros);
+  const parcelas = parseInt(dadosAtualizados.parcelas, 10);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ao salvar: ${errorText}`);
-      }
+  // 🔹 Cálculo correto para valor original e total com juros
+  const valorOriginal = (parcela * parcelas) / (taxa / 100);
+  const valorComJuros = valorOriginal * (1 + taxa / 100);
 
-      const emprestimoAtualizado = await response.json();
-      mostrarAlerta('Empréstimo atualizado com sucesso!');
-      abrirModal(emprestimoAtualizado);
-      realizarBusca(termoAtual);
-    } catch (err) {
-          mostrarAlertaError(`Erro ao salvar: ${err.message}`);
-      console.error(err);
-    }
+  Object.assign(dadosAtualizados, {
+    valorOriginal: Number(valorOriginal.toFixed(2)),
+    valorComJuros: Number(valorComJuros.toFixed(2)),
+    valorParcela: Number(parcela.toFixed(2)),
+    taxaJuros: taxa,
+    parcelas: parcelas,
+    datasVencimentos: emprestimoSelecionado.datasVencimentos || []
   });
+
+  try {
+    const response = await fetch(`${URL_SERVICO}/emprestimos/${emprestimoSelecionado.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dadosAtualizados)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Erro ao salvar: ${errorText}`);
+    }
+
+    const emprestimoAtualizado = await response.json();
+    mostrarAlerta('Empréstimo atualizado com sucesso!');
+    abrirModal(emprestimoAtualizado);
+    realizarBusca(termoAtual);
+  } catch (err) {
+    mostrarAlertaError(`Erro ao salvar: ${err.message}`);
+    console.error(err);
+  }
+});
+
+
+
 
   const btnEditarVencimentos = document.getElementById('btnEditarVencimentos');
   const containerEditarVencimentos = document.getElementById('containerEditarVencimentos');
@@ -1548,22 +1579,27 @@ function eVencimentoHoje(dataVencimento) {
 function atualizarTotaisResumo(parcelasFiltradas = []) {
   let totalRecebido = 0;   // só valor mínimo das parcelas pagas
   let totalPrevisto = 0;   // só valor mínimo das parcelas previstas
-  let valorExcedente = 0;  // multas não pagas + pagamento acima do mínimo
+  let valorExcedente = 0;  // pagamentos acima do valor mínimo
+  let totalMulta = 0;      // multas apenas de parcelas pagas
 
   parcelasFiltradas.forEach(p => {
-    // Pega sempre o valor corrigido se existir
     const valorBase = p.valorParcelaCorrigido ?? p.valorParcela ?? 0;
 
     // Total previsto: apenas o valor mínimo da parcela
     totalPrevisto += valorBase;
-    if (p.pago) totalRecebido += valorBase;
 
-    // valor excedente: multa + pagamento acima do valorBase
-    if (p.pago && p.valorRecebido > valorBase) {
-      valorExcedente += (p.valorRecebido - valorBase);
-    }
-    if (p.multa && (!p.pagoMulta || p.pagoMulta === false)) {
-      valorExcedente += p.multa;
+    if (p.pago) {
+      totalRecebido += valorBase;
+
+      // valor excedente: pagamento acima do mínimo
+      if (p.valorRecebido > valorBase) {
+        valorExcedente += (p.valorRecebido - valorBase);
+      }
+
+      // multa apenas de parcelas pagas
+      if (p.multa && p.multa > 0) {
+        totalMulta += p.multa;
+      }
     }
   });
 
@@ -1581,9 +1617,16 @@ function atualizarTotaisResumo(parcelasFiltradas = []) {
       <span class="titulo">Valor Excedente</span>
       <span class="valor">${formatarMoeda(valorExcedente)}</span>
     </div>
+    <div class="totais-card multa">
+      <span class="titulo">Total Multa</span>
+      <span class="valor">${formatarMoeda(totalMulta)}</span>
+    </div>
   `;
 }
+
 window.atualizarTotaisResumo = atualizarTotaisResumo;
+
+
 
 
 
@@ -1692,7 +1735,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       // tenta pegar do campo salvo no backend
       if (emp.multasParcelas && emp.multasParcelas[idx] != null) {
         multa = parseFloat(emp.multasParcelas[idx]) || 0;
-       }
+        }
 
 
       // fallback: se ainda não há multa registrada, mas está atrasado e não pago, pode sugerir (apenas visual)
@@ -1894,13 +1937,6 @@ filtroMes.addEventListener('change', () => {
   inputDataFiltro.value = ''; // limpa o filtro por dia
 });
 
-
-btnHojeFiltro.addEventListener('click', () => {
-  const hoje = hojeLocalISO();
-  inputDataFiltro.value = hoje;
-  filtroMes.value = '';
-  filtrarEmprestimos({ dataFiltro: hoje });
-});
   
 btnLimparFiltro.addEventListener('click', () => {
   inputDataFiltro.value = '';
@@ -2048,33 +2084,7 @@ document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
 
 
 
-function enviarMensagemCobranca(emprestimo) {
-  if (!emprestimo || !emprestimo.telefone) {
-    console.error("Telefone não encontrado");
-    return;
-  }
-
-  const nome = emprestimo.nome || "Cliente";
-  const telefone = emprestimo.telefone;
-  const valorParcela = emprestimo.valorParcela || 0;
-  const vencimento = emprestimo.vencimento; // use o nome correto do campo
-
-  const mensagem = `Olá ${nome}, sua parcela no valor de R$ ${valorParcela} ${
-    /* verificar se está vencida ou não */
-    vencimento < new Date() ? "está atrasada" : "vence hoje"
-  } no dia ${vencimento}.`;
-
-  const urlWhatsapp = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
-  window.open(urlWhatsapp, "_blank");
-}
-
-const btnEnviarCobranca = document.getElementById('btnEnviarCobranca');
-
-btnEnviarCobranca.addEventListener('click', () => {
-  if (!parcelasFiltradas || parcelasFiltradas.length === 0) {
-    alert("Nenhuma parcela para enviar cobrança!");
-    return;
-  }
+  
 
   // Envia mensagem para todas as parcelas filtradas (em massa)
   parcelasFiltradas.forEach(p => {
@@ -2101,14 +2111,20 @@ btnEnviarCobranca.addEventListener('click', () => {
   });
 });
 
+document.querySelectorAll('.card-cidade').forEach(card => {
+  card.addEventListener('click', () => {
+    const grupo = card.getAttribute('data-grupo');
+    document.getElementById('nomeCidadeSelecionada').textContent = grupo;
 
+    // Mostra o bloco com filtros, legenda, etc.
+    document.getElementById('secaoEmprestimosCidade').style.display = 'block';
 
-
-
+    // Aqui você pode chamar sua função de carregamento de empréstimos:
+    if (typeof carregarEmprestimosPorCidade === 'function') {
+      carregarEmprestimosPorCidade(grupo);
+    }
   });
-
-
-
+});
 
 
 

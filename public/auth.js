@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (isOperador) {
       // Operador → acesso reduzido
-      document.querySelectorAll("#totaisResumo, .separadorCadastro,.separadorPesquisas, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+      document.querySelectorAll("#btnExcluirEmprestimo, #totaisResumo, .separadorCadastro,.separadorPesquisas, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
         el.style.display = "none";
       });
 
