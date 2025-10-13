@@ -1687,12 +1687,12 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       const pago = emp.statusParcelas?.[idx] || false;
       const valorJuros = emp.valorComJuros - emp.valorOriginal;
       // 🔧 Multa vem diretamente do backend (ou 0 se não existir)
-      let multa = 0;
+      let multa = 0; 
 
       // tenta pegar do campo salvo no backend
       if (emp.multasParcelas && emp.multasParcelas[idx] != null) {
         multa = parseFloat(emp.multasParcelas[idx]) || 0;
-      }
+       }
 
 
       // fallback: se ainda não há multa registrada, mas está atrasado e não pago, pode sugerir (apenas visual)
