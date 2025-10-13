@@ -1686,16 +1686,20 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
       const diasAtraso = calcularDiasAtrasoDataOnly(data);
       const pago = emp.statusParcelas?.[idx] || false;
       const valorJuros = emp.valorComJuros - emp.valorOriginal;
+      // 🔧 Multa vem diretamente do backend (ou 0 se não existir)
       let multa = 0;
 
-      if (diasAtraso > 0) {
-        if (!pago) {
-          multa = diasAtraso * 20;
-        } else {
-          const valorPago = emp.valoresRecebidos?.[idx] || 0;
-          multa = Math.max(0, valorPago - (emp.valorParcela || valorJuros));
-        }
+      // tenta pegar do campo salvo no backend
+      if (emp.multasParcelas && emp.multasParcelas[idx] != null) {
+        multa = parseFloat(emp.multasParcelas[idx]) || 0;
       }
+
+
+      // fallback: se ainda não há multa registrada, mas está atrasado e não pago, pode sugerir (apenas visual)
+      if (multa === 0 && diasAtraso > 0 && !pago) {
+        multa = diasAtraso * 20; // apenas sugestão visual, não real
+      }
+
 
       const valorParcelaCorrigido = emp.valorParcelasPendentes?.[idx] || emp.valorParcela || valorJuros;
 
