@@ -463,20 +463,37 @@ function calcularResumoParcelas(emp) {
 app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
   try {
     const idNum = Number(req.params.id);
-    const indice = Number(req.params.indice);
+    let indice = Number(req.params.indice);
+
     const emp = await Emprestimo.findOne({ id: idNum });
     if (!emp) return res.status(404).json({ erro: 'Empréstimo não encontrado' });
-    if (!Number.isInteger(indice) || indice < 0 || indice >= emp.parcelas)
-      return res.status(400).json({ erro: 'Parcela inválida' });
 
-    // ✅ multa manual vinda do frontend
+    console.log('Recebido no backend:', { id: idNum, parcelaId: indice, ...req.body });
+
+    if (!Number.isInteger(indice) || indice < 0) {
+      return res.status(400).json({ erro: 'Índice de parcela inválido' });
+    }
+
+    if (indice >= emp.parcelas) indice = emp.parcelas - 1;
+
+    // 🚫 Trava: se a parcela já foi paga, não pode alterar
+    if (emp.statusParcelas[indice]) {
+      return res.status(400).json({ erro: 'Parcela já quitada, não pode ser alterada' });
+    }
+
     const valorMulta = parseFloat(req.body.valorMulta) || 0;
+    const recebido = parseFloat(req.body.valorRecebido);
+    if (!Number.isFinite(recebido) || recebido <= 0)
+      return res.status(400).json({ erro: 'valorRecebido inválido' });
+
+    const dataPagamento = req.body.dataPagamento || new Date().toISOString();
 
     // Inicializa arrays essenciais
     const campos = [
       'statusParcelas', 'datasPagamentos', 'recebidoPor',
       'valorParcelasPendentes', 'valoresRecebidos',
-      'parcelasPagasParciais', 'datasVencimentos', 'multasParcelas'
+      'parcelasPagasParciais', 'datasVencimentos', 'multasParcelas',
+      'valoresOriginaisParcelas'
     ];
     campos.forEach(campo => {
       if (!Array.isArray(emp[campo])) emp[campo] = [];
@@ -484,95 +501,119 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
         emp[campo].push(
           campo === 'statusParcelas' ? false
           : campo === 'multasParcelas' ? 0
+          : campo === 'valoresOriginaisParcelas' ? null
           : null
         );
       }
     });
 
-    const recebido = parseFloat(req.body.valorRecebido);
-    if (!Number.isFinite(recebido) || recebido <= 0)
-      return res.status(400).json({ erro: 'valorRecebido inválido' });
+    const taxa = emp.taxaJuros / 100;
+    
+    // 🔹 CORREÇÃO 1: CALCULAR VALOR ORIGINAL DA PARCELA ANTES DE QUALQUER ALTERAÇÃO
+    const valorOriginalParcela = emp.valorOriginal * taxa;
+    
+    // 🔹 CORREÇÃO 2: ARMAZENAR VALOR ORIGINAL DA PARCELA (IMPORTANTE!)
+    if (!emp.valoresOriginaisParcelas[indice]) {
+      emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
+    }
 
-    const dataPagamento = req.body.dataPagamento || new Date().toISOString();
+    // 🔹 CORREÇÃO 3: CALCULAR AMORTIZAÇÃO CORRETAMENTE
+    const valorExcedente = Math.max(0, recebido - valorOriginalParcela);
+    
+    console.log('🔍 DEBUG - Cálculos:', {
+      valorOriginal: emp.valorOriginal,
+      taxa: taxa,
+      valorOriginalParcela: valorOriginalParcela,
+      recebido: recebido,
+      valorExcedente: valorExcedente
+    });
 
-    // Atualiza valores recebidos
+    // 🔹 ATUALIZAR VALOR ORIGINAL SE HOUVER AMORTIZAÇÃO
+    if (valorExcedente > 0) {
+      emp.valorOriginal = Math.max(0, emp.valorOriginal - valorExcedente);
+      console.log('📉 Novo valor original após amortização:', emp.valorOriginal);
+    }
+
+    // 🔹 Atualiza a parcela selecionada
     emp.valoresRecebidos[indice] = (emp.valoresRecebidos[indice] || 0) + recebido;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
-
-    // ✅ salva a multa manualmente
     emp.multasParcelas[indice] = (emp.multasParcelas[indice] || 0) + valorMulta;
 
-    // CALCULO DINÂMICO TIPO FRONT
-    let saldoAtual = emp.valorOriginal || 0;
-    let totalJurosRecebidos = 0;
-    let totalExcedente = 0;
+    // 🔹 CALCULAR NOVO JURO MENSAL APÓS AMORTIZAÇÃO
+    const novoJuroMensal = emp.valorOriginal * taxa;
 
-    for (let i = 0; i < emp.parcelas; i++) {
-      const taxa = emp.taxaJuros || 20;
-      const jurosParcela = saldoAtual * (taxa / 100);
+    // 🔹 CORREÇÃO 4: MARCAR PARCELA COMO PAGA BASEADO NO VALOR ORIGINAL DA PARCELA
+    if (emp.valoresRecebidos[indice] >= valorOriginalParcela) {
+      emp.statusParcelas[indice] = true;
+      emp.datasPagamentos[indice] = dataPagamento;
+      console.log('✅ Parcela marcada como paga');
+    } else {
+      emp.statusParcelas[indice] = false;
+      emp.parcelasPagasParciais[indice] = {
+        pago: emp.valoresRecebidos[indice],
+        falta: valorOriginalParcela - emp.valoresRecebidos[indice],
+        ultimaData: dataPagamento
+      };
+      console.log('⏳ Parcela parcialmente paga');
+    }
 
-      // ❌ removi multa automática
-      // const diasAtrasoParcela = calcularDiasAtraso(emp.datasVencimentos[i]);
-      // const multaParcela = diasAtrasoParcela * 20;
-
-      const valorMinimo = jurosParcela;
-      const pago = emp.valoresRecebidos[i] || 0;
-
-      // Juros recebidos apenas se a parcela estiver quitada
-      if (pago >= valorMinimo) totalJurosRecebidos += jurosParcela;
-
-      const excedente = Math.max(0, pago - valorMinimo);
-      totalExcedente += excedente;
-
-      // Atualiza saldo do principal para próxima parcela
-      saldoAtual -= excedente;
-
-      // Atualiza status da parcela
-      if (pago >= valorMinimo) {
-        emp.statusParcelas[i] = true;
-        emp.datasPagamentos[i] = dataPagamento;
-      } else {
-        emp.statusParcelas[i] = false;
-        emp.parcelasPagasParciais[i] = {
-          pago,
-          falta: valorMinimo - pago,
-          ultimaData: dataPagamento
-        };
+    // 🔹 CORREÇÃO 5: RECALCULAR APENAS PARCELAS FUTURAS, NÃO TODAS
+    for (let i = indice + 1; i < emp.parcelas; i++) {
+      if (!emp.statusParcelas[i]) {
+        const valorParcelaRecalculado = emp.valorOriginal * taxa;
+        
+        if (!Array.isArray(emp.valorParcelasPendentes)) {
+          emp.valorParcelasPendentes = Array(emp.parcelas).fill(0);
+        }
+        emp.valorParcelasPendentes[i] = valorParcelaRecalculado;
+        console.log(`🔄 Parcela ${i + 1} recalculada:`, valorParcelaRecalculado);
       }
     }
 
-    // Próxima parcela se necessário
-    if (saldoAtual > 0) {
-      const taxa = emp.taxaJuros || 20;
-      const valorNovaParcela = parseFloat((saldoAtual * (taxa / 100)).toFixed(2));
+    // 🔹 CORREÇÃO 6: SEMPRE CRIAR NOVA PARCELA SE AINDA HOUVER SALDO
+    // (não apenas quando há amortização)
+    if (emp.valorOriginal > 0) {
+      const valorNovaParcela = emp.valorOriginal * taxa;
+      
+      if (valorNovaParcela > 0) {
+        emp.parcelas++;
+        emp.statusParcelas.push(false);
+        emp.datasPagamentos.push(null);
+        emp.recebidoPor.push(null);
+        emp.valoresRecebidos.push(0);
+        emp.parcelasPagasParciais.push(null);
+        emp.multasParcelas.push(0);
+        emp.valoresOriginaisParcelas.push(valorNovaParcela); // 🔹 Armazena o valor original
 
-      emp.parcelas++;
-      emp.statusParcelas.push(false);
-      emp.datasPagamentos.push(null);
-      emp.recebidoPor.push(null);
-      emp.valoresRecebidos.push(0);
-      emp.parcelasPagasParciais.push(null);
-      emp.multasParcelas.push(0); // ✅ nova posição para multa
+        if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
+        emp.valorParcelasPendentes.push(valorNovaParcela);
 
-      // SALVA VALOR DA NOVA PARCELA
-      if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
-      emp.valorParcelasPendentes.push(valorNovaParcela);
-
-      // Gera vencimento da nova parcela
-      const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
-      ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
-      emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
+        // Gerar nova data de vencimento (1 mês após a última)
+        if (emp.datasVencimentos.length > 0) {
+          const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
+          ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
+          emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
+        } else {
+          // Se não há datas, cria uma data padrão
+          const dataBase = new Date();
+          dataBase.setMonth(dataBase.getMonth() + emp.parcelas);
+          emp.datasVencimentos.push(dataBase.toISOString().slice(0, 10));
+        }
+        
+        console.log('📄 Nova parcela criada:', emp.parcelas, 'Valor:', valorNovaParcela);
+      }
     }
 
-    emp.quitado = saldoAtual <= 0 && emp.statusParcelas.every(s => s);
+    emp.quitado = emp.valorOriginal <= 0;
 
     await emp.save();
 
     res.json({
       ...emp.toObject(),
-      saldoPrincipalRestante: saldoAtual,
-      totalJurosRecebidos,
-      totalExcedente
+      valorExcedente: valorExcedente,
+      valorOriginalParcela: valorOriginalParcela,
+      juroMensalNovo: novoJuroMensal,
+      saldoPrincipalRestante: emp.valorOriginal
     });
 
   } catch (err) {
@@ -992,151 +1033,62 @@ app.patch('/emprestimos/:id', async (req, res) => {
     delete dadosAtualizados._id;
     delete dadosAtualizados.id;
 
-    // Guarda os valores antigos antes de atualizar
     const valorOriginalAntigo = emprestimo.valorOriginal;
     const taxaJurosAntiga = emprestimo.taxaJuros;
 
-    // Atualiza apenas os campos simples
-    Object.assign(emprestimo, dadosAtualizados);
+    // Atualiza apenas campos simples
+    const camposParaAtualizar = { ...dadosAtualizados };
+    delete camposParaAtualizar.statusParcelas;
+    delete camposParaAtualizar.datasPagamentos;
+    delete camposParaAtualizar.recebidoPor;
+    delete camposParaAtualizar.valoresRecebidos;
+    delete camposParaAtualizar.valorParcelasPendentes;
+    delete camposParaAtualizar.datasVencimentos;
+    Object.assign(emprestimo, camposParaAtualizar);
 
-    // Parse dos campos numéricos
-    const valorOriginal = dadosAtualizados.valorOriginal !== undefined ? parseFloat(dadosAtualizados.valorOriginal) : NaN;
-    const taxaJuros = dadosAtualizados.taxaJuros !== undefined ? parseFloat(dadosAtualizados.taxaJuros) : NaN;
+    // Campos numéricos
+    const valorOriginal = parseFloat(dadosAtualizados.valorOriginal);
+    const taxaJuros = parseFloat(dadosAtualizados.taxaJuros);
 
-    // Verifica se houve mudança nos valores que afetam o cálculo das parcelas
     const valoresAlterados = !isNaN(valorOriginal) && !isNaN(taxaJuros) &&
       (valorOriginal !== valorOriginalAntigo || taxaJuros !== taxaJurosAntiga);
 
     if (valoresAlterados) {
-      // 🔹 Garante que existe o campo historicoAlteracoes
-      if (!Array.isArray(emprestimo.historicoAlteracoes)) {
-        emprestimo.historicoAlteracoes = [];
-      }
+      if (!Array.isArray(emprestimo.historicoAlteracoes)) emprestimo.historicoAlteracoes = [];
 
-      // 🔹 Se valorOriginal mudou, registra no histórico
       if (valorOriginal !== valorOriginalAntigo) {
-        emprestimo.historicoAlteracoes.push({
-          campo: "valorOriginal",
-          de: valorOriginalAntigo,
-          para: valorOriginal,
-          data: new Date()
-        });
+        emprestimo.historicoAlteracoes.push({ campo: "valorOriginal", de: valorOriginalAntigo, para: valorOriginal, data: new Date() });
       }
-
-      // 🔹 Se taxaJuros mudou, registra no histórico
       if (taxaJuros !== taxaJurosAntiga) {
-        emprestimo.historicoAlteracoes.push({
-          campo: "taxaJuros",
-          de: taxaJurosAntiga,
-          para: taxaJuros,
-          data: new Date()
-        });
+        emprestimo.historicoAlteracoes.push({ campo: "taxaJuros", de: taxaJurosAntiga, para: taxaJuros, data: new Date() });
       }
 
-      // Atualiza os valores
       emprestimo.valorOriginal = valorOriginal;
       emprestimo.taxaJuros = taxaJuros;
 
-      // ✅ NOVA LÓGICA: Calcula o saldo atual do principal
-      let saldoPrincipal = valorOriginal;
-      let totalJurosRecebidos = 0;
-      
-      if (Array.isArray(emprestimo.valoresRecebidos)) {
-        for (let i = 0; i < emprestimo.valoresRecebidos.length; i++) {
-          if (typeof emprestimo.valoresRecebidos[i] === 'number' && emprestimo.valoresRecebidos[i] > 0) {
-            // Calcula o juros que deveria ter sido pago nesta parcela
-            const jurosParcela = saldoPrincipal * (taxaJuros / 100);
-            
-            if (emprestimo.valoresRecebidos[i] > jurosParcela) {
-              // Pagou mais que o juros: abate do principal
-              saldoPrincipal -= (emprestimo.valoresRecebidos[i] - jurosParcela);
-              totalJurosRecebidos += jurosParcela;
-            } else {
-              // Pagou apenas juros (ou menos)
-              totalJurosRecebidos += emprestimo.valoresRecebidos[i];
-            }
-          }
-        }
-      }
+      // 🔹 Atualiza apenas a **última parcela pendente**
+      const ultimaParcelaIndex = emprestimo.statusParcelas.lastIndexOf(false);
+      if (ultimaParcelaIndex >= 0) {
+        const saldoPrincipal = valorOriginal; // ou você pode recalcular com base no principal restante
+        const valorParcelaAtualizada = saldoPrincipal * (taxaJuros / 100);
 
-      // ✅ VALOR DA PARCELA = Saldo Atual * Taxa de Juros
-      const valorParcela = saldoPrincipal * (taxaJuros / 100);
-      emprestimo.valorComJuros = valorOriginal; // Mantém o valor original para referência
+        if (!Array.isArray(emprestimo.valorParcelasPendentes)) emprestimo.valorParcelasPendentes = [];
+        emprestimo.valorParcelasPendentes[ultimaParcelaIndex] = valorParcelaAtualizada;
 
-      // Pega arrays existentes
-      const oldStatus = Array.isArray(emprestimo.statusParcelas) ? emprestimo.statusParcelas.slice() : [];
-      const oldDatasPag = Array.isArray(emprestimo.datasPagamentos) ? emprestimo.datasPagamentos.slice() : [];
-      const oldRecebidoPor = Array.isArray(emprestimo.recebidoPor) ? emprestimo.recebidoPor.slice() : [];
-      const oldValoresRecebidos = Array.isArray(emprestimo.valoresRecebidos) ? emprestimo.valoresRecebidos.slice() : [];
-      const oldValorParcelasPendentes = Array.isArray(emprestimo.valorParcelasPendentes) ? emprestimo.valorParcelasPendentes.slice() : [];
-      const oldDatasVenc = Array.isArray(emprestimo.datasVencimentos) ? emprestimo.datasVencimentos.slice() : [];
-
-      // ✅ Atualiza os valores pendentes com base no saldo atual
-      for (let i = 0; i < oldValorParcelasPendentes.length; i++) {
-        if (!oldStatus[i]) { // Apenas parcelas pendentes
-          oldValorParcelasPendentes[i] = valorParcela;
-        }
-      }
-
-      // Mantém TODOS os arrays existentes
-      emprestimo.statusParcelas = oldStatus;
-      emprestimo.datasPagamentos = oldDatasPag;
-      emprestimo.recebidoPor = oldRecebidoPor;
-      emprestimo.valoresRecebidos = oldValoresRecebidos;
-      emprestimo.valorParcelasPendentes = oldValorParcelasPendentes;
-      emprestimo.datasVencimentos = oldDatasVenc;
-
-      emprestimo.valorParcela = valorParcela;
-    }
-
-    // ✅ CORREÇÃO: Só marca como quitado se o valor principal foi totalmente pago
-    let saldoPrincipal = emprestimo.valorOriginal;
-    let totalJurosRecebidos = 0;
-    
-if (Array.isArray(emprestimo.valoresRecebidos)) {
-  for (let i = 0; i < emprestimo.valoresRecebidos.length; i++) {
-    if (typeof emprestimo.valoresRecebidos[i] === 'number' && emprestimo.valoresRecebidos[i] > 0) {
-      // Calcula o juros que deveria ter sido pago nesta parcela
-      const jurosParcela = saldoPrincipal * (emprestimo.taxaJuros / 100);
-
-      if (emprestimo.valoresRecebidos[i] > jurosParcela) {
-        // Pagou mais que o juros: abate do principal
-        saldoPrincipal -= (emprestimo.valoresRecebidos[i] - jurosParcela);
-        totalJurosRecebidos += jurosParcela;
-      } else {
-        // Pagou apenas juros (ou menos)
-        totalJurosRecebidos += emprestimo.valoresRecebidos[i];
+        // Atualiza o campo global de valorParcela apenas para referência
+        emprestimo.valorParcela = valorParcelaAtualizada;
       }
     }
-  }
-}
 
-emprestimo.quitado = saldoPrincipal <= 0;
-
-// ✅ Garante que existe o array de histórico
-if (!Array.isArray(emprestimo.historicoAlteracoes)) {
-  emprestimo.historicoAlteracoes = [];
-}
-
-// ✅ Registra a alteração atual no histórico
-emprestimo.historicoAlteracoes.push({
-  data: new Date(),
-  valorOriginal: emprestimo.valorOriginal,
-  taxaJuros: emprestimo.taxaJuros,
-  valorParcela: emprestimo.valorParcela,
-  valorComJuros: emprestimo.valorComJuros,
-  saldoPrincipal: saldoPrincipal,
-  usuario: req.user?.nome || 'sistema'
-});
-
-await emprestimo.save();
-res.json(emprestimo);
+    await emprestimo.save();
+    res.json(emprestimo);
 
   } catch (err) {
     console.error('PATCH /emprestimos/:id:', err);
     res.status(500).json({ erro: 'Erro ao atualizar empréstimo' });
   }
 });
+
 
 
 
