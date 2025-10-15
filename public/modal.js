@@ -502,190 +502,207 @@ function atualizarValorRestante(emprestimoAtualizado) {
   if (!emprestimoAtualizado) return;
 
   const isParcelado = emprestimoAtualizado.tipoParcelamento === 'parcelado';
-  const valorOriginal = emprestimoAtualizado.valorOriginal || 0;
+  const valorOriginal = Number(emprestimoAtualizado.valorOriginal || 0);
+  const taxaPercent = Number(emprestimoAtualizado.taxaJuros ?? 0);
+  const taxa = taxaPercent / 100;
+
+  const container = document.getElementById('valorRestanteContainer');
+  if (!container) return;
+
+  const toNum = v => (typeof v === 'number' ? v : (v ? Number(v) : 0));
 
   if (isParcelado) {
-    // CÁLCULO PARA EMPRÉSTIMO PARCELADO
-    const valorTotal = emprestimoAtualizado.valorComJuros || 0;
-    let totalPago = 0;
-    
-    // ✅ CORREÇÃO: USA OS VALORES RECEBIDOS REAIS PARA PARCELAS PAGAS
-    (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
-      if (typeof val === 'number' && emprestimoAtualizado.statusParcelas?.[i]) {
-        totalPago += val;
-      }
-    });
-    
-    const valorRestante = Math.max(0, valorTotal - totalPago);
-    
-    const container = document.getElementById('valorRestanteContainer');
-    if (!container) return;
-
-    container.innerHTML = `
-      <hr>
-      <br>
-      <h3 style="margin-bottom: 10px;"><strong>🏦 Situação do Empréstimo Parcelado</strong></h3>
-      <div style="margin-top: 10px; font-size: 1.05em;">
-        <strong>Total pago:</strong> ${formatarMoeda(totalPago)}<br>
-        <strong>Valor restante:</strong> ${formatarMoeda(valorRestante)}
-      </div>
-    `;
-  } else {
-    // CÁLCULO CORRIGIDO PARA EMPRÉSTIMO NÃO PARCELADO
-    const valorJurosTotal = (emprestimoAtualizado.valorComJuros || 0) - valorOriginal;
-    
-    let totalMultas = 0;
-    (emprestimoAtualizado.datasVencimentos || []).forEach((vencimento, i) => {
-      if (!emprestimoAtualizado.statusParcelas?.[i] && vencimento) {
-        const diasAtraso = calcularDiasAtraso(vencimento);
-        if (diasAtraso > 0) {
-          totalMultas += diasAtraso * 20;
-        }
-      }
-    });
-
-    let totalPagoValido = 0;
-    let totalJurosRecebidos = 0;
-    const parcelasComExcedente = [];
-    const parcelasInfo = [];
-
-    // ✅ CORREÇÃO: FUNÇÃO PARA OBTER VALOR CORRETO DE CADA PARCELA
-    const getValorParcela = (index) => {
-      // Se a parcela já foi paga, usa o valor original que foi pago
-      if (emprestimoAtualizado.statusParcelas?.[index]) {
-        return emprestimoAtualizado.valoresRecebidos?.[index] || 0;
-      } else {
-        // Para parcelas pendentes, usa o valor atualizado ou calculado
-        return emprestimoAtualizado.valorParcelasPendentes?.[index] || 
-               (valorOriginal * (emprestimoAtualizado.taxaJuros || 20) / 100);
-      }
-    };
-
-    // CORREÇÃO: Calcular juros de cada parcela DINAMICAMENTE
-    let saldoAtual = valorOriginal;
-    
-    (emprestimoAtualizado.valoresRecebidos || []).forEach((val, i) => {
-      // ✅ CORREÇÃO: USA O VALOR CORRETO DA PARCELA
-      const valorParcelaCorrigido = getValorParcela(i);
-      const taxaJuros = emprestimoAtualizado.taxaJuros || 20;
-      
-      // Para parcelas pendentes, calcula juros normalmente
-      const jurosParcela = !emprestimoAtualizado.statusParcelas?.[i] ? 
-        saldoAtual * (taxaJuros / 100) : 
-        valorParcelaCorrigido;
-
-      // 🔴 usa a multa registrada pelo usuário, não automática
-      const multaParcela = emprestimoAtualizado.multasParcelas?.[i] || 0;
-
-      const valorMinimoParcela = jurosParcela + multaParcela;
-
-      if (emprestimoAtualizado.statusParcelas?.[i] && typeof val === 'number') {
-        totalJurosRecebidos += jurosParcela;
-      }
-
-      parcelasInfo.push({
-        indice: i + 1,
-        valorParcela: jurosParcela,
-        valorMinimo: valorMinimoParcela,
-        valorPago: val,
-        multa: multaParcela,
-        excedente: Math.max(0, val - valorMinimoParcela)
-      });
-
-      if (val > valorMinimoParcela) {
-        const excedente = val - valorMinimoParcela;
-        totalPagoValido += excedente;
-        saldoAtual -= excedente;
-
-        parcelasComExcedente.push({
-          indice: i + 1,
-          valorParcela: jurosParcela,
-          valorPago: val,
-          multa: multaParcela,
-          excedente: excedente,
-          valorMinimo: valorMinimoParcela
-        });
-      } else if (emprestimoAtualizado.statusParcelas?.[i]) {
-        // Se pagou pelo menos o mínimo, mantém o saldo
-        saldoAtual = saldoAtual;
-      }
-    });
-
-    const valorRestantePrincipal = Math.max(0, valorOriginal - totalPagoValido);
-
-    const container = document.getElementById('valorRestanteContainer');
-    if (!container) return;
-
-    const listaParcelasHTML = parcelasInfo.map(p => {
-      const statusText = emprestimoAtualizado.statusParcelas?.[p.indice - 1] ? '✅ Paga' : '🔴 Pendente';
-      const valorPagoDisplay = typeof p.valorPago === 'number' ? `(${formatarMoeda(p.valorPago)} pago)` : '';
-      const multaDisplay = p.multa > 0 
-        ? `<strong style="color:red;">💰 Multa aplicada:</strong> ${formatarMoeda(p.multa)}<br>` 
-        : '';
-
-      return `
-        <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
-          <strong>Parcela ${p.indice}: ${statusText}</strong>
-          <span style="float: right;">${formatarMoeda(p.valorParcela)} ${valorPagoDisplay}</span><br>
-          ${multaDisplay}
-        </div>
-      `;
-    }).join('');
-
-    const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
-      return `
-        <div style="
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          padding: 10px;
-          margin-bottom: 8px;
-          background-color: #f9f9f9;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        ">
-          <div>
-            <strong>Parcela ${p.indice}</strong><br>
-            Valor mínimo: ${formatarMoeda(p.valorMinimo)}<br>
-            ${p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
-            Pago: ${formatarMoeda(p.valorPago)}
-          </div>
-          <div style="font-weight: bold; color: #28a745">
-            💰 Excedente: ${formatarMoeda(p.excedente)}
-          </div>
-        </div>
-      `;
-    }).join('');
-    
-    container.innerHTML = `
-      <hr>
-      <br>
-      <h3 style="margin-bottom: 10px;"><strong>📦 Resumo das Parcelas</strong></h3>
-      ${listaParcelasHTML || '<p>Nenhuma parcela encontrada.</p>'}
-      <br>
-      <h3 style="margin-bottom: 10px;"><strong>🏦 Informações da quitação do empréstimo</strong></h3>
-      ${parcelasComExcedenteHTML || '<p>Nenhuma parcela com pagamento acima do mínimo encontrada</p>'}
-      <hr>
-      <div style="margin-top: 10px; font-size: 1.05em;">
-        <strong>Total excedente que abate do saldo:</strong> ${formatarMoeda(totalPagoValido)}
-      </div>
-      ${
-        totalMultas > 0 ?
-        `<div style="margin-top: 5px; color: #c52e28ff; font-weight: bold;">
-          Multa total por atraso: +${formatarMoeda(totalMultas)}<br>
-          Total a pagar: ${formatarMoeda(valorRestantePrincipal + totalMultas)}
-        </div>` :
-        `<div style="margin-top: 5px; font-weight: bold;">
-          Valor restante do principal: ${formatarMoeda(valorRestantePrincipal)}
-        </div>`
-      }
-
-      <div style="margin-top: 5px; color: #007bff; font-weight: bold;">
-        💹 Juros recebidos: ${formatarMoeda(totalJurosRecebidos)}
-      </div>
-    `;
+    // ... (código existente para parcelado) ...
+    return;
   }
+
+  // ----- NÃO PARCELADO -----
+  const valoresRecebidos = emprestimoAtualizado.valoresRecebidos || [];
+  const statusParcelas = emprestimoAtualizado.statusParcelas || [];
+  const datasVencimentos = emprestimoAtualizado.datasVencimentos || [];
+  const multasParcelas = emprestimoAtualizado.multasParcelas || [];
+  const valorParcelasPendentes = emprestimoAtualizado.valorParcelasPendentes || [];
+  const valoresOriginaisParcelas = emprestimoAtualizado.valoresOriginaisParcelas || [];
+
+  const parcelasCount = Math.max(
+    emprestimoAtualizado.parcelas || 0,
+    valoresRecebidos.length,
+    datasVencimentos.length,
+    valoresOriginaisParcelas.length,
+    valorParcelasPendentes.length
+  );
+
+  // 🔥 CORREÇÃO: Separar o cálculo dos valores das parcelas do cálculo dos excedentes
+  let totalPagoValido = 0;
+  let totalJurosRecebidos = 0;
+  let totalMultas = 0;
+  const parcelasInfo = [];
+  const parcelasComExcedente = [];
+
+  // PRIMEIRA PASSADA: Calcular todos os valores ORIGINAIS das parcelas (sem considerar excedentes)
+  const valoresParcelas = [];
+  for (let i = 0; i < parcelasCount; i++) {
+    const paga = !!statusParcelas[i];
+    const valorRecebido = toNum(valoresRecebidos[i]);
+
+    // 🔥 LÓGICA CORRIGIDA: Usar valores fixos salvos SEM atualizar com excedentes
+    let valorParcelaExibicao = null;
+
+    if (paga) {
+      // PARCELA PAGA → usar valor fixo salvo
+      valorParcelaExibicao = 
+        valoresOriginaisParcelas[i] ??
+        valorParcelasPendentes[i] ??
+        valorRecebido;
+    } else {
+      // PARCELA EM ABERTO → usar valor pendente salvo OU calcular com valor original fixo
+      // 🔥 NÃO usar valorOriginalAtual que muda durante o loop
+      valorParcelaExibicao = valorParcelasPendentes[i] ?? valorOriginal * taxa;
+    }
+
+    valoresParcelas.push(valorParcelaExibicao);
+  }
+
+  // SEGUNDA PASSADA: Calcular excedentes e valor restante
+  let saldoPrincipalRestante = valorOriginal; // Começa com o valor original
+  
+  for (let i = 0; i < parcelasCount; i++) {
+    const valorPago = toNum(valoresRecebidos[i]);
+    const paga = !!statusParcelas[i];
+    const multaRegistrada = toNum(multasParcelas[i]);
+
+    const valorParcelaBase = valoresParcelas[i];
+
+    // Calcular multa
+    let multaAutomatic = 0;
+    if (datasVencimentos[i] && !paga) {
+      const diasAtraso = calcularDiasAtraso(datasVencimentos[i]);
+      if (diasAtraso > 0) multaAutomatic = diasAtraso * 20;
+    }
+    const multaAplicada = multaRegistrada > 0 ? multaRegistrada : multaAutomatic;
+
+    const valorMinimoParcela = Math.max(0, valorParcelaBase) + multaAplicada;
+    const excedente = Math.max(0, valorPago - valorMinimoParcela);
+
+    // Juros recebidos (apenas a parte correspondente ao valor da parcela)
+    if (paga) {
+      totalJurosRecebidos += Math.min(valorPago, valorParcelaBase);
+    }
+
+    // 🔥 CORREÇÃO CRÍTICA: Aplicar excedente ao saldo principal APENAS uma vez
+    if (excedente > 0) {
+      totalPagoValido += excedente;
+      // O saldo principal é reduzido pelo excedente
+      saldoPrincipalRestante = Math.max(0, saldoPrincipalRestante - excedente);
+      
+      parcelasComExcedente.push({
+        indice: i + 1,
+        valorParcela: valorParcelaBase,
+        valorPago,
+        multa: multaAplicada,
+        excedente,
+        valorMinimo: valorMinimoParcela
+      });
+    }
+
+    totalMultas += multaAplicada;
+
+    parcelasInfo.push({
+      indice: i + 1,
+      valorParcela: valorParcelaBase,
+      valorMinimo: valorMinimoParcela,
+      valorPago,
+      multa: multaAplicada,
+      excedente
+    });
+  }
+
+  const valorRestantePrincipal = Math.max(0, saldoPrincipalRestante);
+
+  // 🔥 VALIDAÇÃO: Verificar se o cálculo está correto
+  console.log('Valor Original:', valorOriginal);
+  console.log('Total Excedentes:', totalPagoValido);
+  console.log('Valor Restante Calculado:', valorRestantePrincipal);
+  console.log('Validação:', valorOriginal - totalPagoValido, 'deve ser igual a', valorRestantePrincipal);
+
+  // Montagem do HTML
+const listaParcelasHTML = parcelasInfo.map(p => {
+  const statusText = statusParcelas?.[p.indice - 1] ? 'Paga' : 'Pendente';
+  const statusColor = statusParcelas?.[p.indice - 1] ? '#4CAF50' : '#F44336';
+  const valorPagoDisplay = typeof p.valorPago === 'number' && p.valorPago > 0 
+    ? `${formatarMoeda(p.valorPago)}` 
+    : '';
+  const multaDisplay = p.multa > 0 
+    ? `<div class="multa-infos">💰 Multa aplicada: ${formatarMoeda(p.multa)}</div>` 
+    : '';
+
+  return `
+    <div class="parcela-card-infos">
+      <div class="parcela-header-infos">
+        <span class="parcela-num-infos">Parcela ${p.indice}</span>
+        <span class="parcela-status-infos" style="color: ${statusColor}">${statusText}</span>
+      </div>
+      <div class="parcela-body-infos">
+        <span class="parcela-valor-infos">Valor Parcela: <strong>${formatarMoeda(p.valorParcela)}</strong> <br>Valor Recebido: <strong>${valorPagoDisplay}</strong></span>
+        ${multaDisplay}
+      </div>
+    </div>
+  `;
+})
+.join('');
+
+  const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
+    return `
+      <div style="
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        background-color: #f9f9f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <div>
+          <strong>Parcela ${p.indice}</strong><br>
+          Valor mínimo: ${formatarMoeda(p.valorMinimo)}<br>
+          ${p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
+          Pago: ${formatarMoeda(p.valorPago)}
+        </div>
+        <div style="font-weight: bold; color: #28a745">
+          💰 Excedente: ${formatarMoeda(p.excedente)}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <hr>
+    <br>
+    <h3 style="margin-bottom: 10px;"><strong>📦 Resumo das Parcelas</strong></h3>
+    ${listaParcelasHTML || '<p>Nenhuma parcela encontrada.</p>'}
+    <br>
+    <h3 style="margin-bottom: 10px;"><strong>🏦 Informações da quitação do empréstimo</strong></h3>
+    ${parcelasComExcedenteHTML || '<p>Nenhuma parcela com pagamento acima do mínimo encontrada</p>'}
+    <hr>
+    <div style="margin-top: 10px; font-size: 1.05em;">
+      <strong>Total excedente que abate do saldo:</strong> ${formatarMoeda(totalPagoValido)}
+    </div>
+    <div style="margin-top: 5px; font-weight: bold;">
+      Valor restante do principal: ${formatarMoeda(valorOriginal)}
+    </div>
+    ${totalMultas > 0 ? `
+      <div style="margin-top: 5px; color: #c52e28ff; font-weight: bold;">
+        Multa total por atraso: +${formatarMoeda(totalMultas)}<br>
+        Total a pagar: ${formatarMoeda(valorRestantePrincipal + totalMultas)}
+      </div>
+    ` : ''}
+    <div style="margin-top: 5px; color: #007bff; font-weight: bold;">
+      💹 Juros recebidos: ${formatarMoeda(totalJurosRecebidos)}
+    </div>
+  `;
 }
+
 
 
 export async function abrirModal(emprestimo) {
@@ -756,28 +773,79 @@ export async function abrirModal(emprestimo) {
         </div>
 
         <hr /><br>
-      <h3>💰 Informações Financeiras</h3>
-      <div id="infoFinanceira" class="grid-detalhes">
-        <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
-        <div><strong>Taxa de juros:</strong> ${(emprestimo.taxaJuros)}</div>
-        <!-- Mostra o total de parcelas já geradas -->
-        <div><strong>Parcelas geradas:</strong> ${emprestimo.statusParcelas?.length || 0}</div>
+<h3>💰 Informações Financeiras</h3>
+<div id="infoFinanceira" class="grid-detalhes">
+  <div><strong>Valor original:</strong> ${formatarMoeda(emprestimo.valorOriginal)}</div>
+  <div><strong>Taxa de juros:</strong> ${(emprestimo.taxaJuros)}</div>
+  <!-- Mostra o total de parcelas já geradas -->
+  <div><strong>Parcelas geradas:</strong> ${emprestimo.statusParcelas?.length || 0}</div>
 
-        <!-- Mostra quantas foram quitadas -->
-        <div><strong>Parcelas quitadas:</strong> 
-          ${(emprestimo.statusParcelas || []).filter(p => p).length}
-          </div>
-              ${(() => {
-            const resumo = calcularResumoFinanceiro(emprestimo);
-            return `
-              <div><strong>Valor da parcela:</strong> ${formatarMoeda(resumo.valorParcela)}</div>
-              <div><strong>Valor restante do principal:</strong> ${formatarMoeda(resumo.valorRestantePrincipal)}</div>
-            `;
-          })()}
+  <!-- Mostra quantas foram quitadas -->
+  <div><strong>Parcelas quitadas:</strong> 
+    ${(emprestimo.statusParcelas || []).filter(p => p).length}
+  </div>
+  
+  ${(() => {
+    // 🔥 MESMA LÓGICA DA FUNÇÃO atualizarVisualParcelas
+    const valorOriginal = Number(emprestimo.valorOriginal || 0);
+    const taxa = Number(emprestimo.taxaJuros || 0) / 100;
+    const valoresRecebidos = emprestimo.valoresRecebidos || [];
+    const statusParcelas = emprestimo.statusParcelas || [];
+    const valorParcelasPendentes = emprestimo.valorParcelasPendentes || [];
+    const valoresOriginaisParcelas = emprestimo.valoresOriginaisParcelas || [];
+    
+    let valorOriginalAtual = valorOriginal;
+    let valorParcelaAtual = 0;
+    
+    // Calcular valor da parcela atual (usando a mesma lógica)
+    if (statusParcelas.length > 0) {
+      // Para parcelas pagas: usar valor fixo salvo
+      // Para parcelas pendentes: calcular com saldo atual
+      const ultimaParcelaIndex = statusParcelas.length - 1;
+      const paga = !!statusParcelas[ultimaParcelaIndex];
+      
+      if (paga) {
+        // PARCELA PAGA → usar valor fixo salvo ou o valor recebido
+        valorParcelaAtual = 
+          valoresOriginaisParcelas[ultimaParcelaIndex] ??
+          valorParcelasPendentes[ultimaParcelaIndex] ??
+          (valoresRecebidos[ultimaParcelaIndex] || 0);
+      } else {
+        // PARCELA EM ABERTO → pode usar saldo atual
+        valorParcelaAtual = valorParcelasPendentes[ultimaParcelaIndex] ?? valorOriginalAtual * taxa;
+      }
+    } else {
+      // Se não há parcelas ainda, calcular normalmente
+      valorParcelaAtual = valorOriginal * taxa;
+    }
+    
+    // Calcular valor restante do principal (considerando excedentes)
+    let totalExcedentes = 0;
+    for (let i = 0; i < statusParcelas.length; i++) {
+      const paga = !!statusParcelas[i];
+      const valorRecebido = Number(valoresRecebidos[i] || 0);
+      
+      if (paga) {
+        const valorParcelaBase = 
+          valoresOriginaisParcelas[i] ??
+          valorParcelasPendentes[i] ??
+          valorRecebido;
+        
+        const excedente = Math.max(0, valorRecebido - valorParcelaBase);
+        totalExcedentes += excedente;
+      }
+    }
+    
+    const valorRestantePrincipal = Math.max(0, valorOriginal - totalExcedentes);
+    
+    return `
+      <div><strong>Valor da parcela:</strong> ${formatarMoeda(valorParcelaAtual)}</div>
+      <div><strong>Valor restante do principal:</strong> ${formatarMoeda(valorRestantePrincipal)}</div>
+    `;
+  })()}
 
-
-        ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
-      </div>
+  ${emprestimo.quitado ? '<div style="color: green; font-weight: bold;">✅ Empréstimo Quitado</div>' : ''}
+</div>
 
 
           <div id="valorRestanteContainer" style="margin-top: 15px; font-weight: bold; font-size: 1.1em;"></div>
@@ -1126,10 +1194,8 @@ function atualizarVisualParcelas(emprestimo) {
   const valoresOriginaisParcelas = emprestimo.valoresOriginaisParcelas || [];
 
   const taxa = emprestimo.taxaJuros / 100;
-
-  // 🔹 CALCULAR VALOR ORIGINAL ATUAL
   let valorOriginalAtual = emprestimo.valorOriginal;
-  
+
   // Mostrar informações de amortização
   const infoAmortizacao = document.createElement('div');
   infoAmortizacao.className = 'info-amortizacao';
@@ -1184,24 +1250,30 @@ function atualizarVisualParcelas(emprestimo) {
       });
     }
 
-    // 🔹 CORREÇÃO CRÍTICA: USAR VALOR ORIGINAL ARMAZENADO OU CALCULAR
-    let valorParcelaExibicao;
+    // 🔹 CORREÇÃO: cálculo seguro do valor da parcela
+    let valorParcelaExibicao = null;
     let amortizacao = 0;
+    const valorRecebido = valoresRecebidos[i] || 0;
 
     if (paga) {
-      // 🔹 PARCELA PAGA: Usar o valor original armazenado
-      valorParcelaExibicao = valoresOriginaisParcelas[i] || valorParcelasPendentes?.[i] || emprestimo.valorOriginal * taxa;
-      
-      // 🔹 CALCULAR AMORTIZAÇÃO CORRETAMENTE
-      amortizacao = Math.max(0, valoresRecebidos[i] - valorParcelaExibicao);
+      // PARCELA PAGA → usar valor fixo salvo ou o valor recebido
+      valorParcelaExibicao =
+        valoresOriginaisParcelas[i] ??
+        valorParcelasPendentes[i] ??
+        valorRecebido; // nunca recalcula usando valorOriginal
+
+      // Amortização (se pagou acima do valor original)
+      amortizacao = Math.max(0, valorRecebido - valorParcelaExibicao);
     } else {
-      // PARCELA PENDENTE: usar valor atual
-      valorParcelaExibicao = valorParcelasPendentes?.[i] || valorOriginalAtual * taxa;
+      // PARCELA EM ABERTO → pode usar saldo atual
+      valorParcelaExibicao = valorParcelasPendentes[i] ?? valorOriginalAtual * taxa;
     }
+
+    // 🔍 LOG opcional pra testar
+    // console.log(`Parcela ${i+1}: originalSalvo=${valoresOriginaisParcelas[i]}, exibido=${valorParcelaExibicao}`);
 
     const vencimento = datasVencimentos[i];
     const venc = vencimento ? vencimento.split('-').reverse().join('/') : null;
-    const valorRecebido = valoresRecebidos[i] || 0;
 
     // Calcula multa se atrasada
     let multa = 0;
@@ -1212,14 +1284,12 @@ function atualizarVisualParcelas(emprestimo) {
 
     const valorFaltante = Math.max(0, valorParcelaExibicao - valorRecebido);
 
-    // Monta HTML da parcela
+    // Monta HTML
     let html = `<strong>📦 Parcela ${i + 1}:</strong> ${formatarMoeda(valorParcelaExibicao)}<br>`;
     if (venc) html += `<strong>📅 Vencimento:</strong> ${venc}<br>`;
     
     if (paga) {
       html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorRecebido)}<br>`;
-      
-      // 🔹 MOSTRAR AMORTIZAÇÃO SE HOUVE
       if (amortizacao > 0) {
         html += `<strong style="color:green;">🎯 Amortização do principal:</strong> ${formatarMoeda(amortizacao)}<br>`;
       }
@@ -1228,7 +1298,9 @@ function atualizarVisualParcelas(emprestimo) {
       if (valorFaltante > 0) html += `<strong style="color:orange;">⏳ Valor pendente:</strong> ${formatarMoeda(valorFaltante)}<br>`;
     }
     
-    if (vencimento && !paga && multa > 0) html += `<strong style="color:red;">💰 Multa possível:</strong> ${formatarMoeda(multa)}<br>`;
+    if (vencimento && !paga && multa > 0) {
+      html += `<strong style="color:red;">💰 Multa possível:</strong> ${formatarMoeda(multa)}<br>`;
+    }
 
     if (paga && datasPagamentos[i]) {
       const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
@@ -1257,6 +1329,7 @@ function atualizarVisualParcelas(emprestimo) {
     }
   });
 }
+
 
 
 

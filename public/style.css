@@ -2892,3 +2892,50 @@ input[type="date"] {
 #btnLimparTextoManual:hover {
   background: #b02a37;
 }
+
+
+.parcela-card-infos {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: transform 0.2s;
+}
+
+.parcela-card-infos:hover {
+  transform: translateY(-2px);
+}
+
+.parcela-header-infos {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.parcela-num-infos {
+  font-size: 16px;
+}
+
+.parcela-status-infos {
+  font-size: 14px;
+}
+
+.parcela-body-infos {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #555;
+}
+
+.parcela-valor-infos {
+  font-weight: 500;
+}
+
+.multa-infos {
+  color: red;
+  font-weight: bold;
+  margin-top: 4px;
+}

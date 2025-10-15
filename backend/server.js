@@ -460,6 +460,7 @@ function calcularResumoParcelas(emp) {
 }
 
 // Rota PATCH - CORREÇÃO DO ARREDONDAMENTO
+// ✅ PATCH - Atualizar pagamento de uma parcela
 app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
   try {
     const idNum = Number(req.params.id);
@@ -508,18 +509,17 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     });
 
     const taxa = emp.taxaJuros / 100;
-    
-    // 🔹 CORREÇÃO 1: CALCULAR VALOR ORIGINAL DA PARCELA ANTES DE QUALQUER ALTERAÇÃO
-    const valorOriginalParcela = emp.valorOriginal * taxa;
-    
-    // 🔹 CORREÇÃO 2: ARMAZENAR VALOR ORIGINAL DA PARCELA (IMPORTANTE!)
-    if (!emp.valoresOriginaisParcelas[indice]) {
+
+    // ✅ Sempre fixar o valor original da parcela
+    let valorOriginalParcela = emp.valoresOriginaisParcelas[indice];
+    if (valorOriginalParcela == null) {
+      valorOriginalParcela = emp.valorOriginal * taxa;
       emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
     }
 
-    // 🔹 CORREÇÃO 3: CALCULAR AMORTIZAÇÃO CORRETAMENTE
+    // 🔹 Calcular excedente corretamente
     const valorExcedente = Math.max(0, recebido - valorOriginalParcela);
-    
+
     console.log('🔍 DEBUG - Cálculos:', {
       valorOriginal: emp.valorOriginal,
       taxa: taxa,
@@ -528,25 +528,27 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
       valorExcedente: valorExcedente
     });
 
-    // 🔹 ATUALIZAR VALOR ORIGINAL SE HOUVER AMORTIZAÇÃO
+    // 🔹 Atualizar saldo principal se houver amortização
     if (valorExcedente > 0) {
       emp.valorOriginal = Math.max(0, emp.valorOriginal - valorExcedente);
       console.log('📉 Novo valor original após amortização:', emp.valorOriginal);
     }
 
-    // 🔹 Atualiza a parcela selecionada
+    // 🔹 Atualiza dados da parcela atual
     emp.valoresRecebidos[indice] = (emp.valoresRecebidos[indice] || 0) + recebido;
     emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
     emp.multasParcelas[indice] = (emp.multasParcelas[indice] || 0) + valorMulta;
 
-    // 🔹 CALCULAR NOVO JURO MENSAL APÓS AMORTIZAÇÃO
-    const novoJuroMensal = emp.valorOriginal * taxa;
-
-    // 🔹 CORREÇÃO 4: MARCAR PARCELA COMO PAGA BASEADO NO VALOR ORIGINAL DA PARCELA
+    // 🔹 Determina se a parcela foi quitada
     if (emp.valoresRecebidos[indice] >= valorOriginalParcela) {
       emp.statusParcelas[indice] = true;
       emp.datasPagamentos[indice] = dataPagamento;
-      console.log('✅ Parcela marcada como paga');
+
+      // 🧩 Garantir que o valor original seja salvo definitivamente
+      if (emp.valoresOriginaisParcelas[indice] == null)
+        emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
+
+      console.log(`✅ Parcela ${indice + 1} marcada como quitada.`);
     } else {
       emp.statusParcelas[indice] = false;
       emp.parcelasPagasParciais[indice] = {
@@ -554,27 +556,24 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
         falta: valorOriginalParcela - emp.valoresRecebidos[indice],
         ultimaData: dataPagamento
       };
-      console.log('⏳ Parcela parcialmente paga');
+      console.log(`⏳ Parcela ${indice + 1} parcialmente paga.`);
     }
 
-    // 🔹 CORREÇÃO 5: RECALCULAR APENAS PARCELAS FUTURAS, NÃO TODAS
+    // 🔹 Recalcular apenas parcelas futuras (sem alterar quitadas)
     for (let i = indice + 1; i < emp.parcelas; i++) {
       if (!emp.statusParcelas[i]) {
-        const valorParcelaRecalculado = emp.valorOriginal * taxa;
-        
-        if (!Array.isArray(emp.valorParcelasPendentes)) {
-          emp.valorParcelasPendentes = Array(emp.parcelas).fill(0);
+        if (emp.valoresOriginaisParcelas[i] == null) {
+          emp.valoresOriginaisParcelas[i] = emp.valorOriginal * taxa;
         }
-        emp.valorParcelasPendentes[i] = valorParcelaRecalculado;
-        console.log(`🔄 Parcela ${i + 1} recalculada:`, valorParcelaRecalculado);
+        emp.valorParcelasPendentes[i] = emp.valoresOriginaisParcelas[i];
+        console.log(`🔄 Parcela ${i + 1} recalculada:`, emp.valorParcelasPendentes[i]);
       }
     }
 
-    // 🔹 CORREÇÃO 6: SEMPRE CRIAR NOVA PARCELA SE AINDA HOUVER SALDO
-    // (não apenas quando há amortização)
+    // 🔹 Criar nova parcela se ainda houver saldo
     if (emp.valorOriginal > 0) {
       const valorNovaParcela = emp.valorOriginal * taxa;
-      
+
       if (valorNovaParcela > 0) {
         emp.parcelas++;
         emp.statusParcelas.push(false);
@@ -583,24 +582,30 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
         emp.valoresRecebidos.push(0);
         emp.parcelasPagasParciais.push(null);
         emp.multasParcelas.push(0);
-        emp.valoresOriginaisParcelas.push(valorNovaParcela); // 🔹 Armazena o valor original
+        emp.valoresOriginaisParcelas.push(valorNovaParcela);
 
         if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
         emp.valorParcelasPendentes.push(valorNovaParcela);
 
-        // Gerar nova data de vencimento (1 mês após a última)
+        // 🗓 Nova data de vencimento
         if (emp.datasVencimentos.length > 0) {
           const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
           ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
           emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
         } else {
-          // Se não há datas, cria uma data padrão
           const dataBase = new Date();
           dataBase.setMonth(dataBase.getMonth() + emp.parcelas);
           emp.datasVencimentos.push(dataBase.toISOString().slice(0, 10));
         }
-        
+
         console.log('📄 Nova parcela criada:', emp.parcelas, 'Valor:', valorNovaParcela);
+      }
+    }
+
+    // 🧩 Corrigir parcelas já pagas sem valor original salvo (dados antigos)
+    for (let i = 0; i < emp.parcelas; i++) {
+      if (emp.statusParcelas[i] && emp.valoresOriginaisParcelas[i] == null) {
+        emp.valoresOriginaisParcelas[i] = emp.valorParcelasPendentes[i] || emp.valorOriginal * taxa;
       }
     }
 
@@ -612,7 +617,6 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
       ...emp.toObject(),
       valorExcedente: valorExcedente,
       valorOriginalParcela: valorOriginalParcela,
-      juroMensalNovo: novoJuroMensal,
       saldoPrincipalRestante: emp.valorOriginal
     });
 
@@ -621,6 +625,7 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
+
 
 
 
