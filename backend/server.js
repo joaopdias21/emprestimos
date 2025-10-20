@@ -75,14 +75,13 @@ app.post('/login', (req, res) => {
 
 if (tipo === 'admin') {
   if (senha === SENHAS.admin) {
-    return res.json({ sucesso: true, tipo: 'admin' }); // admin total
+    return res.json({ sucesso: true, tipo: 'admin', user: 'Bruno' }); // envia o nome
   } else if (senha === SENHAS.adminMensal3) {
-    return res.json({ sucesso: true, tipo: 'adminMensal3' }); // admin restrito
+    return res.json({ sucesso: true, tipo: 'adminMensal3', user: 'Admin Mensal 3' }); // envia o nome
   } else {
     return res.status(401).json({ erro: 'Senha incorreta' });
   }
 }
-
 
   if (tipo === 'operador') {
     const operadorLogado = Object.entries(SENHAS.operadores).find(

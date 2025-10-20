@@ -156,10 +156,12 @@ if (dados.sucesso) {
   localStorage.removeItem("isOperador");
   localStorage.removeItem("operadorNome");
 
-  if (dados.tipo === "admin") {
-    localStorage.setItem("isAdmin", "true");
-  } else if (dados.tipo === "adminMensal3") {
-    localStorage.setItem("isAdminMensal3", "true");
+if (dados.tipo === "admin") {
+  localStorage.setItem("isAdmin", "true");
+  localStorage.setItem("adminNome", dados.user); // nome do admin que logou
+} else if (dados.tipo === "adminMensal3") {
+  localStorage.setItem("isAdminMensal3", "true");
+  localStorage.setItem("adminNome", dados.user); // nome do outro admin
   } else if (dados.tipo === "operador") {
     localStorage.setItem("isOperador", "true");
     localStorage.setItem("operadorNome", dados.user);

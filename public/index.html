@@ -24,15 +24,19 @@
 
 
 
-  <header class="header-auth">
-    <div id="saudacaoOperador" style="color:#004085; font-weight:600; margin-left:10px;"></div>
+<header class="header-auth">
+  <div class="header-left">
+    <img src="wbanco7.png" alt="Logo Banco" class="header-logo" />
+    <h1 class="header-title">Blessed Bank</h1>
+  </div>
 
-    <div class="header-left">
-      <img src="wbanco7.png" alt="Logo Banco" class="header-logo" />
-      <h1 class="header-title">Blessed Bank</h1>
-    </div>
-    <div id="authButtonsContainer" class="header-right"></div>
-  </header>
+  <div id="saudacaoOperador" class="saudacao">Olá, Operador!</div>
+
+  <div id="authButtonsContainer" class="header-right">
+    <button id="btnSair" class="btn-sair">Sair</button>
+  </div>
+</header>
+
 
   <main class="main-container">
 
@@ -485,25 +489,21 @@
 document.addEventListener('DOMContentLoaded', () => {
   const saudacaoDiv = document.getElementById('saudacaoOperador');
   const operadorNome = localStorage.getItem("operadorNome");
+  const adminNome = localStorage.getItem("adminNome"); // novo item no localStorage
   const isAdmin = localStorage.getItem("isAdmin") === "true";
   const isOperador = localStorage.getItem("isOperador") === "true";
 
   const authButtonsContainer = document.getElementById("authButtonsContainer");
 
   if (!isAdmin && !isOperador) {
-    // Não está logado - mostra só cadastro e botão login
-
-    // Esconde tudo menos sessão cadastro
+    // Não está logado
     document.querySelectorAll(".separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column:not(.sessaoCadastro), #dashboard, #filtroPagamentos, .admin-panel").forEach(el => {
       el.style.display = "none";
     });
-
-    // Garante que a sessão de cadastro está visível
     document.querySelectorAll(".sessaoCadastro").forEach(el => {
       el.style.display = "block";
     });
 
-    // Cria botão de login e adiciona
     const loginBtn = document.createElement('button');
     loginBtn.textContent = 'Fazer login';
     loginBtn.style.marginTop = '20px';
@@ -514,13 +514,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   } else {
     // Está logado
+if (isAdmin || localStorage.getItem("isAdminMensal3") === "true") {
+  const adminNome = localStorage.getItem("adminNome");
+  saudacaoDiv.textContent = `Olá, ${adminNome || "Administrador"}`;
+}
+ else if (isOperador && operadorNome) {
+  saudacaoDiv.textContent = `Olá, ${operadorNome}`;
+}
 
-    // Exibe saudação
-    if (isAdmin) {
-      saudacaoDiv.textContent = "Olá, Administrador";
-    } else if (isOperador && operadorNome) {
-      saudacaoDiv.textContent = `Olá, ${operadorNome}`;
-    }
 
     // Remove qualquer botão login caso tenha
     authButtonsContainer.innerHTML = '';

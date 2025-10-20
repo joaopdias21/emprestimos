@@ -29,88 +29,115 @@ h3 {
 
 
 /* Estilos padrão para desktop e telas maiores */
+/* ===== HEADER ===== */
 .header-auth {
-  position: static;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 0.8rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0.8rem 1.5rem;
   background: linear-gradient(90deg, #4a90e2, #357ABD);
-  color: white;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 0;
+  width: 100%;
   z-index: 1000;
 }
 
+/* ===== LADO ESQUERDO ===== */
 .header-left {
   display: flex;
-  flex-direction: column; /* Altera a direção dos itens para coluna */
-  align-items: flex-start; /* Alinha os itens à esquerda */
-  gap: 0; /* Remove o espaçamento padrão entre os itens */
+  align-items: center;
+  gap: 12px; /* Espaço entre logo e título */
 }
 
 .header-logo {
-  height: 40px;
-  width: 40px;
+  width: 45px;
+  height: 45px;
   object-fit: contain;
   border-radius: 6px;
-  background: white;
+  background: #fff;
   padding: 3px;
-  margin-left: 40px;
-  margin-bottom: 5px; /* Adiciona um pequeno espaço abaixo do logo */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .header-title {
   font-family: 'Poppins', sans-serif;
-  font-weight: 600;
-  font-size: 1.3rem;
+  font-weight: 700;
+  font-size: 1.5rem;
   color: #ffffff;
-  letter-spacing: 1.2px;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
   user-select: none;
-  margin-left: 15px;
-
+  margin-top: 25px;
 }
 
+/* ===== SAUDAÇÃO ===== */
+.saudacao {
+  flex: 1;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #f1f1f1;
+  
+}
+
+/* ===== LADO DIREITO ===== */
 .header-right {
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
-/* --- Media Query para telas menores que 768px (smartphones) --- */
+.btn-sair {
+  background: #ffffff;
+  color: #357ABD;
+  font-weight: 600;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sair:hover {
+  background: #e9ecef;
+  transform: scale(1.05);
+}
+
+/* ===== RESPONSIVO ===== */
 @media (max-width: 768px) {
   .header-auth {
-    /* Diminui o padding para telas menores */
+    flex-direction: column;
+    gap: 8px;
     padding: 0.8rem 1rem;
   }
-  
+
   .header-left {
-    /* Diminui o gap para um espaçamento mais compacto */
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .header-logo {
-    /* Reduz o tamanho do logo */
-    height: 35px;
     width: 35px;
+    height: 35px;
   }
 
   .header-title {
-    /* Reduz o tamanho da fonte do título */
-    font-size: 1rem; 
-    /* Reduz o espaçamento entre as letras */
-    letter-spacing: 1px;
+    font-size: 1.2rem;
+  }
+
+  .saudacao {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
   }
 
   .header-right {
-    /* Diminui o gap para botões */
-    gap: 0.7rem;
+    gap: 0.5rem;
+  }
+
+  .btn-sair {
+    padding: 5px 12px;
+    font-size: 0.9rem;
+
   }
 }
 
