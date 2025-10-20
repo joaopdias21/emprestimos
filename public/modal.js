@@ -450,36 +450,48 @@ if (valorMultaRaw) {
 function mostrarModalRecebedor() {
   if (!modalRecebedor) return;
 
-  // Limpa inputs
+  // 🧼 LIMPEZA TOTAL DO ESTADO ANTERIOR
   inputRecebedor.value = '';
   inputValorRecebido.value = '';
-  document.getElementById('valorMulta').value = '';
-
+  
   const campoMulta = document.getElementById('valorMulta');
   const infoMulta = document.getElementById('infoMulta');
 
+  if (campoMulta) {
+    campoMulta.value = '';
+    campoMulta.parentElement.style.display = 'none';
+  }
+  if (infoMulta) {
+    infoMulta.textContent = '';
+    infoMulta.style.display = 'none';
+  }
+
+  // ⚙️ REAPLICA DADOS COM BASE NA PARCELA SELECIONADA
   if (parcelaSelecionada?.emprestimo && parcelaSelecionada?.indice != null) {
     const emprestimo = parcelaSelecionada.emprestimo;
     const indice = parcelaSelecionada.indice;
-    const diasAtraso = calcularDiasAtraso(emprestimo.datasVencimentos[indice]);
+    const vencimento = emprestimo.datasVencimentos?.[indice];
 
-    if (diasAtraso > 0) {
-      campoMulta.parentElement.style.display = 'block';
-      const valorMultaAutomatico = diasAtraso * 20;
-      infoMulta.style.display = 'block';
-      infoMulta.textContent = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s). 
-      O valor de uma multa considerando R$20/dia seria R$${valorMultaAutomatico}.`;
-    } else {
-      campoMulta.parentElement.style.display = 'none';
-      infoMulta.style.display = 'none';
+    if (vencimento) {
+      const diasAtraso = calcularDiasAtraso(vencimento);
+      if (diasAtraso > 0) {
+        const valorMultaAutomatico = diasAtraso * 20;
+        if (campoMulta) {
+          campoMulta.parentElement.style.display = 'block';
+          campoMulta.value = ''; // não preenche automaticamente, só sugere
+        }
+        if (infoMulta) {
+          infoMulta.style.display = 'block';
+          infoMulta.textContent = `⚠️ Esta parcela está atrasada ${diasAtraso} dia(s).
+          O valor de uma multa considerando R$20/dia seria R$${valorMultaAutomatico}.`;
+        }
+      }
     }
-  } else {
-    campoMulta.parentElement.style.display = 'none';
-    infoMulta.style.display = 'none';
   }
 
   modalRecebedor.style.display = 'flex';
 }
+
 
 
 
@@ -492,6 +504,21 @@ function fecharModalRecebedor() {
   if (parcelaSelecionada?.checkbox) {
     parcelaSelecionada.checkbox.checked = false;
   }
+
+  // 🧼 LIMPAR CAMPOS E ALERTAS
+  const campoMulta = document.getElementById('valorMulta');
+  const infoMulta = document.getElementById('infoMulta');
+  if (campoMulta) {
+    campoMulta.value = '';
+    campoMulta.parentElement.style.display = 'none';
+  }
+  if (infoMulta) {
+    infoMulta.textContent = '';
+    infoMulta.style.display = 'none';
+  }
+
+  const inputValorRecebido = document.getElementById('valorRecebido');
+  if (inputValorRecebido) inputValorRecebido.value = '';
 
   parcelaSelecionada = null; // limpa seleção
 }
@@ -1242,10 +1269,8 @@ function atualizarVisualParcelas(emprestimo) {
             juroMensalAtual: valorOriginalAtual * taxa
           };
           
-          modalRecebedor.style.display = 'flex';
-          inputRecebedor.value = '';
-          inputRecebedor.disabled = false;
-          inputRecebedor.focus();
+mostrarModalRecebedor();
+
         }
       });
     }
@@ -1294,7 +1319,24 @@ function atualizarVisualParcelas(emprestimo) {
         html += `<strong style="color:green;">🎯 Amortização do principal:</strong> ${formatarMoeda(amortizacao)}<br>`;
       }
     } else {
-      if (valorRecebido > 0) html += `<strong>💵 Pago até agora:</strong> ${formatarMoeda(valorRecebido)}<br>`;
+if (valorRecebido > 0) {
+  // ✅ Exibe data/hora atual no momento do carregamento, se não tiver data registrada
+  let dataFmt, horaFmt;
+  if (datasPagamentos[i]) {
+    const dataParcial = new Date(datasPagamentos[i]);
+    dataFmt = dataParcial.toLocaleDateString('pt-BR');
+    horaFmt = dataParcial.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    const agora = new Date();
+    dataFmt = agora.toLocaleDateString('pt-BR');
+    horaFmt = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  const recebedor = recebidoPor[i] || 'Bruno'; // ou quem estiver logado
+
+  html += `<strong>💵 Pago até agora:</strong> ${formatarMoeda(valorRecebido)} <br>Pago em: ${dataFmt} às ${horaFmt} - recebido por ${recebedor}<br>`;
+}
+
       if (valorFaltante > 0) html += `<strong style="color:orange;">⏳ Valor pendente:</strong> ${formatarMoeda(valorFaltante)}<br>`;
     }
     

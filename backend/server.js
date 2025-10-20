@@ -571,36 +571,38 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     }
 
     // 🔹 Criar nova parcela se ainda houver saldo
-    if (emp.valorOriginal > 0) {
-      const valorNovaParcela = emp.valorOriginal * taxa;
+// ✅ Só cria nova parcela se a atual foi totalmente quitada
+if (emp.statusParcelas[indice] === true && emp.valorOriginal > 0) {
+  const valorNovaParcela = emp.valorOriginal * taxa;
 
-      if (valorNovaParcela > 0) {
-        emp.parcelas++;
-        emp.statusParcelas.push(false);
-        emp.datasPagamentos.push(null);
-        emp.recebidoPor.push(null);
-        emp.valoresRecebidos.push(0);
-        emp.parcelasPagasParciais.push(null);
-        emp.multasParcelas.push(0);
-        emp.valoresOriginaisParcelas.push(valorNovaParcela);
+  if (valorNovaParcela > 0) {
+    emp.parcelas++;
+    emp.statusParcelas.push(false);
+    emp.datasPagamentos.push(null);
+    emp.recebidoPor.push(null);
+    emp.valoresRecebidos.push(0);
+    emp.parcelasPagasParciais.push(null);
+    emp.multasParcelas.push(0);
+    emp.valoresOriginaisParcelas.push(valorNovaParcela);
 
-        if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
-        emp.valorParcelasPendentes.push(valorNovaParcela);
+    if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
+    emp.valorParcelasPendentes.push(valorNovaParcela);
 
-        // 🗓 Nova data de vencimento
-        if (emp.datasVencimentos.length > 0) {
-          const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
-          ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
-          emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
-        } else {
-          const dataBase = new Date();
-          dataBase.setMonth(dataBase.getMonth() + emp.parcelas);
-          emp.datasVencimentos.push(dataBase.toISOString().slice(0, 10));
-        }
-
-        console.log('📄 Nova parcela criada:', emp.parcelas, 'Valor:', valorNovaParcela);
-      }
+    // 🗓 Nova data de vencimento
+    if (emp.datasVencimentos.length > 0) {
+      const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
+      ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
+      emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
+    } else {
+      const dataBase = new Date();
+      dataBase.setMonth(dataBase.getMonth() + emp.parcelas);
+      emp.datasVencimentos.push(dataBase.toISOString().slice(0, 10));
     }
+
+    console.log('📄 Nova parcela criada após quitação:', emp.parcelas, 'Valor:', valorNovaParcela);
+  }
+}
+
 
     // 🧩 Corrigir parcelas já pagas sem valor original salvo (dados antigos)
     for (let i = 0; i < emp.parcelas; i++) {
