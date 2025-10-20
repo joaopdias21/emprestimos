@@ -1344,31 +1344,61 @@ if (valorRecebido > 0) {
       html += `<strong style="color:red;">💰 Multa possível:</strong> ${formatarMoeda(multa)}<br>`;
     }
 
-    if (paga && datasPagamentos[i]) {
-      const data = new Date(datasPagamentos[i]).toLocaleDateString('pt-BR');
-      const horario = new Date(datasPagamentos[i]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const recebedor = recebidoPor[i] || 'N/A';
-      html += `<strong>✅ Paga em:</strong> ${data}<br>`;
-      html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
+  if (paga && datasPagamentos[i]) {
+  const dataPag = new Date(datasPagamentos[i]);
+  const dataFmt = dataPag.toLocaleDateString('pt-BR');
+  const horario = dataPag.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const recebedor = recebidoPor[i] || 'N/A';
+
+  html += `<strong>✅ Paga em:</strong> ${dataFmt}<br>`;
+  html += `<strong>🙍‍♂️ Recebido por:</strong> ${recebedor} às ${horario}<br>`;
+
+  // 💰 Valor recebido e multa, se houver
+  const valorContrato = valoresRecebidos[i] || 0;
+  const valorMulta = emprestimo.multasParcelas?.[i] || 0;
+  html += `<strong>💵 Valor Recebido:</strong> ${formatarMoeda(valorContrato)}<br>`;
+  if (valorMulta > 0) {
+    html += `<strong style="color:red;">💰 Multa aplicada:</strong> ${formatarMoeda(valorMulta)}<br>`;
+  }
+
+  // Verifica se foi pago com atraso
+  if (datasVencimentos[i]) {
+    const dataVenc = criarDataLocal(datasVencimentos[i]);
+    dataPag.setHours(0, 0, 0, 0);
+    dataVenc.setHours(0, 0, 0, 0);
+
+    if (dataPag > dataVenc) {
+      const diasAtraso = Math.floor((dataPag - dataVenc) / (1000 * 60 * 60 * 24));
+      html += `<strong style="color:#d9534f;">⚠️ Parcela paga com atraso</strong><br>`;
+      html += `<strong>⚠️ Dias de atraso:</strong> ${diasAtraso}<br>`;
+      item.classList.add('parcela-paga-com-atraso');
+    } else {
+      item.classList.add('parcela-paga');
     }
+  } else {
+    item.classList.add('parcela-paga');
+  }
+}
 
-    label.innerHTML = html;
+label.innerHTML = html;
 
-    if (chk) item.appendChild(chk);
-    item.appendChild(label);
+if (chk) item.appendChild(chk);
+item.appendChild(label);
 
-    // Classe de status
-    if (paga) item.classList.add('parcela-paga');
-    else if (multa > 0) item.classList.add('parcela-atrasada');
-    else item.classList.add('parcela-em-dia');
+// Para parcelas em aberto ou atrasadas
+if (!paga) {
+  if (multa > 0) item.classList.add('parcela-atrasada');
+  else item.classList.add('parcela-em-dia');
+}
 
-    parcelasContainer.appendChild(item);
+parcelasContainer.appendChild(item);
 
-    if (i < parcelas.length - 1) {
-      const hr = document.createElement('hr');
-      hr.style = 'border: none; border-top: 1px solid #ccc; margin: 8px 0 16px;';
-      parcelasContainer.appendChild(hr);
-    }
+if (i < parcelas.length - 1) {
+  const hr = document.createElement('hr');
+  hr.style = 'border: none; border-top: 1px solid #ccc; margin: 8px 0 16px;';
+  parcelasContainer.appendChild(hr);
+}
+
   });
 }
 
@@ -1762,42 +1792,50 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
   parcelasFiltradas = [];
 
   emprestimosFiltrados.forEach(emp => {
-    const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
-      const diasAtraso = calcularDiasAtrasoDataOnly(data);
-      const pago = emp.statusParcelas?.[idx] || false;
-      const valorJuros = emp.valorComJuros - emp.valorOriginal;
-      // 🔧 Multa vem diretamente do backend (ou 0 se não existir)
-      let multa = 0; 
+const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
+  const diasAtraso = calcularDiasAtrasoDataOnly(data);
+  const pago = emp.statusParcelas?.[idx] || false;
+  const valorJuros = emp.valorComJuros - emp.valorOriginal;
 
-      // tenta pegar do campo salvo no backend
-      if (emp.multasParcelas && emp.multasParcelas[idx] != null) {
-        multa = parseFloat(emp.multasParcelas[idx]) || 0;
-        }
+  // 🔧 Multa individual por parcela
+  let multa = 0;
+  if (emp.multasParcelas && emp.multasParcelas[idx] != null) {
+    multa = parseFloat(emp.multasParcelas[idx]) || 0;
+  }
 
+  // fallback visual: se não houver multa registrada, mas está atrasada e não foi paga
+  if (multa === 0 && diasAtraso > 0 && !pago) {
+    multa = diasAtraso * 20; // apenas sugestão visual
+  }
 
-      // fallback: se ainda não há multa registrada, mas está atrasado e não pago, pode sugerir (apenas visual)
-      if (multa === 0 && diasAtraso > 0 && !pago) {
-        multa = diasAtraso * 20; // apenas sugestão visual, não real
-      }
+  const valorRecebido = emp.valoresRecebidos?.[idx] || 0;
+  const taxa = (emp.taxaJuros || 0) / 100;
 
+  let valorParcelaCorrigido = 0;
+  if (pago) {
+    valorParcelaCorrigido =
+      emp.valoresOriginaisParcelas?.[idx] ??
+      emp.valorParcelasPendentes?.[idx] ??
+      valorRecebido;
+  } else {
+    valorParcelaCorrigido = emp.valorOriginal * taxa;
+  }
 
-      const valorParcelaCorrigido = emp.valorParcelasPendentes?.[idx] || emp.valorParcela || valorJuros;
-
-      return {
-        data,
-        pago,
-        indice: idx,
-        valorJuros,
-        multa,
-        diasAtraso,
-        valorParcelaCorrigido,
-        valorRecebido: emp.valoresRecebidos?.[idx] || 0,
-        emprestimoNome: emp.nome,
-        telefone: emp.telefone,
-        taxaJuros: emp.taxaJuros,
-        emprestimoId: emp.id
-      };
-    }).filter(p => {
+  return {
+    data,
+    pago,
+    indice: idx,
+    valorJuros,
+    multa,
+    diasAtraso,
+    valorParcelaCorrigido,
+    valorRecebido,
+    emprestimoNome: emp.nome,
+    telefone: emp.telefone,
+    taxaJuros: emp.taxaJuros,
+    emprestimoId: emp.id
+  };
+}).filter(p => {
       if (dataFiltro && normalizarData(p.data) !== dataFiltro) return false;
       if (mesAnoAtual && getMesAnoFromDate(p.data) !== mesAnoAtual) return false;
 
@@ -1919,6 +1957,7 @@ function filtrarEmprestimos({ dataFiltro = '', mesFiltro = '' } = {}) {
 // 🔥 deixa global para ser chamada em qualquer lugar (inclusive dentro do modal)
 // script principal
 window.filtrarEmprestimos = filtrarEmprestimos;
+
 window.emprestimosPorCidade = emprestimosPorCidade;
 window.emprestimosPorGrupo = emprestimosPorGrupo;
 window.resultadoFiltrado = resultadoFiltrado;
