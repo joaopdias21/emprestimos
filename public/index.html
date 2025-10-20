@@ -418,13 +418,28 @@
       <option value="Amaral">Amaral</option>
     </select>
 
-    <label for="valorRecebido">Valor Recebido:</label>
-    <input type="text" id="valorRecebido" step="0.01" placeholder="Digite o valor..." />
+<label for="valorRecebido">Valor Recebido:</label>
+<input 
+  type="text" 
+  id="valorRecebido" 
+  step="0.01" 
+  inputmode="decimal"
+  pattern="[0-9]*[.,]?[0-9]*"
+  placeholder="Digite o valor..."
+/>
 
-    <label for="valorMulta" id="labelValorMulta">
-      Multa (opcional):
-      <input type="text" id="valorMulta" step="0.01" placeholder="Digite a multa..." />
-    </label>
+<label for="valorMulta" id="labelValorMulta">
+  Multa (opcional):
+  <input 
+    type="text" 
+    id="valorMulta" 
+    step="0.01" 
+    inputmode="decimal"
+    pattern="[0-9]*[.,]?[0-9]*"
+    placeholder="Digite a multa..."
+  />
+</label>
+
     <!-- Aqui a informação da multa automática -->
     <div id="infoMulta" style="color:#d9534f; font-size:0.9em; margin-top:5px; display:none;"></div>
 
