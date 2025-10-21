@@ -6,6 +6,8 @@ const multer   = require('multer');
 const path     = require('path');
 const mongoose = require('mongoose');
 const fs       = require('fs');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 require('dotenv').config();
 
@@ -49,6 +51,123 @@ function preencherDatasPadrao(datasVencimentos, parcelas) {
 
   return datasVencimentos;
 }
+
+// Cria o transporte com Gmail
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASS
+  }
+});
+
+
+// ============================================================
+// 📦 Função genérica para enviar lembretes das parcelas de hoje
+// ============================================================
+async function enviarLembretesHoje() {
+  console.log('⏰ Verificando parcelas com vencimento hoje...');
+
+  try {
+    const hoje = new Date();
+    const dataHoje = hoje.toISOString().slice(0, 10); // formato yyyy-mm-dd
+    const dataHojeBR = hoje.toLocaleDateString('pt-BR'); // formato dd/mm/aaaa
+
+    // Busca empréstimos ativos (não quitados)
+    const emprestimos = await Emprestimo.find({ quitado: false });
+
+    // Filtra apenas quem tem parcelas vencendo hoje
+    const aVencerHoje = emprestimos.filter(emp =>
+      emp.datasVencimentos?.some((v, i) =>
+        v === dataHoje && !emp.statusParcelas?.[i]
+      )
+    );
+
+    if (aVencerHoje.length === 0) {
+      console.log('✅ Nenhuma parcela vence hoje.');
+      return;
+    }
+
+    console.log(`📢 Encontrados ${aVencerHoje.length} clientes com vencimento hoje (${dataHojeBR}).`);
+
+    // Função para converter yyyy-mm-dd → dd/mm/aaaa
+    const formatarDataBR = (data) => {
+      const [ano, mes, dia] = data.split('-');
+      return `${dia}/${mes}/${ano}`;
+    };
+
+    // Envia o e-mail pra cada um
+    for (const emp of aVencerHoje) {
+      const parcelasHoje = emp.datasVencimentos
+        .map((v, i) => ({ indice: i + 1, data: v, paga: emp.statusParcelas[i] }))
+        .filter(p => p.data === dataHoje && !p.paga);
+
+      const corpoParcelas = parcelasHoje
+        .map(p => `<li>Parcela nº ${p.indice} - ${formatarDataBR(p.data)}</li>`)
+        .join('');
+
+const mailOptions = {
+  from: `"Blessed bank" <${process.env.GMAIL_USER}>`,
+  to: emp.email || 'joaopp00@outlook.com',
+  subject: `📅 Lembrete: sua parcela vence hoje, ${emp.nome}!`,
+  html: `
+    <h2 style="font-family: Arial, Helvetica, sans-serif;">Olá, ${emp.nome}! 👋</h2>
+    <p style="font-family: Arial, Helvetica, sans-serif;">Esperamos que esteja bem.</p>
+    <p style="font-family: Arial, Helvetica, sans-serif;">
+      Este é um lembrete de que a seguinte parcela vence <strong>hoje (${dataHojeBR})</strong>:
+    </p>
+    <ul style="font-family: Arial, Helvetica, sans-serif;">${corpoParcelas}</ul>
+    <p style="font-family: Arial, Helvetica, sans-serif;">
+      Por favor, entre em contato conosco ou realize o pagamento para evitar multas.
+    </p>
+    <p style="font-family: Arial, Helvetica, sans-serif;">
+      💰 Valor total da parcela: <strong>R$ ${emp.valorParcela?.toFixed(2) || '---'}</strong>
+    </p>
+
+    <hr style="border:none; border-top:1px solid #eee; margin:25px 0;">
+    <div style="
+      text-align:center;
+      font-size:12px;
+      color:#555;
+      font-family: Arial, Helvetica, sans-serif;
+    ">
+      <strong style="color:#007bff;">Blessed Bank</strong><br>
+      <span style="color:#777;">Sistema automatizado de lembretes de pagamento</span><br>
+      <span style="font-size:11px; color:#aaa;">© ${new Date().getFullYear()} Todos os direitos reservados</span>
+    </div>
+  `
+};
+
+
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log(`📨 E-mail enviado para ${emp.nome} (${emp.email})`);
+      } catch (err) {
+        console.error(`❌ Falha ao enviar para ${emp.nome}:`, err.message);
+      }
+    }
+
+  } catch (err) {
+    console.error('❌ Erro ao verificar vencimentos do dia:', err);
+  }
+}
+
+
+// ============================================================
+// ⏰ CRON JOB (executa todo dia às 08:00)
+// ============================================================
+cron.schedule('0 8 * * *', async () => {
+  await enviarLembretesHoje();
+});
+
+// // ============================================================
+// // 🚀 Teste manual via rota HTTP
+// // ============================================================
+// app.get('/enviar-lembretes-hoje', async (req, res) => {
+//   await enviarLembretesHoje();
+//   res.send('✅ Envio manual de lembretes executado.');
+// });
+
 
 
 

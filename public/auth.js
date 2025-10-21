@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loginBtn.onclick = () => { window.location.href = 'login.html'; };
     authButtonsContainer.appendChild(loginBtn);
 
-    document.querySelectorAll(".selecioneData, .btn-pdf, .legenda-status, #totaisResumo, .botoes-filtro-container, .cards-cidades-container, .separadorMensais, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+    document.querySelectorAll("#saudacaoOperador, .selecioneData, .btn-pdf, .legenda-status, #totaisResumo, .botoes-filtro-container, .cards-cidades-container, .separadorMensais, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
       el.style.display = "none";
     });
 
