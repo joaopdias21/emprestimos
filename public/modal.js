@@ -1344,6 +1344,23 @@ if (valorRecebido > 0) {
       html += `<strong style="color:red;">💰 Multa possível:</strong> ${formatarMoeda(multa)}<br>`;
     }
 
+    const hoje = new Date();
+hoje.setHours(0, 0, 0, 0); // ignora hora/minuto
+
+if (vencimento && !paga) {
+  const dataVenc = criarDataLocal(vencimento);
+  dataVenc.setHours(0, 0, 0, 0);
+
+  const diasAtraso = Math.floor((hoje - dataVenc) / (1000 * 60 * 60 * 24));
+  if (diasAtraso > 0) {
+    multa = diasAtraso * 20;
+  } else if (diasAtraso === 0) {
+    // ⚠️ Aviso de vencimento hoje
+    html += `<strong style="color:#ff8800;">⚠️ Vence hoje!</strong><br>`;
+  }
+}
+
+
   if (paga && datasPagamentos[i]) {
   const dataPag = new Date(datasPagamentos[i]);
   const dataFmt = dataPag.toLocaleDateString('pt-BR');
@@ -2033,7 +2050,7 @@ btnLimparFiltro.addEventListener('click', () => {
 
 document.getElementById('btnExportarPDFLista').addEventListener('click', () => {
   if (!parcelasFiltradas || parcelasFiltradas.length === 0) {
-    alert("Nenhum dado para exportar");
+    mostrarAlertaWarning("Nenhum dado para exportar");
     return;
   }
 

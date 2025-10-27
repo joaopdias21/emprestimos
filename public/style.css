@@ -107,28 +107,34 @@ h3 {
 
 /* ===== RESPONSIVO ===== */
 @media (max-width: 768px) {
+  /* Mantém o header igual ao desktop */
   .header-auth {
-    flex-direction: column;
-    gap: 8px;
-    padding: 0.8rem 1rem;
+    flex-direction: row; /* Mantém na mesma linha */
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1rem; /* Reduz levemente padding */
   }
 
   .header-left {
     gap: 8px;
+    align-items: center;
   }
 
   .header-logo {
     width: 35px;
     height: 35px;
+    padding: 2px;
   }
 
   .header-title {
-    font-size: 1.8rem;
+    font-size: 1.6rem; /* Ajuste para caber no mobile */
+    top: 20px;      /* Remove margin excessiva */
   }
 
   .saudacao {
-    font-size: 1.2rem;
-    margin-bottom: 30px;
+    font-size: 0.9rem; /* Ajuste menor */
+    text-align: center;
+    margin: 0;
   }
 
   .header-right {
@@ -136,11 +142,11 @@ h3 {
   }
 
   .btn-sair {
-    padding: 5px 12px;
-    font-size: 0.9rem;
-
+    padding: 4px 10px;
+    font-size: 0.85rem;
   }
 }
+
 
 
 
@@ -1199,8 +1205,8 @@ body.modal-aberto {
   border-bottom: 1px solid #28a745 !important; /* Verde */
 }
 
-.parcela-box.parcela-atrasada {
-  border-left: 6px solid #dc3545 !important; /* Vermelho */
+.parcela-box.parcela-paga-com-atraso{
+  border-left: 6px solid #28a745 !important; /* Vermelho */
   border-bottom: 2px solid #dc3545 !important; /* Vermelho */
   border-top: 2px solid #dc3545 !important; /* Vermelho */
   border-right: 2px solid #dc3545 !important; /* Vermelho */
@@ -1760,8 +1766,8 @@ input[type="date"] {
 
 /* Adicione ao seu arquivo CSS */
 .parcela-paga-com-atraso {
-  background-color: #fff3f3;
-  border-left: 4px solid #ff6b6b;
+  background-color: #000000;
+  border-left: 400px solid #ff6b6b;
   padding-left: 8px;
 }
 
@@ -2970,3 +2976,8 @@ input[type="date"] {
 
 
 
+.parcela-paga-com-atraso {
+  border-left: 4px solid red; /* muda a cor da borda lateral para vermelho */
+  padding-left: 8px;          /* mantém o espaçamento interno */
+  background-color: #ffe6e6;  /* opcional: leve fundo vermelho claro */
+}
