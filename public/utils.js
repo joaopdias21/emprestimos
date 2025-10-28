@@ -1,25 +1,29 @@
-export function mostrarAlerta(msg, cor = '#4caf50', icone = '✔️') {
+export function mostrarAlerta(msg, cor = 'linear-gradient(45deg, #4caf50, #43a047)', icone = '✔️') {
   const alerta = document.getElementById('alertaCustom');
-  alerta.innerHTML = `<span style="margin-right: 8px;">${icone}</span> ${msg}`;
-  alerta.style.backgroundColor = cor;
-  alerta.style.display = 'block';
+  const progresso = alerta.querySelector('.alerta-progresso');
 
-  // Reinicia animações
-  alerta.classList.remove('alerta-custom');
+  alerta.innerHTML = `<span>${icone}</span> ${msg} <div class="alerta-progresso"></div>`;
+  alerta.style.background = cor;
+
+  alerta.classList.remove('show');
   void alerta.offsetWidth; // força reflow
-  alerta.classList.add('alerta-custom');
+  alerta.classList.add('show');
 
   setTimeout(() => {
-    alerta.style.display = 'none';
+    alerta.classList.remove('show');
   }, 3000);
 }
 
 export function mostrarAlertaError(msg) {
-  mostrarAlerta(msg, '#f44336', '❌');
+  mostrarAlerta(msg, 'linear-gradient(45deg, #f44336, #d32f2f)', '❌');
 }
 
 export function mostrarAlertaWarning(msg) {
-  mostrarAlerta(msg, '#ffc107', '⚠️');
+  mostrarAlerta(msg, 'linear-gradient(45deg, #ff9800, #f57c00)', '⚠️');
+}
+
+export function mostrarAlertaInfo(msg) {
+  mostrarAlerta(msg, 'linear-gradient(45deg, #2196f3, #1976d2)', 'ℹ️');
 }
 
 export function formatarMoeda(valor) {

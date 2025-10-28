@@ -19,12 +19,25 @@ document.addEventListener('DOMContentLoaded', () => {
       location.reload();
     });
 
-    if (isAdmin) {
-      // Admin completo → mostra tudo
-      document.querySelectorAll(".form-column, #dashboard, #filtroPagamentos").forEach(el => {
-        el.style.display = "block";
-      });
-    }
+if (isAdmin) {
+  // Admin completo → mostra tudo
+  document.querySelectorAll(`
+    .form-column,
+    #dashboard,
+    #filtroPagamentos,
+    .separador,
+    .separadorCadastro,
+    .separadorPesquisas,
+    .separadorGraficos,
+    .separadorMensais,
+    .separadorDataDeVencimento
+  `).forEach(el => {
+    el.style.display = el.classList.contains("separador") ? "flex" : "block";
+  });
+
+  console.log("✅ Admin logado - elementos exibidos");
+}
+
 
     if (isAdminMensal3) {
       // Esconde tudo primeiro

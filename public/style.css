@@ -219,35 +219,79 @@ h3 {
   position: fixed;
   top: 20px;
   right: 20px;
-  min-width: 250px;
-  max-width: 350px;
-  padding: 16px 20px;
-  color: white;
-  font-weight: 500;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 18px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
   z-index: 9999;
-  animation: slideIn 0.4s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+  max-width: 90%;
+  width: fit-content;
+  backdrop-filter: blur(10px);
+  transform: translateX(120%);
+  opacity: 0;
+  transition: all 0.4s ease;
+  overflow: hidden;
 }
 
-@keyframes slideIn {
+/* Quando aparece */
+.alerta-custom.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+/* Ícone */
+.alerta-custom span {
+  font-size: 20px;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
+
+/* Barra de progresso */
+.alerta-progresso {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.4);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+/* Animação da barra */
+.alerta-custom.show .alerta-progresso {
+  animation: barraProgresso 3s linear forwards;
+}
+
+@keyframes barraProgresso {
   from {
-    opacity: 0;
-    transform: translateX(100%);
+    transform: scaleX(1);
   }
   to {
-    opacity: 1;
-    transform: translateX(0);
+    transform: scaleX(0);
   }
 }
 
-@keyframes fadeOut {
-  to {
-    opacity: 0;
-    transform: translateX(100%);
+/* Responsivo */
+@media (max-width: 600px) {
+  .alerta-custom {
+    top: 15px;
+    right: 50%;
+    transform: translate(50%, -100%);
+    text-align: center;
+    justify-content: center;
+  }
+
+  .alerta-custom.show {
+    transform: translate(50%, 0);
   }
 }
+
+
 
 
 /* REMOVA ou MODIFIQUE estas regras do body */
@@ -1437,59 +1481,111 @@ select:focus {
 }
 
 
+/* ===== SEPARADOR MODERNO ===== */
 .separador {
   display: flex;
   align-items: center;
+  justify-content: center;
   text-align: center;
-  margin: 50px 0;
+  margin: 40px 0;
   position: relative;
   font-weight: 700;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  color: #2c3e50;
+  letter-spacing: 1.8px;
+  color: #1e3a8a;
+  font-family: "Poppins", sans-serif;
 }
 
+/* Linhas laterais com gradiente animado */
 .separador::before,
 .separador::after {
   content: '';
   flex: 1;
   height: 3px;
-  background: linear-gradient(90deg, #1e3a8a, #4f6dba);
   border-radius: 2px;
-  box-shadow: 0 0 6px rgba(30, 58, 138, 0.6);
+  background: linear-gradient(90deg, #1e3a8a, #4f6dba, #60a5fa);
+  background-size: 200% 100%;
+  animation: brilho-linha 4s ease infinite;
+  box-shadow: 0 0 8px rgba(30, 58, 138, 0.3);
+}
+
+@keyframes brilho-linha {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .separador::before {
-  margin-right: 15px;
+  margin-right: 18px;
 }
 
 .separador::after {
-  margin-left: 15px;
+  margin-left: 18px;
 }
 
-/* Ícone decorativo antes do texto */
+/* Texto central */
 .separador span {
   position: relative;
-  background: white;
-  padding: 0 20px;
   display: inline-flex;
   align-items: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  border-radius: 25px;
+  background: #ffffff;
+  padding: 10px 24px;
+  border-radius: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
   color: #1e3a8a;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  transition: all 0.3s ease;
 }
 
-/* Pequeno círculo azul à esquerda do texto */
+/* Ícone circular com brilho */
 .separador span::before {
   content: '';
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  background: #1e3a8a;
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle, #3b82f6, #1e3a8a);
   border-radius: 50%;
   margin-right: 12px;
-  box-shadow: 0 0 8px #4f6dba;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+  transition: transform 0.3s ease;
+}
+
+/* Efeito hover elegante */
+.separador span:hover {
+  background: linear-gradient(135deg, #ffffff, #f3f7ff);
+  transform: translateY(-2px);
+}
+
+.separador span:hover::before {
+  transform: scale(1.2);
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+  .separador {
+    font-size: 1rem;
+    margin: 30px 0;
+    letter-spacing: 1px;
+  }
+
+  .separador::before,
+  .separador::after {
+    height: 2px;
+  }
+
+  .separador span {
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 0.95rem;
+  }
+
+  .separador span::before {
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+  }
 }
 
 
