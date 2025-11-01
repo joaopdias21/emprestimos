@@ -516,11 +516,22 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     const taxa = emp.taxaJuros / 100;
 
     // ✅ Sempre fixar o valor original da parcela
-    let valorOriginalParcela = emp.valoresOriginaisParcelas[indice];
-    if (valorOriginalParcela == null) {
-      valorOriginalParcela = emp.valorOriginal * taxa;
-      emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
-    }
+// ✅ Sempre fixar o valor original da parcela, respeitando o tipo de parcelamento
+let valorOriginalParcela = emp.valoresOriginaisParcelas[indice];
+
+if (valorOriginalParcela == null) {
+  if (emp.tipoParcelamento === 'parcelado') {
+    // 🔹 Parcelado → parcelas fixas (total / quantidade)
+    const valorTotalComJuros = emp.valorOriginal * (1 + taxa);
+    valorOriginalParcela = valorTotalComJuros / emp.parcelas;
+  } else {
+    // 🔹 Mês a mês → juros sobre saldo
+    valorOriginalParcela = emp.valorOriginal * taxa;
+  }
+
+  emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
+}
+
 
     // 🔹 Calcular excedente corretamente
     const valorExcedente = Math.max(0, recebido - valorOriginalParcela);
@@ -565,19 +576,23 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     }
 
     // 🔹 Recalcular apenas parcelas futuras (sem alterar quitadas)
-    for (let i = indice + 1; i < emp.parcelas; i++) {
-      if (!emp.statusParcelas[i]) {
-        if (emp.valoresOriginaisParcelas[i] == null) {
-          emp.valoresOriginaisParcelas[i] = emp.valorOriginal * taxa;
-        }
-        emp.valorParcelasPendentes[i] = emp.valoresOriginaisParcelas[i];
-        console.log(`🔄 Parcela ${i + 1} recalculada:`, emp.valorParcelasPendentes[i]);
+// 🔹 Recalcular apenas parcelas futuras se for tipo "juros" (mês a mês)
+if (emp.tipoParcelamento === 'juros') {
+  for (let i = indice + 1; i < emp.parcelas; i++) {
+    if (!emp.statusParcelas[i]) {
+      if (emp.valoresOriginaisParcelas[i] == null) {
+        emp.valoresOriginaisParcelas[i] = emp.valorOriginal * taxa;
       }
+      emp.valorParcelasPendentes[i] = emp.valoresOriginaisParcelas[i];
+      console.log(`🔄 Parcela ${i + 1} recalculada:`, emp.valorParcelasPendentes[i]);
     }
+  }
+}
+
 
     // 🔹 Criar nova parcela se ainda houver saldo
 // ✅ Só cria nova parcela se a atual foi totalmente quitada
-if (emp.statusParcelas[indice] === true && emp.valorOriginal > 0) {
+if (emp.tipoParcelamento === 'juros' && emp.statusParcelas[indice] === true && emp.valorOriginal > 0) {
   const valorNovaParcela = emp.valorOriginal * taxa;
 
   if (valorNovaParcela > 0) {
@@ -616,7 +631,14 @@ if (emp.statusParcelas[indice] === true && emp.valorOriginal > 0) {
       }
     }
 
-    emp.quitado = emp.valorOriginal <= 0;
+    if (emp.tipoParcelamento === 'parcelado') {
+  // Parcelado → quitado quando todas as parcelas foram pagas
+  emp.quitado = emp.statusParcelas.every(p => p === true);
+} else {
+  // Mês a mês → quitado quando o saldo principal acabou
+  emp.quitado = emp.valorOriginal <= 0;
+}
+
 
     await emp.save();
 
