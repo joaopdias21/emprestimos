@@ -1236,6 +1236,110 @@ app.post('/emprestimos/lote', upload.none(), async (req, res) => {
   }
 });
 
+
+app.post('/emprestimos/parcelado/lote', upload.none(), async (req, res) => {
+  try {
+    let { linhas } = req.body;
+
+    if (!linhas) {
+      return res.status(400).json({ erro: 'Envie o campo "linhas" com os empréstimos.' });
+    }
+
+    // Se o campo "linhas" for uma string com várias linhas, transforma em array
+    if (typeof linhas === 'string') {
+      linhas = linhas
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+    }
+
+    if (!Array.isArray(linhas) || linhas.length === 0) {
+      return res.status(400).json({ erro: 'Nenhuma linha válida encontrada.' });
+    }
+
+    const emprestimosFormatados = linhas.map((linha, i) => {
+  // Cada linha no formato: nome;cidade;valor;parcelas;dataPrimeira
+  const partes = linha.split(';').map(p => p.trim());
+  if (partes.length < 5) {
+    throw new Error(`Linha inválida (${i + 1}): "${linha}"`);
+  }
+
+  const [nome, cidade, valor, parcelas, dataPrimeira] = partes;
+
+  const valorNum = Number(valor);
+  const parcelasNum = Number(parcelas);
+  const primeiraData = new Date(dataPrimeira);
+  const taxa = 0; // ✅ Taxa fixa
+
+  // ⚙️ Dados fixos padrão
+  const email = 'teste@teste.com';
+  const telefone = '11999999999';
+  const cpf = '00000000000';
+  const endereco = 'Rua';
+  const estado = 'SP';
+  const cep = '00000-000';
+  const numero = '00';
+  const complemento = 'Casa';
+
+  if (isNaN(primeiraData)) {
+    throw new Error(`Data inválida na linha ${i + 1}: ${dataPrimeira}`);
+  }
+
+  // 📅 Gera automaticamente as datas mensais de vencimento
+  const datasVencimentos = Array.from({ length: parcelasNum }, (_, idx) => {
+    const novaData = new Date(primeiraData);
+    novaData.setMonth(primeiraData.getMonth() + idx);
+    return novaData.toISOString().split('T')[0];
+  });
+
+  // 💰 Cálculos financeiros (juros 0%)
+  const valorComJuros = valorNum * (1 + taxa / 100);
+  const valorParcela = valorComJuros / parcelasNum;
+
+  return {
+    id: Date.now() + i,
+    nome,
+    email,
+    telefone,
+    cpf,
+    endereco,
+    cidade,
+    estado,
+    cep,
+    numero,
+    complemento,
+    valorOriginal: valorNum,
+    valorComJuros,
+    parcelas: parcelasNum,
+    valorParcela,
+    valorParcelasPendentes: Array.from({ length: parcelasNum }, () => valorParcela),
+    taxaJuros: taxa,
+    statusParcelas: Array.from({ length: parcelasNum }, () => false),
+    datasPagamentos: Array.from({ length: parcelasNum }, () => null),
+    datasVencimentos,
+    valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
+    recebidoPor: Array.from({ length: parcelasNum }, () => null),
+    arquivos: [],
+    quitado: false,
+    tipoParcelamento: 'parcelado'
+  };
+});
+
+    const inseridos = await Emprestimo.insertMany(emprestimosFormatados);
+
+    res.status(201).json({ sucesso: true, inseridos });
+  } catch (err) {
+    console.error('POST /emprestimos/parcelado/lote:', err);
+    res.status(500).json({ erro: err.message || 'Erro ao criar empréstimos parcelados em lote' });
+  }
+});
+
+
+
+
+
+
+
 // DELETE /emprestimos/:id
 app.delete('/emprestimos/:id', async (req, res) => {
   try {
