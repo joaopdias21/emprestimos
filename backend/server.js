@@ -116,8 +116,10 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* --------------------- SCHEMA & MODEL --------------------- */
+/* --------------------- SCHEMA & MODEL --------------------- */
 const EmprestimoSchema = new mongoose.Schema({
   id: { type: Number, unique: true },
+
   nome: String,
   email: String,
   telefone: String,
@@ -128,40 +130,95 @@ const EmprestimoSchema = new mongoose.Schema({
   cep: String,
   numero: String,
   complemento: String,
+
+  // ✅ SALDO PRINCIPAL
   valorOriginal: Number,
+
+  // ⚠️ usado apenas para juros — parcelado não usa.
   valorComJuros: Number,
+
   parcelas: Number,
+
+  // ❗ esse campo virou obsoleto, mas pode manter por compatibilidade
   valorParcela: Number,
-  valorParcelasPendentes: [Number],
+
+  // ✅ parcelado e juros usam
+  valorParcelasPendentes: {
+    type: [Number],
+    default: []
+  },
+
+  // ✅ NOVO — ESSENCIAL!
+  valoresOriginaisParcelas: {
+    type: [Number],
+    default: []
+  },
+
   taxaJuros: Number,
-  statusParcelas: [Boolean],
-  datasPagamentos: [String],
-  datasVencimentos: [String],
-  valoresRecebidos: [Number],
-  multasParcelas: [Number],
-  recebidoPor: [String],
-historicoAlteracoes: [
-  {
-    data: { type: Date, default: Date.now },
-    valorOriginal: Number,
-    taxaJuros: Number,
-    valorParcela: Number,
-    valorComJuros: Number,
-    saldoPrincipal: Number,
-    usuario: String
-  }
-],
+
+  statusParcelas: {
+    type: [Boolean],
+    default: []
+  },
+
+  datasPagamentos: {
+    type: [String],
+    default: []
+  },
+
+  datasVencimentos: {
+    type: [String],
+    default: []
+  },
+
+  valoresRecebidos: {
+    type: [Number],
+    default: []
+  },
+
+  multasParcelas: {
+    type: [Number],
+    default: []
+  },
+
+  recebidoPor: {
+    type: [String],
+    default: []
+  },
+
+  // ✅ NOVO — usado quando parcela é parcialmente paga
+  parcelasPagasParciais: {
+    type: [Object],
+    default: []
+  },
+
+  // ✅ histórico
+  historicoAlteracoes: [
+    {
+      data: { type: Date, default: Date.now },
+      valorOriginal: Number,
+      taxaJuros: Number,
+      valorParcela: Number,
+      valorComJuros: Number,
+      saldoPrincipal: Number,
+      usuario: String
+    }
+  ],
 
   arquivos: [{
     nomeOriginal: String,
     caminho: String
   }],
+
   quitado: { type: Boolean, default: false },
+
+  // ✅ parcelado ou juros
   tipoParcelamento: { type: String, default: 'juros' }
+
 }, { timestamps: true });
 
-
 const Emprestimo = mongoose.model('Emprestimo', EmprestimoSchema);
+
 
 /* -------------------- FUNÇÕES AUXILIARES ------------------ */
 function formatarDataLocal(data) {
@@ -255,83 +312,84 @@ const novo = await Emprestimo.create({
 // Rota para empréstimos parcelados (divide o valor total pelas parcelas)
 app.post('/emprestimos/parcelado', upload.array('anexos'), async (req, res) => {
   try {
-    console.log('Dados recebidos:', req.body);
-    console.log('Valor:', req.body.valor, 'Tipo:', typeof req.body.valor);
-    console.log('Parcelas:', req.body.parcelas, 'Tipo:', typeof req.body.parcelas);
-    console.log('Taxa Juros:', req.body.taxaJuros, 'Tipo:', typeof req.body.taxaJuros);
-    
     const {
       nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
       valor, parcelas, datasVencimentos = []
     } = req.body;
 
-    // ✅ CORREÇÃO: Limpar o valor monetário formatado CORRETAMENTE
-    const valorLimpo = valor.replace(/[^\d,.]/g, ''); // Mantém dígitos, vírgula e ponto
+    // ✅ LIMPEZA DO VALOR MONETÁRIO
+    const valorLimpo = valor.replace(/[^\d,.]/g, '');
     let valorNum;
-    
-    // Verifica se tem vírgula (formato brasileiro) ou ponto (formato internacional)
+
     if (valorLimpo.includes(',')) {
-      // Formato brasileiro: 1.000,50 → 1000.50
-      valorNum = parseFloat(valorLimpo.replace('.', '').replace(',', '.'));
+      valorNum = parseFloat(valorLimpo.replace(/\./g, '').replace(',', '.'));
     } else {
-      // Formato internacional: 100.00 → 100.00
       valorNum = parseFloat(valorLimpo);
     }
-    
-    const taxaJuros = req.body.taxaJuros !== undefined ? Number(req.body.taxaJuros) : 20;
-    const parcelasNum = Number(parcelas) || 1;
 
-    console.log('Valor limpo:', valorLimpo);
-    console.log('Valor numérico:', valorNum);
-    console.log('Parcelas numérico:', parcelasNum);
-    console.log('Taxa Juros numérico:', taxaJuros);
+    const parcelasNum = Number(parcelas);
 
-    // ✅ VALIDAÇÃO: Verificar se os valores são números válidos
-    if (isNaN(valorNum) || isNaN(parcelasNum) || isNaN(taxaJuros)) {
-      return res.status(400).json({ erro: 'Valores numéricos inválidos' });
+    // ✅ VALIDAÇÕES
+    if (isNaN(valorNum) || valorNum <= 0) {
+      return res.status(400).json({ erro: "Valor inválido" });
     }
 
-    // Garante que datasVencimentos seja array
-    const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
+    if (isNaN(parcelasNum) || parcelasNum <= 0) {
+      return res.status(400).json({ erro: "Número de parcelas inválido" });
+    }
 
-    // Preenche datas faltantes com padrão mensal
+    // ✅ AJUSTE DE DATAS
+    const vencimentos = Array.isArray(datasVencimentos) ? datasVencimentos : [datasVencimentos];
     const datasCalc = preencherDatasPadrao(vencimentos, parcelasNum);
 
-    const valorComJuros = valorNum * (1 + taxaJuros / 100);
-    const valorParcela = valorComJuros / parcelasNum;
+    // ✅ AMORTIZAÇÃO DINÂMICA — VALOR INICIAL DAS PARCELAS
+    const valorParcelaInicial = valorNum / parcelasNum;
 
+    // ✅ ARQUIVOS
     const arquivos = (req.files || []).map(f => ({
       nomeOriginal: f.originalname,
       caminho: `/uploads/${f.filename}`
     }));
 
-    const valorParcelasPendentes = Array.from({ length: parcelasNum }, () => valorParcela);
-
+    // ✅ CRIAÇÃO DO EMPRÉSTIMO PARCELADO (SEM JUROS)
     const novo = await Emprestimo.create({
       id: Date.now(),
       nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+
+      // ✅ Saldo principal
       valorOriginal: valorNum,
-      valorComJuros: valorComJuros,
+
+      // ✅ Sem juros no parcelado
+      taxaJuros: 0,
+
       parcelas: parcelasNum,
-      valorParcela: valorParcela,
-      valorParcelasPendentes: valorParcelasPendentes,
-      taxaJuros,
-      statusParcelas: Array.from({ length: parcelasNum }, () => false),
-      datasPagamentos: Array.from({ length: parcelasNum }, () => null),
+      tipoParcelamento: "parcelado",
+
+      // ✅ Arrays essenciais (100% compatíveis com o PATCH)
+      valoresOriginaisParcelas: Array(parcelasNum).fill(valorParcelaInicial),
+      valorParcelasPendentes: Array(parcelasNum).fill(valorParcelaInicial),
+
+      statusParcelas: Array(parcelasNum).fill(false),
+      valoresRecebidos: Array(parcelasNum).fill(0),
+      recebidoPor: Array(parcelasNum).fill(null),
+      multasParcelas: Array(parcelasNum).fill(0),
+      parcelasPagasParciais: Array(parcelasNum).fill(null),
+
+      datasPagamentos: Array(parcelasNum).fill(null),
       datasVencimentos: datasCalc,
-      valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
-      recebidoPor: Array.from({ length: parcelasNum }, () => null),
+
       arquivos,
-      quitado: false,
-      tipoParcelamento: 'parcelado'
+      quitado: false
     });
 
-    res.status(201).json(novo);
+    return res.status(201).json(novo);
+
   } catch (err) {
-    console.error('POST /emprestimos/parcelado:', err);
-    res.status(500).json({ erro: 'Erro ao criar empréstimo parcelado' });
+    console.error("POST /emprestimos/parcelado:", err);
+    return res.status(500).json({ erro: "Erro ao criar empréstimo parcelado" });
   }
 });
+
 
 
 
@@ -474,27 +532,25 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     const emp = await Emprestimo.findOne({ id: idNum });
     if (!emp) return res.status(404).json({ erro: 'Empréstimo não encontrado' });
 
-    console.log('Recebido no backend:', { id: idNum, parcelaId: indice, ...req.body });
-
-    if (!Number.isInteger(indice) || indice < 0) {
+    if (!Number.isInteger(indice) || indice < 0)
       return res.status(400).json({ erro: 'Índice de parcela inválido' });
-    }
 
     if (indice >= emp.parcelas) indice = emp.parcelas - 1;
 
-    // 🚫 Trava: se a parcela já foi paga, não pode alterar
+    // 🚫 Não permite alteração se já paga
     if (emp.statusParcelas[indice]) {
       return res.status(400).json({ erro: 'Parcela já quitada, não pode ser alterada' });
     }
 
-    const valorMulta = parseFloat(req.body.valorMulta) || 0;
     const recebido = parseFloat(req.body.valorRecebido);
     if (!Number.isFinite(recebido) || recebido <= 0)
       return res.status(400).json({ erro: 'valorRecebido inválido' });
 
+    const valorMulta = parseFloat(req.body.valorMulta) || 0;
     const dataPagamento = req.body.dataPagamento || new Date().toISOString();
+    const taxa = emp.taxaJuros / 100;
 
-    // Inicializa arrays essenciais
+    // ✅ Garante integridade dos arrays
     const campos = [
       'statusParcelas', 'datasPagamentos', 'recebidoPor',
       'valorParcelasPendentes', 'valoresRecebidos',
@@ -503,158 +559,149 @@ app.patch('/emprestimos/:id/parcela/:indice', async (req, res) => {
     ];
     campos.forEach(campo => {
       if (!Array.isArray(emp[campo])) emp[campo] = [];
-      while (emp[campo].length < emp.parcelas) {
-        emp[campo].push(
-          campo === 'statusParcelas' ? false
-          : campo === 'multasParcelas' ? 0
-          : campo === 'valoresOriginaisParcelas' ? null
-          : null
-        );
+      while (emp[campo].length < emp.parcelas) emp[campo].push(null);
+    });
+
+    // Inicializa defaults corretos
+    emp.statusParcelas = emp.statusParcelas.map(v => v ?? false);
+    emp.multasParcelas = emp.multasParcelas.map(v => v ?? 0);
+    emp.valoresRecebidos = emp.valoresRecebidos.map(v => v ?? 0);
+
+    // ✅ Define valorOriginalParcela se ainda não existir
+    let valorOriginalParcela = emp.valoresOriginaisParcelas[indice];
+
+    if (valorOriginalParcela == null) {
+
+      if (emp.tipoParcelamento === "parcelado") {
+
+        // 📌 Parcelado INICIAL: valor = saldo atual / parcelas restantes
+        const parcelasRestantes = emp.parcelas - indice;
+        valorOriginalParcela = emp.valorOriginal / parcelasRestantes;
+
+      } else {
+
+        // 📌 Juros mês a mês: valor = saldo * taxa
+        valorOriginalParcela = emp.valorOriginal * taxa;
       }
-    });
 
-    const taxa = emp.taxaJuros / 100;
-
-    // ✅ Sempre fixar o valor original da parcela
-// ✅ Sempre fixar o valor original da parcela, respeitando o tipo de parcelamento
-let valorOriginalParcela = emp.valoresOriginaisParcelas[indice];
-
-if (valorOriginalParcela == null) {
-  if (emp.tipoParcelamento === 'parcelado') {
-    // 🔹 Parcelado → parcelas fixas (total / quantidade)
-    const valorTotalComJuros = emp.valorOriginal * (1 + taxa);
-    valorOriginalParcela = valorTotalComJuros / emp.parcelas;
-  } else {
-    // 🔹 Mês a mês → juros sobre saldo
-    valorOriginalParcela = emp.valorOriginal * taxa;
-  }
-
-  emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
-}
-
-
-    // 🔹 Calcular excedente corretamente
-    const valorExcedente = Math.max(0, recebido - valorOriginalParcela);
-
-    console.log('🔍 DEBUG - Cálculos:', {
-      valorOriginal: emp.valorOriginal,
-      taxa: taxa,
-      valorOriginalParcela: valorOriginalParcela,
-      recebido: recebido,
-      valorExcedente: valorExcedente
-    });
-
-    // 🔹 Atualizar saldo principal se houver amortização
-    if (valorExcedente > 0) {
-      emp.valorOriginal = Math.max(0, emp.valorOriginal - valorExcedente);
-      console.log('📉 Novo valor original após amortização:', emp.valorOriginal);
+      emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
     }
 
-    // 🔹 Atualiza dados da parcela atual
-    emp.valoresRecebidos[indice] = (emp.valoresRecebidos[indice] || 0) + recebido;
-    emp.recebidoPor[indice] = req.body.nomeRecebedor || 'Desconhecido';
-    emp.multasParcelas[indice] = (emp.multasParcelas[indice] || 0) + valorMulta;
+    // =========================================================
+    // ✅ PAGAMENTO — lógica principal
+    // =========================================================
 
-    // 🔹 Determina se a parcela foi quitada
+    emp.valoresRecebidos[indice] += recebido;
+    emp.recebidoPor[indice] = req.body.nomeRecebedor || "Desconhecido";
+    emp.multasParcelas[indice] += valorMulta;
+
+    // QUITOU?
     if (emp.valoresRecebidos[indice] >= valorOriginalParcela) {
       emp.statusParcelas[indice] = true;
       emp.datasPagamentos[indice] = dataPagamento;
 
-      // 🧩 Garantir que o valor original seja salvo definitivamente
-      if (emp.valoresOriginaisParcelas[indice] == null)
-        emp.valoresOriginaisParcelas[indice] = valorOriginalParcela;
-
-      console.log(`✅ Parcela ${indice + 1} marcada como quitada.`);
     } else {
-      emp.statusParcelas[indice] = false;
+      // Pagamento parcial
       emp.parcelasPagasParciais[indice] = {
         pago: emp.valoresRecebidos[indice],
         falta: valorOriginalParcela - emp.valoresRecebidos[indice],
         ultimaData: dataPagamento
       };
-      console.log(`⏳ Parcela ${indice + 1} parcialmente paga.`);
     }
 
-    // 🔹 Recalcular apenas parcelas futuras (sem alterar quitadas)
-// 🔹 Recalcular apenas parcelas futuras se for tipo "juros" (mês a mês)
-if (emp.tipoParcelamento === 'juros') {
-  for (let i = indice + 1; i < emp.parcelas; i++) {
-    if (!emp.statusParcelas[i]) {
-      if (emp.valoresOriginaisParcelas[i] == null) {
-        emp.valoresOriginaisParcelas[i] = emp.valorOriginal * taxa;
+    // =========================================================
+    // ✅ MODELO 1: PARCELADO → amortização dinâmica
+    // =========================================================
+
+    if (emp.tipoParcelamento === "parcelado") {
+
+      // 1. Abater diretamente do saldo principal
+      emp.valorOriginal = Math.max(0, emp.valorOriginal - recebido);
+
+      // 2. Se quitou a parcela atual, recalcular futuras
+      if (emp.statusParcelas[indice] && emp.valorOriginal > 0) {
+
+        const parcelasRestantes = emp.parcelas - (indice + 1);
+
+        if (parcelasRestantes > 0) {
+          const novoValor = emp.valorOriginal / parcelasRestantes;
+
+          // Recalcular apenas as não pagas
+          for (let i = indice + 1; i < emp.parcelas; i++) {
+            if (!emp.statusParcelas[i]) {
+              emp.valoresOriginaisParcelas[i] = novoValor;
+              emp.valorParcelasPendentes[i] = novoValor;
+            }
+          }
+        }
       }
-      emp.valorParcelasPendentes[i] = emp.valoresOriginaisParcelas[i];
-      console.log(`🔄 Parcela ${i + 1} recalculada:`, emp.valorParcelasPendentes[i]);
-    }
-  }
-}
 
+      // Quitação completa do empréstimo
+      emp.quitado = emp.valorOriginal <= 0;
 
-    // 🔹 Criar nova parcela se ainda houver saldo
-// ✅ Só cria nova parcela se a atual foi totalmente quitada
-if (emp.tipoParcelamento === 'juros' && emp.statusParcelas[indice] === true && emp.valorOriginal > 0) {
-  const valorNovaParcela = emp.valorOriginal * taxa;
-
-  if (valorNovaParcela > 0) {
-    emp.parcelas++;
-    emp.statusParcelas.push(false);
-    emp.datasPagamentos.push(null);
-    emp.recebidoPor.push(null);
-    emp.valoresRecebidos.push(0);
-    emp.parcelasPagasParciais.push(null);
-    emp.multasParcelas.push(0);
-    emp.valoresOriginaisParcelas.push(valorNovaParcela);
-
-    if (!Array.isArray(emp.valorParcelasPendentes)) emp.valorParcelasPendentes = [];
-    emp.valorParcelasPendentes.push(valorNovaParcela);
-
-    // 🗓 Nova data de vencimento
-    if (emp.datasVencimentos.length > 0) {
-      const ultimaDataVenc = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
-      ultimaDataVenc.setMonth(ultimaDataVenc.getMonth() + 1);
-      emp.datasVencimentos.push(ultimaDataVenc.toISOString().slice(0, 10));
-    } else {
-      const dataBase = new Date();
-      dataBase.setMonth(dataBase.getMonth() + emp.parcelas);
-      emp.datasVencimentos.push(dataBase.toISOString().slice(0, 10));
     }
 
-    console.log('📄 Nova parcela criada após quitação:', emp.parcelas, 'Valor:', valorNovaParcela);
-  }
-}
+    // =========================================================
+    // ✅ MODELO 2: JUROS → mantém sua lógica atual
+    // =========================================================
 
+    if (emp.tipoParcelamento === "juros") {
 
-    // 🧩 Corrigir parcelas já pagas sem valor original salvo (dados antigos)
-    for (let i = 0; i < emp.parcelas; i++) {
-      if (emp.statusParcelas[i] && emp.valoresOriginaisParcelas[i] == null) {
-        emp.valoresOriginaisParcelas[i] = emp.valorParcelasPendentes[i] || emp.valorOriginal * taxa;
+      const excedente = Math.max(0, recebido - valorOriginalParcela);
+
+      // Amortização
+      if (excedente > 0) {
+        emp.valorOriginal = Math.max(0, emp.valorOriginal - excedente);
       }
+
+      // Recalcular futuras
+      for (let i = indice + 1; i < emp.parcelas; i++) {
+        if (!emp.statusParcelas[i]) {
+          emp.valoresOriginaisParcelas[i] = emp.valorOriginal * taxa;
+          emp.valorParcelasPendentes[i] = emp.valoresOriginaisParcelas[i];
+        }
+      }
+
+      // Criar nova parcela se saldo > 0
+      if (emp.statusParcelas[indice] && emp.valorOriginal > 0) {
+
+        emp.parcelas++;
+
+        emp.statusParcelas.push(false);
+        emp.datasPagamentos.push(null);
+        emp.recebidoPor.push(null);
+        emp.valoresRecebidos.push(0);
+        emp.parcelasPagasParciais.push(null);
+        emp.multasParcelas.push(0);
+
+        const nova = emp.valorOriginal * taxa;
+        emp.valoresOriginaisParcelas.push(nova);
+        emp.valorParcelasPendentes.push(nova);
+
+        // vencimento
+        const ultimaData = new Date(emp.datasVencimentos[emp.datasVencimentos.length - 1]);
+        ultimaData.setMonth(ultimaData.getMonth() + 1);
+        emp.datasVencimentos.push(ultimaData.toISOString().slice(0, 10));
+      }
+
+      emp.quitado = emp.valorOriginal <= 0;
     }
 
-    if (emp.tipoParcelamento === 'parcelado') {
-  // Parcelado → quitado quando todas as parcelas foram pagas
-  emp.quitado = emp.statusParcelas.every(p => p === true);
-} else {
-  // Mês a mês → quitado quando o saldo principal acabou
-  emp.quitado = emp.valorOriginal <= 0;
-}
-
+    // =========================================================
 
     await emp.save();
 
     res.json({
       ...emp.toObject(),
-      valorExcedente: valorExcedente,
-      valorOriginalParcela: valorOriginalParcela,
+      valorOriginalParcela,
       saldoPrincipalRestante: emp.valorOriginal
     });
 
   } catch (err) {
-    console.error('PATCH /parcela:', err);
+    console.error(err);
     res.status(500).json({ erro: 'Erro ao atualizar parcela' });
   }
 });
-
 
 
 
@@ -1245,7 +1292,6 @@ app.post('/emprestimos/parcelado/lote', upload.none(), async (req, res) => {
       return res.status(400).json({ erro: 'Envie o campo "linhas" com os empréstimos.' });
     }
 
-    // Se o campo "linhas" for uma string com várias linhas, transforma em array
     if (typeof linhas === 'string') {
       linhas = linhas
         .split('\n')
@@ -1258,81 +1304,111 @@ app.post('/emprestimos/parcelado/lote', upload.none(), async (req, res) => {
     }
 
     const emprestimosFormatados = linhas.map((linha, i) => {
-  // Cada linha no formato: nome;cidade;valor;parcelas;dataPrimeira
-  const partes = linha.split(';').map(p => p.trim());
-  if (partes.length < 5) {
-    throw new Error(`Linha inválida (${i + 1}): "${linha}"`);
-  }
+      // Formato: nome;cidade;valor;parcelas;dataPrimeira
+      const partes = linha.split(';').map(p => p.trim());
+      if (partes.length < 5) {
+        throw new Error(`Linha inválida (${i + 1}): "${linha}"`);
+      }
 
-  const [nome, cidade, valor, parcelas, dataPrimeira] = partes;
+      const [nome, cidade, valor, parcelas, dataPrimeira] = partes;
 
-  const valorNum = Number(valor);
-  const parcelasNum = Number(parcelas);
-  const primeiraData = new Date(dataPrimeira);
-  const taxa = 0; // ✅ Taxa fixa
+      // ✅ LIMPEZA DO VALOR (ESSENCIAL!)
+      const valorLimpo = valor.replace(/[^\d,.]/g, '');
+      let valorNum;
 
-  // ⚙️ Dados fixos padrão
-  const email = 'teste@teste.com';
-  const telefone = '11999999999';
-  const cpf = '00000000000';
-  const endereco = 'Rua';
-  const estado = 'SP';
-  const cep = '00000-000';
-  const numero = '00';
-  const complemento = 'Casa';
+      if (valorLimpo.includes(',')) {
+        valorNum = parseFloat(valorLimpo.replace(/\./g, '').replace(',', '.'));
+      } else {
+        valorNum = parseFloat(valorLimpo);
+      }
 
-  if (isNaN(primeiraData)) {
-    throw new Error(`Data inválida na linha ${i + 1}: ${dataPrimeira}`);
-  }
+      const parcelasNum = Number(parcelas);
+      const primeiraData = new Date(dataPrimeira);
 
-  // 📅 Gera automaticamente as datas mensais de vencimento
-  const datasVencimentos = Array.from({ length: parcelasNum }, (_, idx) => {
-    const novaData = new Date(primeiraData);
-    novaData.setMonth(primeiraData.getMonth() + idx);
-    return novaData.toISOString().split('T')[0];
-  });
+      // ✅ VALIDAÇÕES
+      if (isNaN(valorNum) || valorNum <= 0) {
+        throw new Error(`Valor inválido na linha ${i + 1}`);
+      }
+      if (isNaN(parcelasNum) || parcelasNum <= 0) {
+        throw new Error(`Parcelas inválidas na linha ${i + 1}`);
+      }
+      if (isNaN(primeiraData)) {
+        throw new Error(`Data inválida na linha ${i + 1}: ${dataPrimeira}`);
+      }
 
-  // 💰 Cálculos financeiros (juros 0%)
-  const valorComJuros = valorNum * (1 + taxa / 100);
-  const valorParcela = valorComJuros / parcelasNum;
+      // ✅ Datas mensais
+      const datasVencimentos = Array.from({ length: parcelasNum }, (_, idx) => {
+        const d = new Date(primeiraData);
+        d.setMonth(primeiraData.getMonth() + idx);
+        return d.toISOString().split('T')[0];
+      });
 
-  return {
-    id: Date.now() + i,
-    nome,
-    email,
-    telefone,
-    cpf,
-    endereco,
-    cidade,
-    estado,
-    cep,
-    numero,
-    complemento,
-    valorOriginal: valorNum,
-    valorComJuros,
-    parcelas: parcelasNum,
-    valorParcela,
-    valorParcelasPendentes: Array.from({ length: parcelasNum }, () => valorParcela),
-    taxaJuros: taxa,
-    statusParcelas: Array.from({ length: parcelasNum }, () => false),
-    datasPagamentos: Array.from({ length: parcelasNum }, () => null),
-    datasVencimentos,
-    valoresRecebidos: Array.from({ length: parcelasNum }, () => null),
-    recebidoPor: Array.from({ length: parcelasNum }, () => null),
-    arquivos: [],
-    quitado: false,
-    tipoParcelamento: 'parcelado'
-  };
-});
+      // ✅ AMORTIZAÇÃO DINÂMICA — valor inicial das parcelas
+      const valorParcelaInicial = valorNum / parcelasNum;
 
+      // ✅ Dados fixos
+      const email = 'teste@teste.com';
+      const telefone = '11999999999';
+      const cpf = '00000000000';
+      const endereco = 'Rua';
+      const estado = 'SP';
+      const cep = '00000-000';
+      const numero = '00';
+      const complemento = 'Casa';
+
+      return {
+        id: Date.now() + i,
+        nome,
+        email,
+        telefone,
+        cpf,
+        endereco,
+        cidade,
+        estado,
+        cep,
+        numero,
+        complemento,
+
+        valorOriginal: valorNum,
+        parcelas: parcelasNum,
+        tipoParcelamento: 'parcelado',
+
+        // ✅ ARRAYS DO MODELO PARCELADO (sem juros)
+        valoresOriginaisParcelas: Array(parcelasNum).fill(valorParcelaInicial),
+        valorParcelasPendentes: Array(parcelasNum).fill(valorParcelaInicial),
+
+        statusParcelas: Array(parcelasNum).fill(false),
+        valoresRecebidos: Array(parcelasNum).fill(0),
+        recebidoPor: Array(parcelasNum).fill(null),
+        multasParcelas: Array(parcelasNum).fill(0),
+        parcelasPagasParciais: Array(parcelasNum).fill(null),
+
+        datasPagamentos: Array(parcelasNum).fill(null),
+        datasVencimentos,
+
+        arquivos: [],
+        quitado: false,
+        taxaJuros: 0
+      };
+    });
+
+    // ✅ Insere tudo de uma vez
     const inseridos = await Emprestimo.insertMany(emprestimosFormatados);
 
+    // ✅ DEBUG CORRETO: Agora sim conseguimos ver os valores criados!
+    console.log("=== DEBUG LOTE: valoresOriginaisParcelas ===");
+    inseridos.forEach((e, idx) => {
+      console.log(`Empréstimo ${idx + 1}:`, e.valoresOriginaisParcelas);
+    });
+
     res.status(201).json({ sucesso: true, inseridos });
+
   } catch (err) {
     console.error('POST /emprestimos/parcelado/lote:', err);
     res.status(500).json({ erro: err.message || 'Erro ao criar empréstimos parcelados em lote' });
   }
 });
+
 
 
 

@@ -3025,13 +3025,12 @@ input[type="date"] {
 
 
 .parcela-card-infos {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  background: #fff;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-  transition: transform 0.2s;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: transform .15s ease;
 }
 
 .parcela-card-infos:hover {
@@ -3041,39 +3040,67 @@ input[type="date"] {
 .parcela-header-infos {
   display: flex;
   justify-content: space-between;
-  font-weight: 600;
-  margin-bottom: 6px;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .parcela-num-infos {
-  font-size: 16px;
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #333;
 }
 
-.parcela-status-infos {
-  font-size: 14px;
+.parcela-status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: .85em;
+  color: #fff;
+}
+
+.parcela-status-badge.paga {
+  background: #4CAF50;
+}
+
+.parcela-status-badge.pendente {
+  background: #F44336;
 }
 
 .parcela-body-infos {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #555;
-}
-
-.parcela-valor-infos {
-  font-weight: 500;
+  font-size: .95em;
+  color: #444;
+  line-height: 1.4;
 }
 
 .multa-infos {
-  color: red;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #ffe6e6;
+  border-left: 4px solid #d9534f;
+  border-radius: 6px;
+  font-size: .9em;
+  color: #b30000;
+}
+
+.excedente-card {
+  border-radius: 12px;
+  padding: 12px;
+  background: #f2fbf4;
+  border-left: 4px solid #28a745;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.excedente-card strong {
+  color: #146b1d;
+}
+
+.excedente-valor {
+  color: #28a745;
   font-weight: bold;
-  margin-top: 4px;
+  font-size: 1.1em;
 }
 
 
-
-.parcela-paga-com-atraso {
-  border-left: 4px solid red; /* muda a cor da borda lateral para vermelho */
-  padding-left: 8px;          /* mantém o espaçamento interno */
-  background-color: #ffe6e6;  /* opcional: leve fundo vermelho claro */
-}

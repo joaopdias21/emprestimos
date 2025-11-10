@@ -538,10 +538,65 @@ function atualizarValorRestante(emprestimoAtualizado) {
 
   const toNum = v => (typeof v === 'number' ? v : (v ? Number(v) : 0));
 
-  if (isParcelado) {
-    // ... (código existente para parcelado) ...
-    return;
+if (isParcelado) {
+  const valoresRecebidos = emprestimoAtualizado.valoresRecebidos || [];
+  const statusParcelas = emprestimoAtualizado.statusParcelas || [];
+  const valoresOriginaisParcelas = emprestimoAtualizado.valoresOriginaisParcelas || [];
+  const parcelas = emprestimoAtualizado.parcelas || 0;
+
+  const listaParcelasHTML = [];
+
+  // ✅ Achar a próxima parcela pendente
+  const proximaPendenteIndex = statusParcelas.findIndex(s => !s);
+
+  for (let i = 0; i < parcelas; i++) {
+    const paga = !!statusParcelas[i];
+
+    // ✅ Mostrar somente as pagas + a próxima pendente
+    if (!paga && i !== proximaPendenteIndex) continue;
+
+    const valorBase = valoresOriginaisParcelas[i] || 0;
+    const valorPago = valoresRecebidos[i] || 0;
+
+    const badgeClass = paga ? "paga" : "pendente";
+
+    listaParcelasHTML.push(`
+      <div class="parcela-card-infos">
+        <div class="parcela-header-infos">
+          <span class="parcela-num-infos">Parcela ${i + 1}</span>
+
+          <span class="parcela-status-badge ${badgeClass}">
+            ${paga ? "PAGA" : "PENDENTE"}
+          </span>
+        </div>
+
+        <div class="parcela-body-infos">
+          <div><strong>Valor Parcela:</strong> ${formatarMoeda(valorBase)}</div>
+          <div><strong>Pago:</strong> ${valorPago > 0 ? formatarMoeda(valorPago) : "-"}</div>
+        </div>
+      </div>
+    `);
   }
+
+  container.innerHTML = `
+    <hr>
+    <h3><strong>📦 Parcelas (Amortização Dinâmica)</strong></h3>
+
+    ${listaParcelasHTML.join("")}
+
+    <hr>
+    <h3><strong>💰 Saldo Restante</strong></h3>
+    <div style="font-size: 1.2em; font-weight: bold;">
+      ${formatarMoeda(valorOriginal)}
+    </div>
+  `;
+
+  return;
+}
+
+
+
+
 
   // ----- NÃO PARCELADO -----
   const valoresRecebidos = emprestimoAtualizado.valoresRecebidos || [];
@@ -654,11 +709,9 @@ function atualizarValorRestante(emprestimoAtualizado) {
 
   // Montagem do HTML
 const listaParcelasHTML = parcelasInfo.map(p => {
-  const statusText = statusParcelas?.[p.indice - 1] ? 'Paga' : 'Pendente';
-  const statusColor = statusParcelas?.[p.indice - 1] ? '#4CAF50' : '#F44336';
-  const valorPagoDisplay = typeof p.valorPago === 'number' && p.valorPago > 0 
-    ? `${formatarMoeda(p.valorPago)}` 
-    : '';
+  const paga = statusParcelas?.[p.indice - 1];
+  const statusClass = paga ? "paga" : "pendente";
+  const valorPagoDisplay = p.valorPago > 0 ? formatarMoeda(p.valorPago) : "-";
   const multaDisplay = p.multa > 0 
     ? `<div class="multa-infos">💰 Multa aplicada: ${formatarMoeda(p.multa)}</div>` 
     : '';
@@ -667,41 +720,37 @@ const listaParcelasHTML = parcelasInfo.map(p => {
     <div class="parcela-card-infos">
       <div class="parcela-header-infos">
         <span class="parcela-num-infos">Parcela ${p.indice}</span>
-        <span class="parcela-status-infos" style="color: ${statusColor}">${statusText}</span>
+        <span class="parcela-status-badge ${statusClass}">
+          ${paga ? "PAGA" : "PENDENTE"}
+        </span>
       </div>
+
       <div class="parcela-body-infos">
-        <span class="parcela-valor-infos">Valor Parcela: <strong>${formatarMoeda(p.valorParcela)}</strong> <br>Valor Recebido: <strong>${valorPagoDisplay}</strong></span>
+        <div><strong>Valor Parcela:</strong> ${formatarMoeda(p.valorParcela)}</div>
+        <div><strong>Valor Recebido:</strong> ${valorPagoDisplay}</div>
         ${multaDisplay}
       </div>
     </div>
   `;
-})
-.join('');
+}).join('');
 
-  const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
-    return `
-      <div style="
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 10px;
-        margin-bottom: 8px;
-        background-color: #f9f9f9;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      ">
-        <div>
-          <strong>Parcela ${p.indice}</strong><br>
-          Valor mínimo: ${formatarMoeda(p.valorMinimo)}<br>
-          ${p.multa > 0 ? `<span style="color: #d9534f;">⚠️ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
-          Pago: ${formatarMoeda(p.valorPago)}
-        </div>
-        <div style="font-weight: bold; color: #28a745">
-          💰 Excedente: ${formatarMoeda(p.excedente)}
-        </div>
+
+const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
+  return `
+    <div class="excedente-card">
+      <div>
+        <strong>Parcela ${p.indice}</strong><br>
+        <span>Valor mínimo: ${formatarMoeda(p.valorMinimo)}</span><br>
+        ${p.multa > 0 ? `<span style="color:#b30000;">⚠ Multa: ${formatarMoeda(p.multa)}</span><br>` : ''}
+        <span>Pago: ${formatarMoeda(p.valorPago)}</span>
       </div>
-    `;
-  }).join('');
+      <div class="excedente-valor">
+        + ${formatarMoeda(p.excedente)}
+      </div>
+    </div>
+  `;
+}).join('');
+
 
   container.innerHTML = `
     <hr>
@@ -1227,10 +1276,26 @@ function atualizarVisualParcelas(emprestimo) {
   const infoAmortizacao = document.createElement('div');
   infoAmortizacao.className = 'info-amortizacao';
   infoAmortizacao.style = 'background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 15px;';
+// ✅ Se for parcelado → mostrar valor das parcelas
+if (emprestimo.tipoParcelamento === "parcelado") {
+
+  // Pega o valor da próxima parcela não paga
+  const indexProxima = emprestimo.statusParcelas.findIndex(p => p === false);
+  const valorParcelaAtual = valoresOriginaisParcelas[indexProxima] ?? 0;
+
+  infoAmortizacao.innerHTML = `
+    <strong>💰 Saldo Principal:</strong> ${formatarMoeda(valorOriginalAtual)}<br>
+    <strong>📦 Valor das parcelas atuais:</strong> ${formatarMoeda(valorParcelaAtual)}
+  `;
+
+// ✅ Se for juros → lógica atual
+} else {
   infoAmortizacao.innerHTML = `
     <strong>💰 Saldo Principal:</strong> ${formatarMoeda(valorOriginalAtual)}<br>
     <strong>📊 Juro Mensal Atual:</strong> ${formatarMoeda(valorOriginalAtual * taxa)}
   `;
+}
+
   parcelasContainer.appendChild(infoAmortizacao);
 
   parcelas.forEach((paga, i) => {
@@ -1661,26 +1726,36 @@ function eVencimentoHoje(dataVencimento) {
 
 
 function atualizarTotaisResumo(parcelasFiltradas = []) {
-  let totalRecebido = 0;   // só valor mínimo das parcelas pagas
-  let totalPrevisto = 0;   // só valor mínimo das parcelas previstas
-  let valorExcedente = 0;  // pagamentos acima do valor mínimo
-  let totalMulta = 0;      // multas apenas de parcelas pagas
+  let totalRecebido = 0;   
+  let totalPrevisto = 0;   
+  let valorExcedente = 0;  
+  let totalMulta = 0;      
 
   parcelasFiltradas.forEach(p => {
-    const valorBase = p.valorParcelaCorrigido ?? p.valorParcela ?? 0;
+    const emp = emprestimosPorCidade[p.emprestimoNome] || emprestimosPorGrupo[p.emprestimoNome];
 
-    // Total previsto: apenas o valor mínimo da parcela
+    let valorBase;
+
+    // ✅ PARCELADO → usa sempre o valor fixo da parcela original
+    if (p.tipoParcelamento === "parcelado" || p.taxaJuros === 0) {
+      valorBase = p.valorParcelaFixa ?? p.valorParcelaCorrigido ?? 0;
+
+    // ✅ JUROS → usa o valor já calculado
+    } else {
+      valorBase = p.valorParcelaCorrigido ?? 0;
+    }
+
+    // adiciona ao total previsto
     totalPrevisto += valorBase;
 
     if (p.pago) {
       totalRecebido += valorBase;
 
-      // valor excedente: pagamento acima do mínimo
+      // excedente certo: somente acima do valorBase
       if (p.valorRecebido > valorBase) {
         valorExcedente += (p.valorRecebido - valorBase);
       }
 
-      // multa apenas de parcelas pagas
       if (p.multa && p.multa > 0) {
         totalMulta += p.multa;
       }
@@ -1707,6 +1782,7 @@ function atualizarTotaisResumo(parcelasFiltradas = []) {
     </div>
   `;
 }
+
 
 window.atualizarTotaisResumo = atualizarTotaisResumo;
 
@@ -1828,7 +1904,14 @@ const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
   const valorRecebido = emp.valoresRecebidos?.[idx] || 0;
   const taxa = (emp.taxaJuros || 0) / 100;
 
-  let valorParcelaCorrigido = 0;
+let valorParcelaCorrigido = 0;
+
+if (emp.tipoParcelamento === "parcelado") {
+  // ✅ Parcelado → sempre o valor fixo da parcela
+  valorParcelaCorrigido = emp.valoresOriginaisParcelas?.[idx] ?? 0;
+
+} else {
+  // ✅ Mês a mês → lógica antiga
   if (pago) {
     valorParcelaCorrigido =
       emp.valoresOriginaisParcelas?.[idx] ??
@@ -1837,6 +1920,8 @@ const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
   } else {
     valorParcelaCorrigido = emp.valorOriginal * taxa;
   }
+}
+
 
   return {
     data,
@@ -1901,9 +1986,19 @@ const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
 
     const diaVencimento = parseInt(p.data.split('-')[2], 10);
 
-    const taxaPercentual = p.taxaJuros !== undefined 
-      ? p.taxaJuros 
-      : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+let taxaPercentual;
+
+// ✅ Para parcelado, exibir "-"
+if (emp.tipoParcelamento === "parcelado") {
+  taxaPercentual = "-";
+
+// ✅ Para juros, cálculo normal
+} else {
+  taxaPercentual = p.taxaJuros !== undefined 
+    ? p.taxaJuros 
+    : (((emp.valorComJuros / emp.valorOriginal) - 1) * 100).toFixed(1);
+}
+
 
     let statusHTML = '';
     if (p.pago) {
@@ -1935,7 +2030,7 @@ const parcelas = (emp.datasVencimentos || []).map((data, idx) => {
     linha.innerHTML = `
       <span>${diaVencimento}</span>
       <span class="nome-cliente" style="cursor:pointer; text-decoration: underline;">${p.emprestimoNome}</span>
-      <span>${taxaPercentual}%</span>
+      <span>${taxaPercentual === "-" ? "-" : taxaPercentual + "%"}</span>
       <span>${formatarMoedaLista(p.valorParcelaCorrigido)}</span>
       <span>${p.multa > 0 ? (p.multa) : '-'}</span>
       <span>${statusHTML}</span>
