@@ -82,3 +82,9 @@ if (isAdmin) {
     });
   }
 });
+
+
+document.getElementById("btnAtualizar").addEventListener("click", () => {
+  // força reload ignorando cache
+  location.reload(true);
+});

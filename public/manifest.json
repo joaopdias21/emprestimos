@@ -1,10 +1,10 @@
 {
   "name": "Blessed Bank",
-  "short_name": "Blessed",
+  "short_name": "Blessed Bank",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#ff4da6",
+  "theme_color": "#357ABD",
   "icons": [
     {
       "src": "/icons/icon-192.png",

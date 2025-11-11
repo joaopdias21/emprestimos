@@ -105,6 +105,7 @@ h3 {
   transform: scale(1.05);
 }
 
+
 /* ===== RESPONSIVO ===== */
 @media (max-width: 768px) {
   /* Mantém o header igual ao desktop */
@@ -3104,3 +3105,59 @@ input[type="date"] {
 }
 
 
+/* ===== BOTÃO ATUALIZAR ===== */
+.btn-atualizar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1f6feb;
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Ícone de refresh */
+.icon-refresh {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: none;
+}
+
+/* Hover moderno */
+.btn-atualizar:hover {
+  background: #1f6feb;
+  transform: scale(1.05);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+
+/* Quando clicado, roda */
+.btn-atualizar:active .icon-refresh {
+  animation: spin-refresh 0.6s linear infinite;
+}
+
+@keyframes spin-refresh {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* RESPONSIVO */
+@media (max-width: 768px) {
+  .btn-atualizar {
+    padding: 4px 12px;
+    font-size: 0.85rem;
+  }
+  .icon-refresh {
+    width: 12px;
+    height: 12px;
+  }
+}

@@ -23,8 +23,8 @@
 <meta name="theme-color" content="#ff4da6">
 
 <!-- Icones do PWA (mesmo que o favicon) -->
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-512.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-512.png">
 
 <!-- Forçar modo standalone no iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,9 +43,12 @@
   </div>
 
   <div id="saudacaoOperador" class="saudacao">Olá, Operador!</div>
+    
 
   <div id="authButtonsContainer" class="header-right">
+
     <button id="btnSair" class="btn-sair">Sair</button>
+
   </div>
 </header>
 
@@ -215,6 +218,11 @@
     </div>
   </div>
 </div>
+    <button id="btnAtualizar" class="btn-atualizar">
+  <span class="icon-refresh"></span>
+  Atualizar
+</button>
+
 
 
 <div id="secaoEmprestimosCidade" style="display: none;">
@@ -258,6 +266,7 @@
   </div>
 
   <br>
+
   <ul id="resultadoFiltrado"></ul>
 
   <div style="margin-top: 20px; text-align: right;">
@@ -706,6 +715,7 @@ window.addEventListener('load', () => {
     });
   }
 </script>
+
 
 </body>
 
