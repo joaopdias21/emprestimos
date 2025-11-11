@@ -1,21 +1,3 @@
-// Desativa o service worker completamente no ambiente local
-if (self.location.hostname === "localhost" || self.location.hostname === "127.0.0.1") {
-  console.warn("⚠️ Service Worker desativado no ambiente local.");
-  self.addEventListener("install", () => self.skipWaiting());
-  self.addEventListener("activate", () => self.clients.claim());
-  return;
-}
-
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
-  });
-
-  navigator.serviceWorker.register("service-worker.js");
-}
-
-
 
 const CACHE_NAME = "blessedbank-v2";
 const urlsToCache = [

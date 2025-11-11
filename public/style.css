@@ -3125,7 +3125,7 @@ input[type="date"] {
 .icon-refresh {
   width: 14px;
   height: 14px;
-  border: 2px solid #ffffff;
+  border: 2px solid #000000;
   border-top-color: transparent;
   border-radius: 50%;
   display: inline-block;
