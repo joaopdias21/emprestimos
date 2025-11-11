@@ -1,30 +1,32 @@
-const CACHE_NAME = "blessedbank-cache-v1";
+const CACHE_NAME = "blessedbank-v2";
 const urlsToCache = [
   "/",
   "/index.html",
   "/style.css",
-  "/script.js"
+  "/main.js",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
 
-// Instalação
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache);
-    })
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
 });
 
-// Ativação
 self.addEventListener("activate", event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
 });
 
-// Busca offline
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(resp => {
-      return resp || fetch(event.request);
-    })
+    caches.match(event.request).then(resp => resp || fetch(event.request))
   );
 });
