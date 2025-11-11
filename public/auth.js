@@ -7,6 +7,20 @@ document.addEventListener('DOMContentLoaded', () => {
   authButtonsContainer.innerHTML = '';
   
   if (isAdmin || isAdminMensal3 || isOperador) {
+
+    const atualizarBtn = document.createElement('button');
+atualizarBtn.id = 'btnAtualizar';
+atualizarBtn.className = 'btn-atualizar';
+atualizarBtn.innerHTML = `
+  <span class="icon-refresh"></span>
+  Atualizar
+`;
+atualizarBtn.addEventListener("click", () => {
+  location.reload(true);
+});
+authButtonsContainer.appendChild(atualizarBtn);
+
+
     // Botão de sair
     const logoutBtn = document.createElement('button');
     logoutBtn.id = 'logoutBtn';
@@ -83,8 +97,3 @@ if (isAdmin) {
   }
 });
 
-
-document.getElementById("btnAtualizar").addEventListener("click", () => {
-  // força reload ignorando cache
-  location.reload(true);
-});
