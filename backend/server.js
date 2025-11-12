@@ -225,6 +225,62 @@ const EmprestimoSchema = new mongoose.Schema({
 
 const Emprestimo = mongoose.model('Emprestimo', EmprestimoSchema);
 
+/* --------------------- SCHEMA DE SOLICITAÇÕES --------------------- */
+const SolicitacaoEmprestimoSchema = new mongoose.Schema({
+  id: { type: Number, unique: true, default: Date.now },
+
+  nome: String,
+  email: String,
+  telefone: String,
+  cpf: String,
+  endereco: String,
+  cidade: String,
+  estado: String,
+  cep: String,
+  numero: String,
+  complemento: String,
+
+  // 💰 Valor solicitado (mantém como string pra aceitar formato "R$ 5.000,00")
+  valor: String,
+
+  parcelas: Number,
+  tipoParcelamento: { type: String, default: 'juros' },
+
+  // Datas de vencimento sugeridas (usuário pode enviar ou deixar em branco)
+  datasVencimentos: {
+    type: [String],
+    default: []
+  },
+
+  // 📎 Arquivos anexados
+  anexos: [
+    {
+      nomeOriginal: String,
+      caminho: String
+    }
+  ],
+
+  // 🟡 Status da solicitação
+  status: {
+    type: String,
+    enum: ['pendente', 'aprovado', 'rejeitado'],
+    default: 'pendente'
+  },
+
+  // 🕓 Data de envio da solicitação
+  dataEnvio: { type: Date, default: Date.now },
+
+  // 📅 Data da decisão (preenchida quando o admin aprova/rejeita)
+  dataDecisao: Date,
+
+  // 👤 Usuário que aprovou/rejeitou (caso queira registrar)
+  decididoPor: String
+
+}, { timestamps: true });
+
+const SolicitacaoEmprestimo = mongoose.model('SolicitacaoEmprestimo', SolicitacaoEmprestimoSchema);
+
+
 
 /* -------------------- FUNÇÕES AUXILIARES ------------------ */
 function formatarDataLocal(data) {
@@ -243,6 +299,161 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* ------------------------- ROTAS -------------------------- */
+
+app.post('/solicitacoes', upload.array('anexos'), async (req, res) => {
+  console.log(req.body)
+  try {
+    const {
+      nome, email, telefone, cpf, endereco, cidade, estado, cep, numero, complemento,
+      valor, parcelas, tipoParcelamento, datasVencimentos = []
+    } = req.body;
+
+    // 🔧 CORREÇÃO: garante que datasVencimentos seja sempre array
+    const datasArray = Array.isArray(datasVencimentos)
+      ? datasVencimentos
+      : [datasVencimentos].filter(Boolean);
+
+    const arquivos = (req.files || []).map(f => ({
+      nomeOriginal: f.originalname,
+      caminho: `/uploads/${f.filename}`
+    }));
+
+const novaSolicitacao = await SolicitacaoEmprestimo.create({
+  nome,
+  email,
+  telefone,
+  cpf,
+  endereco,
+  cidade,
+  estado,
+  cep,
+  numero,
+  complemento,
+  valor,
+  parcelas,
+  tipoParcelamento,
+  datasVencimentos: datasArray, // ✅ usa o array corrigido
+  anexos: arquivos
+});
+
+
+
+    res.status(201).json({ mensagem: "Solicitação enviada para análise", id: novaSolicitacao.id });
+  } catch (err) {
+    console.error("POST /solicitacoes:", err);
+    res.status(500).json({ erro: "Erro ao enviar solicitação" });
+  }
+});
+
+
+app.get('/solicitacoes', async (req, res) => {
+  console.log("Body recebido:", req.body);
+
+  try {
+    const pendentes = await SolicitacaoEmprestimo.find({ status: "pendente" }).sort({ dataEnvio: -1 });
+    res.json(pendentes);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao listar solicitações" });
+  }
+});
+
+
+app.post('/solicitacoes/:id/acao', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { acao } = req.body; // "aprovar" ou "rejeitar"
+
+    const solicitacao = await SolicitacaoEmprestimo.findById(id);
+    if (!solicitacao) {
+      return res.status(404).json({ erro: "Solicitação não encontrada" });
+    }
+
+    // Caso seja rejeição
+    if (acao === "rejeitar") {
+      solicitacao.status = "rejeitado";
+      await solicitacao.save();
+      return res.json({ mensagem: "Solicitação rejeitada" });
+    }
+
+    // =============== APROVAÇÃO ===================
+// Se for aprovar → cria o empréstimo
+const valorNumerico = parseFloat(
+  solicitacao.valor.replace(/[^\d,]/g, '').replace(',', '.')
+) || 0;
+
+const parcelasNum = parseInt(solicitacao.parcelas) || 1;
+
+// 🔹 Mapeia tipo do formulário para o tipo real do sistema
+let tipoParcelamento = solicitacao.tipoParcelamento;
+if (tipoParcelamento === "mes-a-mes") tipoParcelamento = "juros";
+
+// 🔹 Define taxa conforme tipo
+const taxaJuros = tipoParcelamento === "parcelado" ? 0 : 20;
+
+// 🔹 Mantém datas originais
+const datasArray = Array.isArray(solicitacao.datasVencimentos)
+  ? solicitacao.datasVencimentos
+  : [solicitacao.datasVencimentos];
+
+// 🔹 Cria arrays e estrutura (como antes)
+const valorJuros = valorNumerico * (taxaJuros / 100);
+const valorParcela = tipoParcelamento === "juros"
+  ? valorJuros
+  : valorNumerico / parcelasNum;
+
+// Arrays base
+const statusParcelas = Array.from({ length: parcelasNum }, () => false);
+const datasPagamentos = Array.from({ length: parcelasNum }, () => null);
+const valoresRecebidos = Array.from({ length: parcelasNum }, () => 0);
+const recebidoPor = Array.from({ length: parcelasNum }, () => null);
+const valorParcelasPendentes = Array.from({ length: parcelasNum }, () => valorParcela);
+const multasParcelas = Array.from({ length: parcelasNum }, () => 0);
+const valoresOriginaisParcelas = Array.from({ length: parcelasNum }, () => valorParcela);
+
+const novoEmprestimo = await Emprestimo.create({
+  id: Date.now(),
+  nome: solicitacao.nome,
+  email: solicitacao.email,
+  telefone: solicitacao.telefone,
+  cpf: solicitacao.cpf,
+  endereco: solicitacao.endereco,
+  cidade: solicitacao.cidade,
+  estado: solicitacao.estado,
+  cep: solicitacao.cep,
+  numero: solicitacao.numero,
+  complemento: solicitacao.complemento,
+  valorOriginal: valorNumerico,
+  valorComJuros: valorNumerico + valorJuros,
+  parcelas: parcelasNum,
+  taxaJuros,
+  tipoParcelamento, // 🔹 agora padronizado corretamente
+  datasVencimentos: datasArray,
+  statusParcelas,
+  datasPagamentos,
+  valoresRecebidos,
+  recebidoPor,
+  valorParcelasPendentes,
+  multasParcelas,
+  valoresOriginaisParcelas,
+  quitado: false,
+  arquivos: solicitacao.anexos || []
+});
+
+
+    // Atualiza status da solicitação
+    solicitacao.status = "aprovado";
+    await solicitacao.save();
+
+    res.json({ mensagem: "✅ Empréstimo aprovado e criado com sucesso!", novoEmprestimo });
+  } catch (erro) {
+    console.error("❌ Erro ao processar solicitação:", erro);
+    res.status(500).json({ erro: "Erro ao processar solicitação" });
+  }
+});
+
+
+
 
 // Criar empréstimo com upload de arquivos
 // Criar empréstimo
@@ -1501,7 +1712,6 @@ app.delete('/api/test/limpar-clientes/:cidade', async (req, res) => {
 
 
 /* ----------------------- START SERVER ---------------------- */
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ Backend rodando em http://192.168.1.47:${PORT}`);
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
-

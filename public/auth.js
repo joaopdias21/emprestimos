@@ -1,3 +1,7 @@
+import { URL_SERVICO } from './config.js';
+import { mostrarAlerta, mostrarAlertaError, formatarMoeda, mostrarAlertaWarning } from './utils.js';
+
+
 document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = localStorage.getItem("isAdmin") === "true";
   const isAdminMensal3 = localStorage.getItem("isAdminMensal3") === "true";
@@ -44,13 +48,87 @@ if (isAdmin) {
     .separadorPesquisas,
     .separadorGraficos,
     .separadorMensais,
-    .separadorDataDeVencimento
+    .separadorDataDeVencimento,
+    .separadorSolicitacoes,
+    #listaSolicitacoes
   `).forEach(el => {
     el.style.display = el.classList.contains("separador") ? "flex" : "block";
   });
 
   console.log("✅ Admin logado - elementos exibidos");
+
+  // --- Função de carregar solicitações ---
+  async function carregarSolicitacoes() {
+    try {
+      const resp = await fetch(`${URL_SERVICO}/solicitacoes`);
+      if (!resp.ok) throw new Error("Erro ao buscar solicitações");
+      const solicitacoes = await resp.json();
+
+      const container = document.getElementById("listaSolicitacoes");
+      if (!container) {
+        console.error("❌ Elemento #listaSolicitacoes não encontrado no DOM");
+        return;
+      }
+
+      // limpar antes de renderizar
+      container.innerHTML = "";
+
+      if (solicitacoes.length === 0) {
+        container.innerHTML = "<p>Nenhuma solicitação pendente.</p>";
+        return;
+      }
+
+      // montar cada solicitação
+      solicitacoes.forEach(sol => {
+        const div = document.createElement("div");
+        div.className = "solicitacao-card";
+        div.innerHTML = `
+          <p><strong>${sol.nome || "Sem nome"}</strong> — ${sol.email || "Sem e-mail"}</p>
+          <p>Valor: ${sol.valor || "—"} | Parcelas: ${sol.parcelas || "—"}</p>
+          <p>Tipo: ${sol.tipoParcelamento || "—"}</p>
+          <p>Status: <strong>${sol.status}</strong></p>
+          <button class="aprovar" data-id="${sol._id}">Aprovar</button>
+          <button class="rejeitar" data-id="${sol._id}">Rejeitar</button>
+
+        `;
+        container.appendChild(div);
+      });
+
+      // ações dos botões
+      container.querySelectorAll(".aprovar").forEach(btn => {
+        btn.onclick = async () => {
+          await fetch(`${URL_SERVICO}/solicitacoes/${btn.dataset.id}/acao`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ acao: "aprovar" })
+          });
+          mostrarAlerta("Solicitação aprovada!");
+          carregarSolicitacoes();
+        };
+      });
+
+      container.querySelectorAll(".rejeitar").forEach(btn => {
+        btn.onclick = async () => {
+          await fetch(`${URL_SERVICO}/solicitacoes/${btn.dataset.id}/acao`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ acao: "rejeitar" })
+          });
+          mostrarAlerta("Solicitação rejeitada com sucesso!");
+          carregarSolicitacoes();
+        };
+      });
+    } catch (err) {
+      console.error("Erro ao carregar solicitações:", err);
+    }
+  }
+
+  // --- Chama após DOM pronto ---
+  window.addEventListener("load", carregarSolicitacoes);
 }
+
+
+
 
 
     if (isAdminMensal3) {
@@ -87,7 +165,7 @@ if (isAdmin) {
     loginBtn.onclick = () => { window.location.href = 'login.html'; };
     authButtonsContainer.appendChild(loginBtn);
 
-    document.querySelectorAll("#saudacaoOperador, .selecioneData, .btn-pdf, .legenda-status, #totaisResumo, .botoes-filtro-container, .cards-cidades-container, .separadorMensais, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
+    document.querySelectorAll("#listaSolicitacoes, .separadorSolicitacoes, #saudacaoOperador, .selecioneData, .btn-pdf, .legenda-status, #totaisResumo, .botoes-filtro-container, .cards-cidades-container, .separadorMensais, .separadorPesquisas, .separadorDataDeVencimento, .separadorGraficos, .form-column, #dashboard, #filtroPagamentos").forEach(el => {
       el.style.display = "none";
     });
 

@@ -51,69 +51,107 @@
 
 
   <main class="main-container">
+<div class="separador separadorSolicitacoes">
+  <span>Solicitações de Empréstimo</span>
+</div>
+
+<div id="listaSolicitacoes" class="lista-solicitacoes"></div>
+
+
 
   <div class="separador separadorCadastro">
     <span>Cadastro</span>
   </div>
 
 
-    <div class="form-column sessaoCadastro">
-      <h2>Cadastro de Empréstimo</h2>
-      <form id="emprestimoForm" enctype="multipart/form-data">
-        <input type="text" placeholder="Nome" id="nome" required />
-        <input type="email" placeholder="Email" id="email" required />
-        <input type="text" placeholder="Telefone" id="telefone" required />
-        <input type="text" placeholder="CPF" id="cpf" required />
-        <div class="campo-cep">
-          <input type="text" placeholder="CEP" id="cep" required maxlength="9" />
-          <button type="button" id="consultarCep">Consultar</button>
-        </div>
-        <input type="text" placeholder="Endereço" id="endereco" required />
-        <input type="text" placeholder="Número" id="numero" required />
-        <input type="text" placeholder="Complemento (Ex: ' Apto ', ' Bloco ', ' Casa ')" id="complemento" />
-        <input type="text" placeholder="Cidade" id="cidade" required />
-        <input type="text" placeholder="Estado" id="estado" required maxlength="2" />
-        <input type="text" placeholder="Valor do empréstimo" id="valor" required maxlength="15" />
 
-        <!-- Nova seção de opções de parcelamento -->
-        <div class="campo-parcelamento">
-          <label class="titulo-parcelamento">Tipo de Parcelamento:</label>
-          <div class="opcoes-parcelamento">
-            <label class="opcao-radio">
-              <input type="radio" name="tipoParcelamento" value="mes-a-mes" checked />
-              <span>Pagamento do juros mês a mês</span>
-            </label>
-            <label class="opcao-radio">
-              <input type="radio" name="tipoParcelamento" value="parcelado" />
-              <span>Parcelado</span>
-            </label>
-          </div>
-        </div>
+<div class="form-column sessaoCadastro">
+  <h2>Cadastro de Empréstimo</h2>
+  <form id="emprestimoForm" enctype="multipart/form-data">
+    <input type="text" placeholder="Nome" id="nome" name="nome" required />
+    <input type="email" placeholder="Email" id="email" name="email" required />
+    <input type="text" placeholder="Telefone" id="telefone" name="telefone" required />
+    <input type="text" placeholder="CPF" id="cpf" name="cpf" required />
 
-          
-          <!-- Campo de número de parcelas (inicialmente escondido) -->
-          <div id="campo-parcelas" style="display: none;">
-            <input type="number" placeholder="Número de parcelas" id="parcelas" min="1" max="100" step="1" required />
-          </div>
-        <div id="infoValores"></div>
-        <div id="tabelaParcelas"></div>
-
-        <br /><br />
-        <div class="campo-anexo">
-          <label for="anexos">📎 Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
-
-          <div class="upload-wrapper">
-            <input type="file" id="anexos" name="anexos" multiple
-              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv" />
-            <label for="anexos" class="upload-label">📁 Escolher arquivos</label>
-            <span id="nomeArquivos">Nenhum arquivo selecionado</span>
-          </div>
-        </div>
-
-        <br /><br />
-        <button type="submit">Cadastrar</button>
-      </form>
+    <div class="campo-cep">
+      <input type="text" placeholder="CEP" id="cep" name="cep" required maxlength="9" />
+      <button type="button" id="consultarCep">Consultar</button>
     </div>
+
+    <input type="text" placeholder="Endereço" id="endereco" name="endereco" required />
+    <input type="text" placeholder="Número" id="numero" name="numero" required />
+    <input
+      type="text"
+      placeholder="Complemento (Ex: ' Apto ', ' Bloco ', ' Casa ')"
+      id="complemento"
+      name="complemento"
+    />
+    <input type="text" placeholder="Cidade" id="cidade" name="cidade" required />
+    <input type="text" placeholder="Estado" id="estado" name="estado" required maxlength="2" />
+
+    <input
+      type="text"
+      placeholder="Valor do empréstimo"
+      id="valor"
+      name="valor"
+      required
+      maxlength="15"
+    />
+
+    <!-- Nova seção de opções de parcelamento -->
+    <div class="campo-parcelamento">
+      <label class="titulo-parcelamento">Tipo de Parcelamento:</label>
+      <div class="opcoes-parcelamento">
+        <label class="opcao-radio">
+          <input type="radio" name="tipoParcelamento" value="mes-a-mes" checked />
+          <span>Pagamento do juros mês a mês</span>
+        </label>
+        <label class="opcao-radio">
+          <input type="radio" name="tipoParcelamento" value="parcelado" />
+          <span>Parcelado</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Campo de número de parcelas (inicialmente escondido) -->
+    <div id="campo-parcelas" style="display: none;">
+      <input
+        type="number"
+        placeholder="Número de parcelas"
+        id="parcelas"
+        name="parcelas"
+        min="1"
+        max="100"
+        step="1"
+        required
+      />
+    </div>
+
+    <div id="infoValores"></div>
+    <div id="tabelaParcelas"></div>
+
+    <br /><br />
+    <div class="campo-anexo">
+      <label for="anexos">📎 Anexar arquivos (PDF, PNG, DOCX, etc.):</label>
+
+      <div class="upload-wrapper">
+        <input
+          type="file"
+          id="anexos"
+          name="anexos"
+          multiple
+          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        />
+        <label for="anexos" class="upload-label">📁 Escolher arquivos</label>
+        <span id="nomeArquivos">Nenhum arquivo selecionado</span>
+      </div>
+    </div>
+
+    <br /><br />
+    <button type="submit">Cadastrar</button>
+  </form>
+</div>
+
 
     <br /><br />
 

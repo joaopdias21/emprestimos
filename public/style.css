@@ -218,78 +218,42 @@ h3 {
 
 .alerta-custom {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
+  color: white;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 18px 18px;
-  color: #fff;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
-  z-index: 9999;
-  max-width: 90%;
-  width: fit-content;
-  backdrop-filter: blur(10px);
-  transform: translateX(120%);
+  gap: 8px;
   opacity: 0;
-  transition: all 0.4s ease;
-  overflow: hidden;
+  transform: translateY(20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  z-index: 9999;
+  pointer-events: none;
 }
 
-/* Quando aparece */
 .alerta-custom.show {
-  transform: translateX(0);
   opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
 }
 
-/* Ícone */
-.alerta-custom span {
-  font-size: 20px;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
-}
-
-/* Barra de progresso */
-.alerta-progresso {
+.alerta-custom .alerta-progresso {
   position: absolute;
   bottom: 0;
   left: 0;
   height: 4px;
+  background: rgba(255,255,255,0.7);
   width: 100%;
-  background: rgba(255, 255, 255, 0.4);
-  transform-origin: left;
-  transform: scaleX(0);
-}
-
-/* Animação da barra */
-.alerta-custom.show .alerta-progresso {
   animation: barraProgresso 3s linear forwards;
 }
 
 @keyframes barraProgresso {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-
-/* Responsivo */
-@media (max-width: 600px) {
-  .alerta-custom {
-    top: 15px;
-    right: 50%;
-    transform: translate(50%, -100%);
-    text-align: center;
-    justify-content: center;
-  }
-
-  .alerta-custom.show {
-    transform: translate(50%, 0);
-  }
+  from { width: 100%; }
+  to { width: 0%; }
 }
 
 
@@ -3105,3 +3069,39 @@ input[type="date"] {
 }
 
 
+.lista-solicitacoes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.solicitacao-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.solicitacao-card p {
+  margin: 4px 0;
+}
+
+.solicitacao-card button {
+  margin-right: 8px;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.solicitacao-card button.aprovar {
+  background: #28a745;
+  color: #fff;
+}
+
+.solicitacao-card button.rejeitar {
+  background: #dc3545;
+  color: #fff;
+}
