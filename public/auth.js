@@ -79,6 +79,8 @@ if (isAdmin) {
       }
 
 
+const rejeitadasResp = await fetch(`${URL_SERVICO}/solicitacoes-rejeitadas`);
+const rejeitadas = await rejeitadasResp.json();
 
 solicitacoes.forEach(sol => {
   const div = document.createElement("div");
@@ -86,15 +88,19 @@ solicitacoes.forEach(sol => {
   div.style.flex = "0 0 auto";    // força o card a respeitar a largura
   div.style.width = "250px";      // largura do card
    div.style.cursor = "pointer";
-   
+   const jaRejeitado = rejeitadas.some(r => r.cpf === sol.cpf);
+
  const valorNumerico = parseFloat(
     sol.valor.replace(/[^\d,]/g, '').replace(',', '.')
   ) || 0;
 
   const taxaJuros = sol.taxaJuros !== undefined ? sol.taxaJuros : 20; // pega do backend ou usa 20% padrão
   const valorJuros = valorNumerico * (taxaJuros / 100);
+  
 
    div.innerHTML = `
+   ${jaRejeitado ? `<p class="aviso-rejeitado" style="color:#e53935;"><strong>⚠️ Já teve empréstimo rejeitado!</strong></p>` : ''}
+
     <p><strong>${sol.nome || "Sem nome"}</strong></p>
     <p><strong>Valor:</strong> ${sol.valor || "—"}</p>
     <p><strong>Taxa de juros:</strong> ${taxaJuros}%</p>

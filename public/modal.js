@@ -781,7 +781,7 @@ const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
 
 
 
-export function abrirModalSolicitacao(solicitacao) {
+export async function abrirModalSolicitacao(solicitacao) {
   const modal = document.getElementById('modalSolicitacao');
   const corpo = document.getElementById('corpoModalSolicitacao');
 
@@ -797,29 +797,75 @@ export function abrirModalSolicitacao(solicitacao) {
   const taxaJuros = solicitacao.taxaJuros ?? 20;
   const valorJuros = valorNumerico * (taxaJuros / 100);
 
-  corpo.innerHTML = `
-    <h3>📄 Detalhes da Solicitação</h3>
-    <div class="grid-detalhes break-lines" style="display:grid; gap:8px; margin-bottom:10px;">
-      <div><strong>Nome:</strong> ${solicitacao.nome}</div>
-      <div><strong>Email:</strong> ${solicitacao.email}</div>
-      <div><strong>Telefone:</strong> ${solicitacao.telefone}</div>
-      <div><strong>CPF:</strong> ${solicitacao.cpf}</div>
-      <div><strong>Endereço:</strong> ${solicitacao.endereco || ''}, ${solicitacao.numero || ''}${solicitacao.complemento ? ', ' + solicitacao.complemento : ''}</div>
-      <div><strong>Cidade:</strong> ${solicitacao.cidade || ''} - ${solicitacao.estado || ''}</div>
-      <div><strong>CEP:</strong> ${solicitacao.cep || ''}</div>
-      <div><strong>Valor:</strong> ${solicitacao.valor}</div>
-      <div><strong>Taxa de juros:</strong> ${solicitacao.taxaJuros || 20}%</div>
-      <div class="valor-item">
-        <span class="label">📈 Valor do juros:</span>
-        <span class="valor destaque">R$ ${valorJuros.toFixed(2)}</span>
-      </div>
+  // 🔹 Buscar se existe rejeição anterior
+let rejeitadoAnterior = null;
+try {
+  const resp = await fetch(`${URL_SERVICO}/solicitacoes-rejeitadas`);
+  const rejeicoes = await resp.json();
+  rejeitadoAnterior = rejeicoes.find(r => r.cpf === solicitacao.cpf);
+} catch (err) {
+  console.error("Erro ao buscar rejeições:", err);
+}
+
+
+corpo.innerHTML = `
+  <div class="grid-detalhes break-lines" style="display:grid; gap:8px; margin-bottom:10px;">
+
+  ${rejeitadoAnterior ? `
+    <div class="box-rejeitado" 
+        style="
+          width: 100%;
+          grid-column: 1 / -1;
+          border: 2px solid #e53935;
+          padding: 12px;
+          border-radius: 8px;
+          background: #ffebee;
+          margin-bottom: 12px;
+          box-sizing: border-box;
+        ">
+      <h3>⚠️ Histórico de Empréstimo Rejeitado</h3>
+      <p><strong>Nome:</strong> ${rejeitadoAnterior.nome}</p>
+      <p><strong>Valor:</strong> ${rejeitadoAnterior.valor}</p>
+      <p><strong>Taxa de juros:</strong> ${rejeitadoAnterior.taxaJuros}%</p>
+      <p><strong>Valor do juros:</strong> R$ ${rejeitadoAnterior.valorJuros.toFixed(2)}</p>
+      <p><em>Data da rejeição:</em> ${new Date(rejeitadoAnterior.dataRejeicao).toLocaleDateString()}</p>
     </div>
-    <div class="botoes" style="display:flex; gap:8px; margin-bottom:8px;">
-      <button id="btnAprovarModal" data-id="${solicitacao._id}" style="flex:1; background:#4caf50; color:white; padding:8px; border:none; border-radius:5px;">Aprovar</button>
-      <button id="btnRejeitarModal" data-id="${solicitacao._id}" style="flex:1; background:#e53935; color:white; padding:8px; border:none; border-radius:5px;">Rejeitar</button>
-    </div>
-    <button id="btnFecharModal" style="width:100%; padding:8px; border:none; border-radius:5px; background: #007bff; color:white; cursor:pointer;">Fechar</button>
-  `;
+  ` : ''}
+
+  <h3 style="
+    width: 100%;
+    grid-column: 1 / -1;
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #007bff;
+    color: #333;
+    display: block;
+  ">📄 Detalhes da Solicitação</h3>
+
+  <div><strong>Nome:</strong> ${solicitacao.nome}</div>
+  <div><strong>Email:</strong> ${solicitacao.email}</div>
+  <div><strong>Telefone:</strong> ${solicitacao.telefone}</div>
+  <div><strong>CPF:</strong> ${solicitacao.cpf}</div>
+  <div><strong>Endereço:</strong> ${solicitacao.endereco || ''}, ${solicitacao.numero || ''}${solicitacao.complemento ? ', ' + solicitacao.complemento : ''}</div>
+  <div><strong>Cidade:</strong> ${solicitacao.cidade || ''} - ${solicitacao.estado || ''}</div>
+  <div><strong>CEP:</strong> ${solicitacao.cep || ''}</div>
+  <div><strong>Valor:</strong> ${solicitacao.valor}</div>
+  <div><strong>Taxa de juros:</strong> ${solicitacao.taxaJuros || 20}%</div>
+  <div class="valor-item">
+    <span class="label">📈 Valor do juros:</span>
+    <span class="valor destaque">R$ ${valorJuros.toFixed(2)}</span>
+  </div>
+  </div>
+
+  <div class="botoes" style="display:flex; gap:8px; margin-bottom:8px;">
+    <button id="btnAprovarModal" data-id="${solicitacao._id}" style="flex:1; background:#4caf50; color:white; padding:8px; border:none; border-radius:5px;">Aprovar</button>
+    <button id="btnRejeitarModal" data-id="${solicitacao._id}" style="flex:1; background:#e53935; color:white; padding:8px; border:none; border-radius:5px;">Rejeitar</button>
+  </div>
+
+  <button id="btnFecharModal" style="width:100%; padding:8px; border:none; border-radius:5px; background:#007bff; color:white; cursor:pointer;">Fechar</button>
+`;
+
 
   // mostrar modal
   modal.style.display = 'flex';

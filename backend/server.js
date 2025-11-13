@@ -280,6 +280,18 @@ const SolicitacaoEmprestimoSchema = new mongoose.Schema({
 
 const SolicitacaoEmprestimo = mongoose.model('SolicitacaoEmprestimo', SolicitacaoEmprestimoSchema);
 
+/* --------------------- SCHEMA DE REJEIÇÕES --------------------- */
+const SolicitacaoRejeitadaSchema = new mongoose.Schema({
+  nome: String,
+  cpf: String,
+  valor: String,
+  taxaJuros: Number,
+  valorJuros: Number,
+  dataRejeicao: { type: Date, default: Date.now }
+});
+
+const SolicitacaoRejeitada = mongoose.model('SolicitacaoRejeitada', SolicitacaoRejeitadaSchema);
+
 
 
 /* -------------------- FUNÇÕES AUXILIARES ------------------ */
@@ -370,11 +382,25 @@ app.post('/solicitacoes/:id/acao', async (req, res) => {
     }
 
     // Caso seja rejeição
-    if (acao === "rejeitar") {
-      solicitacao.status = "rejeitado";
-      await solicitacao.save();
-      return res.json({ mensagem: "Solicitação rejeitada" });
-    }
+   if (acao === "rejeitar") {
+  solicitacao.status = "rejeitado";
+  await solicitacao.save();
+
+  const valorNumerico = parseFloat(solicitacao.valor.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  const taxaJuros = solicitacao.taxaJuros ?? 20;
+  const valorJuros = valorNumerico * (taxaJuros / 100);
+
+  // 🔹 Salva dados essenciais da rejeição
+  await SolicitacaoRejeitada.create({
+    nome: solicitacao.nome,
+    cpf: solicitacao.cpf,
+    valor: solicitacao.valor,
+    taxaJuros,
+    valorJuros
+  });
+
+  return res.json({ mensagem: "Solicitação rejeitada e registrada no histórico" });
+}
 
     // =============== APROVAÇÃO ===================
 // Se for aprovar → cria o empréstimo
@@ -452,6 +478,15 @@ const novoEmprestimo = await Emprestimo.create({
   }
 });
 
+app.get('/solicitacoes-rejeitadas', async (req, res) => {
+  try {
+    const rejeitadas = await SolicitacaoRejeitada.find().sort({ dataRejeicao: -1 });
+    res.json(rejeitadas);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ erro: "Erro ao listar solicitações rejeitadas" });
+  }
+});
 
 
 
