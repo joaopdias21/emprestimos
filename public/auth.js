@@ -1,6 +1,6 @@
 import { URL_SERVICO } from './config.js';
 import { mostrarAlerta, mostrarAlertaError, formatarMoeda, mostrarAlertaWarning } from './utils.js';
-
+import { abrirModalSolicitacao } from './modal.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = localStorage.getItem("isAdmin") === "true";
@@ -49,8 +49,8 @@ if (isAdmin) {
     .separadorGraficos,
     .separadorMensais,
     .separadorDataDeVencimento,
-    .separadorSolicitacoes,
-    #listaSolicitacoes
+    .separadorSolicitacoes
+
   `).forEach(el => {
     el.style.display = el.classList.contains("separador") ? "flex" : "block";
   });
@@ -78,21 +78,43 @@ if (isAdmin) {
         return;
       }
 
-      // montar cada solicitação
-      solicitacoes.forEach(sol => {
-        const div = document.createElement("div");
-        div.className = "solicitacao-card";
-        div.innerHTML = `
-          <p><strong>${sol.nome || "Sem nome"}</strong> — ${sol.email || "Sem e-mail"}</p>
-          <p>Valor: ${sol.valor || "—"} | Parcelas: ${sol.parcelas || "—"}</p>
-          <p>Tipo: ${sol.tipoParcelamento || "—"}</p>
-          <p>Status: <strong>${sol.status}</strong></p>
-          <button class="aprovar" data-id="${sol._id}">Aprovar</button>
-          <button class="rejeitar" data-id="${sol._id}">Rejeitar</button>
 
-        `;
-        container.appendChild(div);
-      });
+
+solicitacoes.forEach(sol => {
+  const div = document.createElement("div");
+  div.className = "solicitacao-card";
+  div.style.flex = "0 0 auto";    // força o card a respeitar a largura
+  div.style.width = "250px";      // largura do card
+   div.style.cursor = "pointer";
+   
+ const valorNumerico = parseFloat(
+    sol.valor.replace(/[^\d,]/g, '').replace(',', '.')
+  ) || 0;
+
+  const taxaJuros = sol.taxaJuros !== undefined ? sol.taxaJuros : 20; // pega do backend ou usa 20% padrão
+  const valorJuros = valorNumerico * (taxaJuros / 100);
+
+   div.innerHTML = `
+    <p><strong>${sol.nome || "Sem nome"}</strong></p>
+    <p><strong>Valor:</strong> ${sol.valor || "—"}</p>
+    <p><strong>Taxa de juros:</strong> ${taxaJuros}%</p>
+    <p><strong>Valor do juros:</strong> R$ ${valorJuros.toFixed(2)}</p>
+    <p><strong>Endereço:</strong> ${sol.endereco || ""}, ${sol.numero || ""}${sol.complemento ? ", " + sol.complemento : ""}, ${sol.cidade || ""} - ${sol.estado || ""}</p>
+    <div class="botoes">
+      <button class="aprovar" data-id="${sol._id}">Aprovar</button>
+      <button class="rejeitar" data-id="${sol._id}">Rejeitar</button>
+    </div>
+
+  `;
+
+  container.appendChild(div);
+
+  // abre modal ao clicar no card (exceto nos botões)
+  div.addEventListener('click', e => {
+    if(e.target.tagName.toLowerCase() === 'button') return;
+    abrirModalSolicitacao(sol);
+  });
+});
 
       // ações dos botões
       container.querySelectorAll(".aprovar").forEach(btn => {

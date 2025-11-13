@@ -781,6 +781,81 @@ const parcelasComExcedenteHTML = parcelasComExcedente.map(p => {
 
 
 
+export function abrirModalSolicitacao(solicitacao) {
+  const modal = document.getElementById('modalSolicitacao');
+  const corpo = document.getElementById('corpoModalSolicitacao');
+
+  if (!modal || !corpo) {
+    console.error("Modal ou corpo não encontrado no DOM");
+    return;
+  }
+
+  const valorNumerico = parseFloat(
+    solicitacao.valor.replace(/[^\d,]/g, '').replace(',', '.')
+  ) || 0;
+
+  const taxaJuros = solicitacao.taxaJuros ?? 20;
+  const valorJuros = valorNumerico * (taxaJuros / 100);
+
+  corpo.innerHTML = `
+    <h3>📄 Detalhes da Solicitação</h3>
+    <div class="grid-detalhes break-lines" style="display:grid; gap:8px; margin-bottom:10px;">
+      <div><strong>Nome:</strong> ${solicitacao.nome}</div>
+      <div><strong>Email:</strong> ${solicitacao.email}</div>
+      <div><strong>Telefone:</strong> ${solicitacao.telefone}</div>
+      <div><strong>CPF:</strong> ${solicitacao.cpf}</div>
+      <div><strong>Endereço:</strong> ${solicitacao.endereco || ''}, ${solicitacao.numero || ''}${solicitacao.complemento ? ', ' + solicitacao.complemento : ''}</div>
+      <div><strong>Cidade:</strong> ${solicitacao.cidade || ''} - ${solicitacao.estado || ''}</div>
+      <div><strong>CEP:</strong> ${solicitacao.cep || ''}</div>
+      <div><strong>Valor:</strong> ${solicitacao.valor}</div>
+      <div><strong>Taxa de juros:</strong> ${solicitacao.taxaJuros || 20}%</div>
+      <div class="valor-item">
+        <span class="label">📈 Valor do juros:</span>
+        <span class="valor destaque">R$ ${valorJuros.toFixed(2)}</span>
+      </div>
+    </div>
+    <div class="botoes" style="display:flex; gap:8px; margin-bottom:8px;">
+      <button id="btnAprovarModal" data-id="${solicitacao._id}" style="flex:1; background:#4caf50; color:white; padding:8px; border:none; border-radius:5px;">Aprovar</button>
+      <button id="btnRejeitarModal" data-id="${solicitacao._id}" style="flex:1; background:#e53935; color:white; padding:8px; border:none; border-radius:5px;">Rejeitar</button>
+    </div>
+    <button id="btnFecharModal" style="width:100%; padding:8px; border:none; border-radius:5px; background: #007bff; color:white; cursor:pointer;">Fechar</button>
+  `;
+
+  // mostrar modal
+  modal.style.display = 'flex';
+
+  // fechar modal
+  document.getElementById('btnFecharModal').onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  // aprovar
+  document.getElementById('btnAprovarModal').onclick = async () => {
+    await fetch(`${URL_SERVICO}/solicitacoes/${solicitacao._id}/acao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acao: "aprovar" })
+    });
+    mostrarAlerta("Solicitação aprovada!");
+    modal.style.display = 'none';
+    carregarSolicitacoes();
+  };
+
+  // rejeitar
+  document.getElementById('btnRejeitarModal').onclick = async () => {
+    await fetch(`${URL_SERVICO}/solicitacoes/${solicitacao._id}/acao`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acao: "rejeitar" })
+    });
+    mostrarAlerta("Solicitação rejeitada com sucesso!");
+    modal.style.display = 'none';
+    carregarSolicitacoes();
+  };
+}
+
+
+
 export async function abrirModal(emprestimo) {
   scrollPos = window.scrollY || document.documentElement.scrollTop;
   document.body.classList.add('modal-aberto');

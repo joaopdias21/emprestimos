@@ -216,30 +216,35 @@ h3 {
 
 
 
-.alerta-custom {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  color: white;
-  padding: 14px 20px;
-  border-radius: 12px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+#alertaCustom {
+  position: fixed;      /* fixa na tela */
+  top: 70px;            /* distância do topo */
+  right: 45px;          /* distância da direita */
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 9999;        /* acima de tudo */
   opacity: 0;
-  transform: translateY(20px);
   transition: opacity 0.3s ease, transform 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-  z-index: 9999;
-  pointer-events: none;
 }
 
-.alerta-custom.show {
+@media (max-width: 480px) {
+  #alertaCustom {
+  top: 70px;
+  right: 15px;          /* distância da direita */
+
+  }
+}
+
+/* Quando a classe 'show' é adicionada */
+#alertaCustom.show {
   opacity: 1;
   transform: translateY(0);
-  pointer-events: all;
 }
+
 
 .alerta-custom .alerta-progresso {
   position: absolute;
@@ -3071,29 +3076,49 @@ input[type="date"] {
 
 .lista-solicitacoes {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-wrap: wrap;        /* permite quebrar linha quando não couber */
+  gap: 16px;              /* espaço entre os cards */
   margin-top: 10px;
+  justify-content: flex-start;
 }
 
 .solicitacao-card {
   background: #fff;
   border: 1px solid #ddd;
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 16px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  width: 280px;           /* largura fixa para cada card */
+  flex: 0 0 auto;         /* impede que encolha ou cresça */
+  box-sizing: border-box;  /* inclui padding e border na largura */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 .solicitacao-card p {
-  margin: 4px 0;
+  margin: 6px 0;
+  word-wrap: break-word;      /* quebra palavras longas */
+  overflow-wrap: break-word;
+}
+
+.solicitacao-card p strong {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;    /* mostra "..." se o nome for muito grande */
+  vertical-align: middle;
 }
 
 .solicitacao-card button {
   margin-right: 8px;
+  margin-top: 12px;
   border: none;
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   cursor: pointer;
+  font-weight: bold;
 }
 
 .solicitacao-card button.aprovar {
@@ -3104,4 +3129,25 @@ input[type="date"] {
 .solicitacao-card button.rejeitar {
   background: #dc3545;
   color: #fff;
+}
+
+.solicitacao-card .botoes {
+  display: flex;            /* coloca os botões em linha */
+  justify-content: flex-start; /* alinha à esquerda */
+  gap: 8px;                 /* espaço entre os botões */
+  margin-top: 12px;         /* distância do conteúdo acima */
+}
+
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .solicitacao-card {
+    width: 45%;  /* 2 cards por linha em tablet */
+  }
+}
+
+@media (max-width: 480px) {
+  .solicitacao-card {
+    width: 100%; /* 1 card por linha no mobile */
+  }
 }

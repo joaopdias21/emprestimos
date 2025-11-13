@@ -202,27 +202,22 @@ form.addEventListener('submit', async (e) => {
     // --- SE NÃO ESTIVER LOGADO ---
     console.log("🟠 Usuário NÃO logado — enviando solicitação para aprovação...");
 
-    try {
-      mostrarAlertaWarning("Seu pedido será enviado como solicitação para aprovação do administrador.");
-      console.log("⚠️ Função mostrarAlertaWarning foi chamada!");
+try {
+  const resp = await fetch(`${URL_SERVICO}/solicitacoes`, { method: 'POST', body: formData });
+  const data = await resp.json();
 
-      const resp = await fetch(`${URL_SERVICO}/solicitacoes`, { method: 'POST', body: formData });
-      const data = await resp.json();
+  if (resp.ok) {
+    mostrarAlerta("✅ Solicitação enviada! Aguarde a análise do administrador.");
+    form.reset();
+    atualizarCampoParcelas();
+  } else {
+    mostrarAlertaError("Erro: " + (data.erro || "Falha ao enviar solicitação."));
+  }
 
-      console.log("📥 Resposta do servidor (solicitação):", data);
+} catch (err) {
+  mostrarAlertaError("Erro ao enviar solicitação: " + err.message);
+}
 
-      if (resp.ok) {
-        mostrarAlerta("✅ Solicitação enviada! Aguarde a análise do administrador.");
-        form.reset();
-        atualizarCampoParcelas();
-      } else {
-        mostrarAlertaError("Erro: " + (data.erro || "Falha ao enviar solicitação."));
-      }
-
-    } catch (err) {
-      console.error("❌ Erro ao enviar solicitação:", err);
-      mostrarAlertaError("Erro ao enviar solicitação: " + err.message);
-    }
   }
 });
 
