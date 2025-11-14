@@ -17,18 +17,6 @@
 
 
   </style> -->
-
-  <!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#000000">
-
-<!-- Icones do PWA (mesmo que o favicon) -->
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
-<link rel="apple-touch-icon" href="./icons/icon-512.png">
-
-<!-- Forçar modo standalone no iOS -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 
 <body>
@@ -743,17 +731,6 @@ window.addEventListener('load', () => {
   100% { transform: rotate(360deg); }
 }
 </style>
-
-
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/service-worker.js")
-        .then(reg => console.log("✅ Service Worker registrado"))
-        .catch(err => console.error("Erro ao registrar SW:", err));
-    });
-  }
-</script>
 
 <div id="alertaCustom" class="alerta-custom">
   <div class="alerta-progresso"></div>

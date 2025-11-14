@@ -26,12 +26,6 @@ if (!fs.existsSync(uploadDir)) {
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // aumenta limite do JSON
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // aumenta limite de forms
-// ✅ Servir a pasta public como frontend
-app.use(express.static(path.join(__dirname, "../public")));
-// ✅ Forçar carregamento do index.html no acesso raiz
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
-});
 
 
 // Middleware para servir arquivos estáticos da pasta uploads
@@ -359,7 +353,7 @@ const novaSolicitacao = await SolicitacaoEmprestimo.create({
 
 
 app.get('/solicitacoes', async (req, res) => {
-  console.log("Body recebido:", req.body);
+
 
   try {
     const pendentes = await SolicitacaoEmprestimo.find({ status: "pendente" }).sort({ dataEnvio: -1 });
